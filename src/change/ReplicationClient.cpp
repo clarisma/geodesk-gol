@@ -58,6 +58,9 @@ void ReplicationClient::fetch(uint32_t revision, std::vector<std::byte>& data)
     char* p = formatRevisionPath(path, revision);
     strcpy(p, ".osc.gz");   // NOLINT safe
 
+    // TODO: Implement for Linux; disabled for now
+
+    /*
     HttpResponse response = get(path);
     int status = response.status();
     if (status != 200) [[unlikely]]
@@ -69,6 +72,7 @@ void ReplicationClient::fetch(uint32_t revision, std::vector<std::byte>& data)
         throw HttpException("Server returned error %d", status);
     }
     response.readUnzippedGzip(data);
+    */
 }
 
 ReplicationClient::State ReplicationClient::fetchState(uint32_t revision)
