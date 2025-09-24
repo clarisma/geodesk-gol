@@ -1,0 +1,250 @@
+name: Release RC builds (zip + promote to final)
+
+on:
+  push:
+    tags:
+      - "v*-rc.*"           # e.g. v1.2.0-rc.1
+
+permissions:
+  contents: write          # needed to push tag & create release
+  actions: read
+
+env:
+  # Name of the executable to be shipped
+  EXE_NAME: gol
+
+jobs:
+  build:
+    name: Build & package (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: win
+
+          # Disable macos for now
+          # - os: macos-latest
+          #  platform: macos
+
+    steps:
+      - name: Derive VERSION from tag
+        id: ver
+        shell: bash
+        run: |
+          # GITHUB_REF_NAME is like: v1.2.3-rc.4
+          TAG="${GITHUB_REF_NAME}"
+          # Strip leading 'v', then cut at first '-' to drop the rc suffix
+          VERSION="${TAG#v}"
+          VERSION="${VERSION%%-*}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Ninja (Linux/macOS)
+        if: matrix.platform != 'win'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure (CMake)
+        shell: bash
+        run: |
+          cmake -S . -B build $([[ "${{ matrix.platform }}" == "macos" ]] && \
+            echo '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64') \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGOL_DIAGNOSTICS:BOOL=OFF \
+            -DGOL_EXPERIMENTAL:BOOL=OFF
+
+      - name: Build (CMake)
+        shell: bash
+        run: |
+          cmake --build build --config Release --parallel -j2
+          
+      - name: Locate built executable
+        id: findexe
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXE_NAME="${EXE_NAME}"
+          PLATFORM="${{ matrix.platform }}"
+          BIN=""
+
+          if [[ "$PLATFORM" == "win" ]]; then
+            # Common Visual Studio outdir
+            CANDIDATES=(
+              "build/Release/${EXE_NAME}.exe"
+              "build/${EXE_NAME}.exe"
+            )
+          else
+            CANDIDATES=(
+              "build/${EXE_NAME}"
+              "build/bin/${EXE_NAME}"
+              "build/${EXE_NAME}.app/Contents/MacOS/${EXE_NAME}"
+            )
+          fi
+
+          for f in "${CANDIDATES[@]}"; do
+            if [[ -f "$f" ]]; then BIN="$f"; break; fi
+          done
+
+          if [[ -z "$BIN" ]]; then
+            # Fallback: search (first hit)
+            if [[ "$PLATFORM" == "win" ]]; then
+              BIN="$(find build -type f -name "${EXE_NAME}.exe" | head -n1 || true)"
+            else
+              BIN="$(find build -type f -perm -u+x -name "${EXE_NAME}" | head -n1 || true)"
+              # If it's a bundle, extract real binary
+              if [[ -z "$BIN" ]]; then
+                BIN="$(find build -type f -path "*${EXE_NAME}.app/Contents/MacOS/${EXE_NAME}" | head -n1 || true)"
+              fi
+            fi
+          fi
+
+          if [[ -z "$BIN" || ! -f "$BIN" ]]; then
+            echo "Executable ${EXE_NAME} not found." >&2
+            exit 1
+          fi
+
+          echo "bin=$BIN" >> "$GITHUB_OUTPUT"
+
+      - name: Verify macOS binary is universal (fat)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          file "${{ steps.findexe.outputs.bin }}"
+          # Expect both arm64 and x86_64; the CMAKE_OSX_ARCHITECTURES setting
+          # should have produced a universal Mach-O
+          if ! file "${{ steps.findexe.outputs.bin }}" | grep -qE 'universal binary|Mach-O.*\(arm64|x86_64\)'; then
+            echo "Binary is not universal (fat)!" >&2
+            exit 1
+          fi
+
+      - name: Stage files for zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/stage
+          # Copy executable; name it plainly (no subfolders)
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+            cp "${{ steps.findexe.outputs.bin }}" "dist/stage/${EXE_NAME}.exe"
+          else
+            cp "${{ steps.findexe.outputs.bin }}" "dist/stage/${EXE_NAME}"
+            chmod +x "dist/stage/${EXE_NAME}"
+          fi
+          # Copy license & readme to root of zip
+          cp doc/LICENSE.txt dist/stage/
+          cp doc/README.txt dist/stage/
+
+      - name: Create zip
+        id: makezip
+        shell: bash
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          PLATFORM="${{ matrix.platform }}"
+          OUT="gol-${VERSION}-${PLATFORM}.zip"
+          (
+            cd dist/stage
+            # Use platform-specific zippers to avoid surprises
+            if [[ "$PLATFORM" == "win" ]]; then
+              # Rely on PowerShell Compress-Archive for Windows zip creation
+              pwsh -NoProfile -Command 'Compress-Archive -Path * -DestinationPath "../'"$OUT"'" -Force'
+            else
+              # -q quiet, -r recurse, -X omit extra file attrs
+              zip -q -r -X "../$OUT" *
+            fi
+          )
+          echo "zip_name=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.makezip.outputs.zip_name }}
+          path: dist/${{ steps.makezip.outputs.zip_name }}
+          if-no-files-found: error
+
+  release:
+    name: Create tag v${{ needs.build.outputs.version }} & publish release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Derive VERSION from tag
+        id: ver
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"       # e.g. v1.2.0-rc.1
+          VERSION="${TAG#v}"
+          VERSION="${VERSION%%-*}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository (for release notes)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Download all three named zips into ./release-assets
+          pattern: "*"
+          path: release-assets
+          merge-multiple: true
+
+      - name: List assets
+        run: |
+          echo "Assets downloaded:"
+          ls -l release-assets
+
+      - name: Create and push final tag v${{ steps.ver.outputs.version }}
+        env:
+          GIT_AUTHOR_NAME: github-actions
+          GIT_AUTHOR_EMAIL: github-actions@github.com
+          GIT_COMMITTER_NAME: github-actions
+          GIT_COMMITTER_EMAIL: github-actions@github.com
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          FINAL_TAG="v${VERSION}"
+
+          if git rev-parse -q --verify "refs/tags/${FINAL_TAG}" >/dev/null; then
+            echo "Tag ${FINAL_TAG} already exists; skipping tag creation."
+          else
+            git tag "${FINAL_TAG}" "${GITHUB_SHA}"
+            git push origin "${FINAL_TAG}"
+          fi
+
+      - name: Create GitHub Release v${{ steps.ver.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          FINAL_TAG="v${VERSION}"
+          NOTES_FILE="doc/releases/v${VERSION}.md"
+
+          if gh release view "${FINAL_TAG}" >/dev/null 2>&1; then
+            echo "Release ${FINAL_TAG} already exists; updating assets/notes..."
+            gh release edit "${FINAL_TAG}" --notes-file "${NOTES_FILE}"
+          else
+            gh release create "${FINAL_TAG}" \
+              --title "Version ${VERSION}" \
+              --notes-file "${NOTES_FILE}" \
+              --target "${GITHUB_SHA}"
+          fi
+
+          # Upload assets
+          shopt -s nullglob
+          ASSETS=(release-assets/*.zip)
+          if (( ${#ASSETS[@]} == 0 )); then
+            echo "No assets found to upload!" >&2
+            exit 1
+          fi
+          gh release upload "${FINAL_TAG}" "${ASSETS[@]}" --clobber

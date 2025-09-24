@@ -1,0 +1,92 @@
+// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#pragma once
+#include <filesystem>
+#include <clarisma/cli/Console.h>
+#include <clarisma/store/PileFile.h>
+#include "osm/OsmPbfMetadata.h"
+
+#include "build/analyze/OsmStatistics.h"
+#include "build/util/BuildSettings.h"
+#include "build/util/MappedIndex.h"
+#include "build/util/StringCatalog.h"
+#include "build/util/TileCatalog.h"
+
+// TODO: Use plain strings instead of std::filesystem::path?
+
+// TODO: Consider renaming to simply "Builder"? --> No, ambiguous
+
+class GolBuilder
+{
+public:
+	GolBuilder();
+
+	enum Phase { ANALYZE, SORT, VALIDATE, COMPILE };
+
+	#ifdef GEODESK_PYTHON
+	static PyObject* build(PyObject* args, PyObject* kwds);
+	int setOptions(PyObject* dict)
+	{
+		return settings_.setOptions(dict);
+	}
+	#endif
+
+	// void build(const char* golPath, int startPhase = COMPILE); //  = ANALYZE); TODO
+	void build(const char* golPath, int startPhase = ANALYZE);
+	// void build(const char* golPath, int startPhase = VALIDATE);
+	Console& console() { return *Console::get(); }
+	const BuildSettings& settings() const { return settings_; }
+	BuildSettings& settings() { return settings_; }
+	int threadCount() const { return threadCount_; }
+	const StringCatalog& stringCatalog() const { return stringCatalog_; }
+	const TileCatalog& tileCatalog() const { return tileCatalog_; }
+	const OsmPbfMetadata& metadata() const { return metadata_; }
+	bool isDebug() const noexcept { return debug_; }
+	MappedIndex& featureIndex(int index) 
+	{ 
+		assert(index >= 0 && index <= 2);
+		return featureIndexes_[index]; 
+	}
+	PileFile& featurePiles() { return featurePiles_; }
+	double phaseWork(int phase) const { return workPerPhase_[phase]; }
+	void progress(double work)
+	{
+		workCompleted_ += work;
+		console().setProgress(static_cast<int>(workCompleted_));
+	}
+
+	std::filesystem::path golPath() const noexcept { return golPath_; }
+	std::filesystem::path workPath() const noexcept { return workPath_; }
+
+	std::unique_ptr<uint32_t[]> takeTileIndex() { return std::move(tileIndex_); }
+
+private:
+	void analyze(bool full);
+	void prepare();
+	void sort();
+	void validate();
+	void compile();
+
+	void calculateWork();
+	void createIndex(MappedIndex& index, const char* name, int64_t maxId, int extraBits);
+	void finalizeIndexes();
+
+	BuildSettings settings_;
+	std::filesystem::path golPath_;
+	std::filesystem::path workPath_;
+	std::filesystem::path indexPath_;
+	StringCatalog stringCatalog_;
+	TileCatalog tileCatalog_;
+	std::unique_ptr<uint32_t[]> tileIndex_;
+	std::unique_ptr<const uint32_t[]> tileSizeEstimates_;
+	MappedIndex featureIndexes_[3];
+	std::thread indexFinalizerThread_;
+	PileFile featurePiles_;
+	OsmStatistics stats_;
+	int threadCount_;
+	double workPerPhase_[4];
+	double workCompleted_;
+	bool debug_ = true;
+	OsmPbfMetadata metadata_;
+};
