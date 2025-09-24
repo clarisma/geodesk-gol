@@ -25,10 +25,8 @@ jobs:
             platform: linux
           - os: windows-latest
             platform: win
-
-          # Disable macos for now
-          # - os: macos-latest
-          #  platform: macos
+          - os: macos-latest
+            platform: macos
 
     steps:
       - name: Derive VERSION from tag
