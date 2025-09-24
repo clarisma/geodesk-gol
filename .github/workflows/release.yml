@@ -47,9 +47,15 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install Ninja (Linux/macOS)
-        if: matrix.platform != 'win'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
 
       - name: Configure (CMake)
         shell: bash
@@ -63,7 +69,7 @@ jobs:
       - name: Build (CMake)
         shell: bash
         run: |
-          cmake --build build --config Release --parallel -j2
+          cmake --build build --config Release --target gol --parallel -j2
           
       - name: Locate built executable
         id: findexe
