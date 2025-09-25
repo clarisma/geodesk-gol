@@ -25,10 +25,10 @@ Extract the boundary of Paris as GeoJSON:
 gol query france a[boundary=administrative][admin_level=6][name=Paris] > paris.geojson
 ```
 
-Display the museums and parks of Paris on a map:
+Display the museums of Paris on a map:
 
 ```
-gol map france red: na[tourism=museum] green: a[leisure=park] -a paris.geojson
+gol map france red: na[tourism=museum] -a paris.geojson
 ```
 
 Get the names and phone numbers of all restaurants in France:

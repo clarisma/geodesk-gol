@@ -869,7 +869,19 @@ void Compiler::initStore()
 		FreeStore::OpenMode::CREATE | FreeStore::OpenMode::EXCLUSIVE);
 	transaction_.begin();
 	transaction_.setup(metadata);
+
+	// Take possession of the TileIndex
+	// The first word of the TI contains the number of TIPs
+	// (excluding this first slot); however, in the stored TI,
+	// the first word is the *payload size*
+
 	tileIndex_ = std::move(builder_->takeTileIndex());
+	FeatureStore::Header& header = transaction_.header();
+	uint32_t tipCount = tileIndex_[0];
+	uint32_t tileIndexSize = (tipCount + 1) * 4;
+	tileIndex_[0] = tileIndexSize - 4;
+	header.tipCount = tipCount;
+	header.tileIndexChecksum = Crc32C::compute(tileIndex_.get(), tileIndexSize);
 }
 
 #ifdef GOL_BUILD_STATS
@@ -907,13 +919,12 @@ void Compiler::compile()
 	FeatureStore::Header& header = transaction_.header();
 
 	// builder_->featurePiles().clear();
-	uint32_t tipCount = tileIndex_[0];
-	uint32_t tileIndexSize = (tipCount + 1) * 4;
-	tileIndex_[0] = tileIndexSize - 4;
+
+	// At this point, the first word is the payload size (tipCount * 4)
+	uint32_t tileIndexSize = tileIndex_[0] + 4;
 	header.snapshots[0].tileIndex = transaction_.addBlob(
 		{reinterpret_cast<uint8_t*>(tileIndex_.get()), tileIndexSize});
 	header.snapshots[0].tileCount = tileCount;
-	header.tipCount = tipCount;
 
 	transaction_.commit();
 	transaction_.end();
