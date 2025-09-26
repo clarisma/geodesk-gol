@@ -119,6 +119,31 @@ jobs:
 
           echo "bin=$BIN" >> "$GITHUB_OUTPUT"
 
+      - name: Install Inno Setup (Windows)
+        if: matrix.platform == 'win'
+        run: choco install innosetup -y
+
+      - name: Build Windows installer (Inno)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $Exe    = "${{ steps.findexe.outputs.bin }}"
+          $Ver    = "${{ steps.ver.outputs.version }}"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DMyAppVersion=$Ver" `
+            "/DAppExePath=$Exe" `
+            "/Odist" `
+            "/Fgol-$Ver-win-setup" `
+            "packaging/windows/gol.iss"
+
+      - name: Upload Windows installer
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gol-${{ steps.ver.outputs.version }}-win-setup.exe
+          path: dist/gol-${{ steps.ver.outputs.version }}-win-setup.exe
+          if-no-files-found: error
+
       - name: Verify macOS binary is universal (fat)
         if: matrix.platform == 'macos'
         shell: bash
