@@ -82,7 +82,7 @@ else()
     include(FetchContent)
     FetchContent_Declare(geodesk GIT_REPOSITORY
             https://github.com/clarisma/libgeodesk.git
-            GIT_TAG v2)
+            GIT_TAG main)
     FetchContent_MakeAvailable(geodesk)
 endif()
 
