@@ -21,7 +21,7 @@ Usage
 
 gol <command> [options]
 
-See http://docs2.geodesk.com/gol for full documentation.
+See http://docs.geodesk.com/gol for full documentation.
 
 
 Third-Party Contributions

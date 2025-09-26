@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.14)
+﻿cmake_minimum_required(VERSION 3.15)
 project(geodesk-gol)
 
 option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
@@ -8,6 +8,16 @@ option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Ensure MSVC runtime selection is honored
+cmake_policy(SET CMP0091 NEW)
+
+# MSVC: use static runtime in all configs
+#   Debug    -> /MTd   (MultiThreadedDebug)
+#   *others* -> /MT    (MultiThreaded)
+if (MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     # set(SANITIZE_FLAGS -fsanitize=address -fno-omit-frame-pointer)
