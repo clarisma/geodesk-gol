@@ -271,7 +271,7 @@ jobs:
 
           # Upload assets
           shopt -s nullglob
-          ASSETS=(release-assets/*.zip)
+          ASSETS=(release-assets/*.zip release-assets/*-win-setup.exe)
           if (( ${#ASSETS[@]} == 0 )); then
             echo "No assets found to upload!" >&2
             exit 1
