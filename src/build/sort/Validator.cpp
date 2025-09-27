@@ -441,6 +441,15 @@ void ValidatorWorker::exportNodes()
 		// will erroneously treat the node as an anon node
 
 		// TODO: Is this fixed by change above? (made 2/15/25)
+
+		// TODO: If a node is a duplicate, we may need to track
+		//  whether it belongs to a way; otherwise, duplicate
+		//  nodes that belong only to foreign ways may not be
+		//  marked as waynodes, since processing of ghost ways
+		//  (which causes foreign ndoes ot be waynode-marked)
+		//  happens before duplicate nodes are promotoed to
+		//  feature status
+
 	}
 	pileWriter_.closePiles();
 }
