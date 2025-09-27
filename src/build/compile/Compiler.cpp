@@ -372,10 +372,12 @@ void CompilerWorker::buildWay(TWay* way)
 	assert(!bounds.isEmpty());
 	assert(bounds.intersects(tile_.bounds()));
 
+	/*
 	if (way->id() == 254596487)
 	{
 		LOGS << "!!!";
 	}
+	*/
 
 	setBounds(pWay, bounds);
 	TTagTable* tags = readTags(ByteSpan(p, pEnd), isClosedRing);

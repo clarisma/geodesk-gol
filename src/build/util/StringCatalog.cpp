@@ -10,6 +10,8 @@
 #include <geodesk/feature/TagValues.h>
 #include <geodesk/feature/types.h>
 
+#include "clarisma/util/log.h"
+
 // TODO: Don't place numbers into the GST (at least not narrow numbers)
 
 StringCatalog::StringCatalog() :
@@ -60,9 +62,19 @@ void StringCatalog::build(const BuildSettings& settings, ByteSpan strings)
 	// to be included in the proto-string table
 	uint32_t minProtoStringUsage = 100;
 
+	/*
+
+	 // TODO: This is wrong, this causes gol-tool#6
+	 //  If we require a minimum use in order for a string to get
+	 //  a proto-string code, some keys may not get a proto-string code
+	 //  (usage as key too low) even though they are in the GST
+	 //  in order to obtain a string's GST code, it *must* also have
+	 //  a proto-string code
+
 	// The minimum number of times a string must be used for keys or values
 	// in order to be assigned a code in the proto-string table
 	uint32_t minKeyValueProtoStringUsage = minProtoStringUsage / 2;
+	*/
 
 	uint32_t protoStringCount = 0;
 	uint32_t protoKeyCount = 0;
@@ -126,15 +138,9 @@ void StringCatalog::build(const BuildSettings& settings, ByteSpan strings)
 		pEntry->globalCodePlusOne = 0;
 		sorted.emplace_back(counter->trueTotalCount(), pEntry);
 		uint64_t keyCount = counter->keyCount();
-		if (keyCount >= minKeyValueProtoStringUsage)
-		{
-			sortedKeys.emplace_back(keyCount, pEntry);
-		}
+		sortedKeys.emplace_back(keyCount, pEntry);
 		uint64_t valueCount = counter->valueCount();
-		if (valueCount >= minKeyValueProtoStringUsage)
-		{
-			sortedValues.emplace_back(keyCount, pEntry);
-		}
+		sortedValues.emplace_back(valueCount, pEntry);
 		pEntry = reinterpret_cast<Entry*>(
 			reinterpret_cast<uint8_t*>(pEntry) + pEntry->totalSize());
 	}
@@ -143,8 +149,8 @@ void StringCatalog::build(const BuildSettings& settings, ByteSpan strings)
 	// in the general sort table; for keys and values, there may be 
 	// fewer strings
 	assert(sorted.size() == protoStringCount);
-	assert(sortedKeys.size() <= protoStringCount);
-	assert(sortedValues.size() <= protoStringCount);
+	assert(sortedKeys.size() == protoStringCount);
+	assert(sortedValues.size() == protoStringCount);
 
 	sortDescending(sorted);
 	sortDescending(sortedKeys);
@@ -242,7 +248,6 @@ void StringCatalog::build(const BuildSettings& settings, ByteSpan strings)
 
 	createProtoStringCodes(sortedKeys, ProtoStringPair::KEY, FeatureConstants::MAX_COMMON_KEY);
 	createProtoStringCodes(sortedValues, ProtoStringPair::VALUE, 0xffff);
-
 }
 
 void StringCatalog::sortDescending(std::vector<SortEntry>& sorted)
