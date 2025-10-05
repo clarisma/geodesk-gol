@@ -1,8 +1,8 @@
 ﻿cmake_minimum_required(VERSION 3.15)
 project(geodesk-gol)
 
-option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
-option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
+option(GOL_DIAGNOSTICS "Enable diagnostic commands" ON)
+option(GOL_EXPERIMENTAL "Enable experimental features" ON)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -140,7 +140,7 @@ endif()
 # TODO: Use a separate build option
 if(GEODESK_SOURCE_DIR)
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set(INSTALL_TARGET "C:/geodesk/tests/gol.exe")
+        set(INSTALL_TARGET "D:/geodesk/tests/gol.exe")
     else()
         set(INSTALL_TARGET "/home/md/geodesk/tests/gol")
     endif()

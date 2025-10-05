@@ -72,7 +72,7 @@ ByteBlock TileSaver::gatherMetadata() const
 	const FeatureStore::Header* header = store_->header();
 	DataPtr mainMapping(reinterpret_cast<const uint8_t*>(header));
 	DataPtr tileIndex = store_->tileIndex();
-	size_t tileIndexSize = (tileIndex.getUnsignedInt() + 1) * 4;
+	size_t tileIndexSize = (store_->tipCount() + 1) * 4;
 	DataPtr indexedKeys = mainMapping + header->indexSchemaPtr;
 	size_t indexedKeysSize = (indexedKeys.getUnsignedInt() + 1) * 4;
 	std::span<std::byte> stringTable = store_->stringTableData();
@@ -101,7 +101,7 @@ ByteBlock TileSaver::gatherMetadata() const
 ByteBlock TileSaver::createBlankTileIndex() const
 {
 	DataPtr tileIndex = store_->tileIndex();
-	int tipCount = tileIndex.getInt();
+	int tipCount = store_->tipCount();
 	size_t tileIndexSize = (tipCount+1) * 4;
 	std::unique_ptr<uint8_t[]> blankTileIndex(new uint8_t[tileIndexSize]);
 	memcpy(blankTileIndex.get(), tileIndex, tileIndexSize);
