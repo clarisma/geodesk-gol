@@ -116,29 +116,25 @@ ByteBlock TileSaver::createBlankTileIndex() const
 
 TileData TileSaver::compressTile(Tip tip, ByteBlock&& data)
 {
-	ByteBlock compressed = Zip::deflateRaw(data);
+	ByteBlock compressed = Zip::compressSealedChunk(data);
 	LOGS << "Compressed " << data.size() << " bytes into " << compressed.size();
-	uint32_t originalSize = static_cast<uint32_t>(data.size());
 	uint32_t compressedSize = static_cast<uint32_t>(compressed.size());
 		// Get size here, because compressed.take() sets compressed.size to 0
-
-	return { tip, compressed.take(),
-		originalSize, compressedSize,
-		Crc32C::compute(data.data(), data.size()) };
+	return { tip, compressed.take(), compressedSize };
 }
 
 void TileSaver::preProcessOutput()
 {
 	ByteBlock data = gatherMetadata();
-	writer_.write(compressTile(Tip(), std::move(data)));
+	writer_.writeMetadata(compressTile(Tip(), std::move(data)));
 }
 
 void TileSaver::processTask(TileData& task)
 {
-	writer_.write(std::move(task));
+	writer_.writeTile(std::move(task));
 	workCompleted_ += workPerTile_;
 	Console::get()->setProgress(static_cast<int>(workCompleted_));
-	totalBytesWritten_ += task.sizeCompressed();
+	totalBytesWritten_ += task.size();
 }
 
 

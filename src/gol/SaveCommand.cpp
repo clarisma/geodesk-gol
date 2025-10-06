@@ -58,6 +58,7 @@ int SaveCommand::run(char* argv[])
 
 	std::vector<std::pair<Tile, Tip>> tiles;
 	TileIndexWalker tiw(store().tileIndex(), store().zoomLevels(), Box::ofWorld(), filter_.get());
+	// TODO: Take box from filter/bbox param
 	do
 	{
 #ifndef NDEBUG
@@ -91,8 +92,8 @@ int SaveCommand::run(char* argv[])
 void SaveCommand::help()
 {
     CliHelp help;
-    help.command("gol save <gol-file> [<tes-file>] [<options>]",
-        "Save a GOL's tiles as a Tile Element Set.");
+    help.command("gol save <gol-file> [<gob-file>] [<options>]",
+        "Save a GOL's tiles as a Geo-Object Bundle.");
     help.option("-M, --omit-metadata", "Omit metadata from TES\n");
 	help.option("-w, --waynode-ids", "Include IDs of all nodes\n");
     areaOptions(help);

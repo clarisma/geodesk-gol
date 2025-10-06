@@ -37,35 +37,12 @@ int LoadCommand::run(char* argv[])
 
 	if (tesFileNames_.empty())
 	{
-		tesFileNames_.emplace_back(FilePath::withExtension(golPath_, ".tes"));
+		tesFileNames_.emplace_back(FilePath::withExtension(golPath_, ".gob"));
 	}
 	
 	TileLoader loader(&store_, threadCount());
-	int tileCount = loader.prepareLoad(tesFileNames_[0].data());
 
-	// TODO: must verify GUID!!!!
-
-	// Caution: prepareLoad walks the tileIndex; if reading multiple TES,
-	// need to commit xaction (or look up tile entries via uncommitted
-	// blocks)
-
-	if (tileCount == 0)
-	{
-		Console::end().success() << "All tiles already loaded.\n";
-		return 0;
-	}
-	// TODO: handle transactions here?
-	//  If we skip a file because all tiles are loaded, xaction
-	//  remains open
-
-	ConsoleWriter().blank() << "Loading "
-		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
-		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
-		<< Console::FAINT_LIGHT_BLUE << golPath_
-		<< Console::DEFAULT << " from "
-		<< Console::FAINT_LIGHT_BLUE << tesFileNames_[0].data()
-		<< Console::DEFAULT << ":\n";
-	loader.load();
+	// TODO
 
 	return 0;
 }
@@ -74,8 +51,8 @@ int LoadCommand::run(char* argv[])
 void LoadCommand::help()
 {
 	CliHelp help;
-	help.command("gol load <gol-file> [<tes-file>] [<options>]",
-		"Load tiles from a Tile Element Set.");
+	help.command("gol load <gol-file> [<gob-file>] [<options>]",
+		"Load tiles from a Geo-Object Bundle.");
 	areaOptions(help);
 	generalOptions(help);
 }

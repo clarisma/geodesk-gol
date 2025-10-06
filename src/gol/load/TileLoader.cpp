@@ -27,6 +27,101 @@ TileLoader::TileLoader(FeatureStore* store, int numberOfThreads) :
 {
 }
 
+void TileLoader::load(const char *golFileName, const char *gobFileName)
+{
+	file_.open(gobFileName, File::OpenMode::READ);
+	Console::get()->start("Loading...");
+
+	TesArchiveHeader header;
+	file_.readAll(&header, sizeof(header));
+	verifyHeader(header);
+	size_t catalogSize = sizeof(TesArchiveHeader) +
+		sizeof(TesArchiveEntry) * header.tileCount +
+		sizeof(uint32_t);
+	catalog_.reset(new std::byte[catalogSize]);
+	memcpy(catalog_.get(), &header, sizeof(header));
+	file_.readAll(catalog_.get() + sizeof(TesArchiveHeader),
+		catalogSize - sizeof(TesArchiveHeader));
+	size_t checksumOfs = catalogSize - sizeof(uint32_t);
+	if (Crc32C::compute(catalog_.get(), checksumOfs) !=
+		*reinterpret_cast<uint32_t*>(catalog_.get() + checksumOfs))
+	{
+		throw std::runtime_error("Invalid GOB catalog checksum");
+	}
+
+	FeatureStore& store = transaction_.store();
+	store.open(golFileName,
+		FeatureStore::OpenMode::WRITE |
+		FeatureStore::OpenMode::CREATE |
+		FeatureStore::OpenMode::TRY_EXCLUSIVE);
+		// TODO: modes
+
+	transaction_.begin();
+
+	uint64_t ofs = catalogSize;
+
+	if (store.isCreated())
+	{
+		// TODO: metadata must be present
+		/*
+		if(!metadataEntry)
+		{
+			throw TesException("Can't create GOL: TES does not contain metadata");
+		}
+		*/
+		initStore(header, file_.readBlock(header.metadataChunkSize));
+		ofs += header.metadataChunkSize;
+	}
+	else
+	{
+		if (transaction_.header().guid != header.guid)
+		{
+			throw std::runtime_error("Incompatible tileset");
+		}
+	}
+
+	int tileCount = determineTiles();
+	if (tileCount == 0)
+	{
+		Console::end().success() << "All tiles already loaded.\n";
+		return;
+	}
+
+	workPerTile_ = 100.0 / tileCount;
+	workCompleted_ = 0;
+
+	ConsoleWriter().blank() << "Loading "
+		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
+		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
+		<< Console::FAINT_LIGHT_BLUE << store.fileName()
+		<< Console::DEFAULT << " from "
+		<< Console::FAINT_LIGHT_BLUE << golFileName
+		<< Console::DEFAULT << ":\n";
+
+	start();
+
+	auto p = reinterpret_cast<const TesArchiveEntry*>(
+		catalog_.get() + sizeof(TesArchiveHeader));
+	auto pEnd = p + header.tileCount;
+
+	while (p < pEnd)
+	{
+		Tile tile = tiles_[p->tip];
+		if (!tile.isNull())
+		{
+			file_.seek(ofs);
+			postWork({ p->tip, tile, file_.readBlock(p->size) });
+		}
+		ofs += p->size;
+	}
+	end();
+	transaction_.commit();
+	transaction_.end();
+
+	Console::end().success() << "Done.\n";
+}
+
+
 void TileLoader::reportSuccess(int tileCount)
 {
 	char buf[64];
@@ -34,14 +129,11 @@ void TileLoader::reportSuccess(int tileCount)
 	Console::end().success().writeString(buf);
 }
 
-void TileLoader::initStore(const TesArchiveHeader& header,
-	ByteBlock&& compressedMetadata, uint32_t sizeUncompressed, uint32_t checksum)
+void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compressedMetadata)
 {
-	transaction_.begin();
-	ByteBlock metadata = Zip::inflate(compressedMetadata.data(), compressedMetadata.size(), sizeUncompressed);
-	Zip::verifyChecksum(metadata, checksum);
+	ByteBlock metadata = Zip::uncompressSealedChunk(compressedMetadata);
 	const uint8_t* p = metadata.data();
-	const uint8_t* end = p + sizeUncompressed;
+	const uint8_t* end = p + metadata.size();
 
 	FeatureStore::Metadata md(header.guid);
 	md.revision = header.revision;
@@ -68,10 +160,13 @@ void TileLoader::initStore(const TesArchiveHeader& header,
 			assert(sectionSize == sizeof(FeatureStore::Settings));
 			break;
 		case TesMetadataType::TILE_INDEX:
+		{
 			assert(sectionSize % 4 == 0);
-			tileIndex_.reset(new uint32_t[sectionSize / 4]);
-			memcpy(tileIndex_.get(), p, sectionSize);
+			std::unique_ptr<uint32_t[]> tileIndex(new uint32_t[sectionSize / 4]);
+			memcpy(tileIndex.get(), p, sectionSize);
+			transaction_.setTileIndex(std::move(tileIndex));
 			break;
+		}
 		case TesMetadataType::INDEXED_KEYS:
 			md.indexedKeys = reinterpret_cast<const uint32_t*>(p);
 			break;
@@ -92,115 +187,71 @@ void TileLoader::initStore(const TesArchiveHeader& header,
 	}
 
 	transaction_.setup(md);
-	transaction_.commit();
 }
 
-int TileLoader::prepareLoad(const char *tesFileName)
+
+void TileLoader::verifyHeader(const TesArchiveHeader& header)
 {
-	Console::get()->start("Loading...");
-
-	file_.open(tesFileName, File::OpenMode::READ);
-	// uint64_t fileSize = in.size();
-	TesArchiveHeader header;
-	file_.read(&header, sizeof(header));
-	entryCount_ = header.entryCount;
-	catalog_.reset(new TesArchiveEntry[entryCount_]);
-	tiles_.reset(new Tile[header.entryCount]);
-	file_.read(&catalog_[0], sizeof(TesArchiveEntry) * header.entryCount);
-	// TODO: check if all data read
-	std::unordered_map<Tip, int> tipToEntry;
-	tipToEntry.reserve(header.entryCount);
-
-	headerAndCatalogSize_ = sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * header.entryCount;
-	const TesArchiveEntry* metadataEntry = nullptr;
-	uint64_t metadataOfs = 0;
-	uint64_t ofs = headerAndCatalogSize_;
-
-	for(int i=0; i<header.entryCount; i++)
+	if (header.magic != TesArchiveHeader::MAGIC)
 	{
-		TesArchiveEntry& entry = catalog_[i];
-		tipToEntry.insert({entry.tip, i});
-		if(entry.tip.isNull())
-		{
-			metadataEntry = &entry;
-			metadataOfs = ofs;
-		}
-		entry.tip = Tip();
-		ofs += entry.size;
+		throw std::runtime_error("Not a Geo-Object Bundle");
+	}
+	uint32_t version = (header.formatVersionMajor << 16) | header.formatVersionMinor;
+	if (version != (2 << 16))
+	{
+		throw std::runtime_error("Unsupported GOB version");
+	}
+	if (header.tileCount > 8000000)	// TODO: make constant
+	{
+		throw std::runtime_error("Invalid GOB header");
+	}
+}
+
+int TileLoader::determineTiles()
+{
+	uint32_t tipCount = transaction_.header().tipCount;
+	tiles_.reset(new Tile[tipCount+1]);
+	for (int i = 0; i <= tipCount; ++i)
+	{
+		tiles_[i] = Tile();
 	}
 
-	FeatureStore& store = transaction_.store();
-	if (store.isCreated())
-	{
-		if(!metadataEntry)
-		{
-			throw TesException("Can't create GOL: TES does not contain metadata");
-		}
-		file_.seek(metadataOfs);
-		initStore(header, file_.readBlock(metadataEntry->size),
-			metadataEntry->sizeUncompressed, metadataEntry->checksum);
-	}
-	else
-	{
-		transaction_.begin();
-	}
-
-	DataPtr tileIndex(reinterpret_cast<uint8_t*>(tileIndex_.get()));
+	DataPtr tileIndex(reinterpret_cast<const uint8_t*>(transaction_.tileIndex()));
 	int tileCount = 0;
-	TileIndexWalker tiw(tileIndex, store.zoomLevels(), Box::ofWorld(), nullptr);
+	TileIndexWalker tiw(tileIndex, transaction_.store().zoomLevels(),
+		bounds_, filter_);
 	do
 	{
-		if((tileIndex + tiw.currentTip() * 4).getInt() == 0)
+		Tip tip = tiw.currentTip();
+		if((tileIndex + tip * 4).getInt() == 0)
 		{
-			Tip tip = tiw.currentTip();
-			auto it = tipToEntry.find(tip);
-			if (it != tipToEntry.end())
-			{
-				LOGS << "Marking tip " << tip << ": " << tiw.currentTile() << "\n";
-				int n = it->second;
-				assert(catalog_[n].tip.isNull());
-				catalog_[n].tip = tip;
-				tiles_[n] = tiw.currentTile();
-				tileCount++;
-			}
+			tiles_[tip] = tiw.currentTile();
+			tileCount++;
 		}
 	}
 	while (tiw.next());
 
-	// TODO: verify header
-	workPerTile_ = 100.0 / tileCount;
-	workCompleted_ = 0;
+	// Now we have the number of tiles we want to load
 
-	return tileCount;
-}
-
-
-void TileLoader::load()
-{
-	assert(file_.isOpen());
-
-	start();
-
-	uint64_t ofs = headerAndCatalogSize_;
-	for(int i=0; i<entryCount_; i++)
+	if (tileCount)  [[likely]]
 	{
-		TesArchiveEntry& entry = catalog_[i];
-		if(!entry.tip.isNull())
-		{
-			TesParcelPtr parcel = TesParcel::create(
-				entry.size, entry.sizeUncompressed, entry.checksum);
-			file_.seek(ofs);
-			file_.read(parcel->data(), parcel->size());
-			// TODO: verify read
-			postWork({ entry.tip, tiles_[i], std::move(parcel) });
-		}
-		ofs += entry.size;
-	}
-	end();
-	transaction_.commit();
-	transaction_.end();
+		// Now we'll count the number of tiles we can actually load
 
-	Console::end().success() << "Done.\n";
+		tileCount = 0;
+		auto p = reinterpret_cast<const TesArchiveEntry*>(
+			catalog_.get() + sizeof(TesArchiveHeader));
+		auto end = p + reinterpret_cast<const TesArchiveHeader*>(
+			catalog_.get())->tileCount;
+		while (p < end)
+		{
+			if (!tiles_[p->tip].isNull())
+			{
+				tileCount++;
+			}
+			++p;
+		}
+	}
+	return tileCount;
 }
 
 
@@ -217,6 +268,13 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 	// TileReader reader(tile);
 	// reader.readTile(task.tile(), pTile);
 
+	ByteBlock block = Zip::uncompressSealedChunk(task.data(), task.size());
+	tile.init(task.tile(), block.size() * 2);	// TODO: just tileSize?
+
+	TesReader tesReader(tile);
+	tesReader.read(block.data(), block.size());
+
+	/*
 	TesParcelPtr parcel = task.takeFirstParcel();
 	tile.init(task.tile(), parcel->sizeUncompressed() * 2);
 
@@ -229,6 +287,7 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 		TesReader tesReader(tile);
 		tesReader.read(block.data(), block.size());
 	}
+	*/
 
 	const FeatureStore::Settings& settings = store.header()->settings;
 	IndexSettings indexSettings(store.keysToCategories(),
@@ -252,20 +311,15 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 
 	uint8_t* newTileData = tile.write(layout);
 
-	loader_->postOutput(TileLoaderOutputTask(task.tip(), 
-		ByteBlock(std::move(std::unique_ptr<uint8_t[]>(newTileData)),
-			static_cast<size_t>(layout.size()))));
+	loader_->postOutput(TileData(task.tip(),
+		std::move(std::unique_ptr<uint8_t[]>(newTileData)),
+		static_cast<size_t>(layout.size())));
 }
 
 
-void TileLoader::processTask(TileLoaderOutputTask& task)
+void TileLoader::processTask(TileData& task)
 {
-	uint32_t page = transaction_.addBlob({task.data(), task.size()});
-	tileIndex_[task.tip()] = TileIndexEntry(page, TileIndexEntry::CURRENT);
-
-	// TODO: respect concurrency mode
-	// TODO: increment tile count in current snapshot
-
+	transaction_.putTile(task.tip(), {task.data(), task.size()});
 	workCompleted_ += workPerTile_;
 	Console::get()->setProgress(static_cast<int>(workCompleted_));
 	totalBytesWritten_ += task.size();

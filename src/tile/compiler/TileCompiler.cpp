@@ -27,8 +27,7 @@ void TileCompiler::addChanges(std::span<const uint8_t> tesData)
 
 void TileCompiler::addChanges(const TesArchiveEntry& entry, const uint8_t* data)
 {
-    ByteBlock block = Zip::inflate(data, entry.size, entry.sizeUncompressed);
-    Zip::verifyChecksum(block, entry.checksum);
+    ByteBlock block = Zip::uncompressSealedChunk(data, entry.size);
     addChanges(block);
 }
 
