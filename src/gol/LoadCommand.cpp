@@ -12,15 +12,14 @@
 
 LoadCommand::LoadCommand()
 {
-	openMode_ = FeatureStore::OpenMode::WRITE | FeatureStore::OpenMode::CREATE
-		| FeatureStore::OpenMode::EXCLUSIVE;
-		// TODO: concurrent mode
+	openMode_ = DO_NOT_OPEN;
+	// TileLoader open/creates the GOL
 }
 
 bool LoadCommand::setParam(int number, std::string_view value)
 {
 	if(GolCommand::setParam(number, value)) return true;
-	tesFileNames_.emplace_back(FilePath::withDefaultExtension(value, ".tes"));
+	tesFileNames_.emplace_back(FilePath::withDefaultExtension(value, ".gob"));
 	return true;
 }
 
@@ -41,9 +40,7 @@ int LoadCommand::run(char* argv[])
 	}
 	
 	TileLoader loader(&store_, threadCount());
-
-	// TODO
-
+	loader.load(golPath_.c_str(), tesFileNames_[0].c_str());
 	return 0;
 }
 

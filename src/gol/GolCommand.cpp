@@ -163,7 +163,10 @@ int GolCommand::run(char* argv[])
 		return 2;
 	}
 
-	store_.open(golPath_.c_str(), openMode_);
+	if (openMode_ != DO_NOT_OPEN)	[[likely]]
+	{
+		store_.open(golPath_.c_str(), openMode_);
+	}
 	return 0;
 }
 

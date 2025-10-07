@@ -64,14 +64,14 @@ public:
 	const TesArchiveEntry& operator[](int n) const
 	{
 		assert(data_);
-		assert(n >= 0 && n < header().entryCount);
+		assert(n >= 0 && n < header().tileCount);
 		return *reinterpret_cast<const TesArchiveEntry*>(
 			data_ + sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * n);
 	}
 
 	const uint8_t* dataAtOffset(uint64_t ofs) const
 	{
-		assert(ofs >= sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * header().entryCount);
+		assert(ofs >= sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * header().tileCount);
 		return data_ + ofs;
 	}
 

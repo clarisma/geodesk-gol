@@ -24,7 +24,7 @@ TileSaver::TileSaver(FeatureStore* store, int threadCount) :
 
 void TileSaver::save(const char* fileName, std::vector<std::pair<Tile,Tip>>& tiles)
 {
-	entryCount_ = static_cast<int>(tiles.size()) + 1;
+	entryCount_ = static_cast<int>(tiles.size());
 	workPerTile_ = 100.0 / entryCount_;
 	workCompleted_ = 0;
 

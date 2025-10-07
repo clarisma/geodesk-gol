@@ -37,6 +37,8 @@ protected:
 		const std::string& path1, const clarisma::UUID& guid1,
 		const std::string& path2, const clarisma::UUID& guid2);
 
+	static constexpr auto DO_NOT_OPEN = static_cast<FeatureStore::OpenMode>(0xffff'ffff);
+
 	std::string golPath_;
 	FeatureStore store_;
 	Box bounds_ = Box::ofWorld();

@@ -109,10 +109,12 @@ void TileLoader::load(const char *golFileName, const char *gobFileName)
 		Tile tile = tiles_[p->tip];
 		if (!tile.isNull())
 		{
+			// TODO: I/O ops can throw, need to catch and handle!
 			file_.seek(ofs);
 			postWork({ p->tip, tile, file_.readBlock(p->size) });
 		}
 		ofs += p->size;
+		++p;
 	}
 	end();
 	transaction_.commit();
@@ -289,7 +291,8 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 	}
 	*/
 
-	const FeatureStore::Settings& settings = store.header()->settings;
+	const FeatureStore::Settings& settings =
+		loader_->transaction_.header().settings;
 	IndexSettings indexSettings(store.keysToCategories(),
 		settings.rtreeBranchSize, settings.maxKeyIndexes,
 		settings.keyIndexMinFeatures);
