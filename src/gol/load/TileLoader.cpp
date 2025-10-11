@@ -139,7 +139,7 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 
 	FeatureStore::Metadata md(header.guid);
 	md.revision = header.revision;
-		// TODO: revision timestamp
+	md.revisionTimestamp = header.revisionTimestamp;
 	int sectionsPresent = 0;
 	while(p < end)
 	{
