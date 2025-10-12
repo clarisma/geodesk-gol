@@ -71,7 +71,6 @@ void TileLoader::load(const char *golFileName, const char *gobFileName)
 		}
 		*/
 		initStore(header, file_.readBlock(header.metadataChunkSize));
-		ofs += header.metadataChunkSize;
 	}
 	else
 	{
@@ -80,6 +79,8 @@ void TileLoader::load(const char *golFileName, const char *gobFileName)
 			throw std::runtime_error("Incompatible tileset");
 		}
 	}
+
+	ofs += header.metadataChunkSize;
 
 	int tileCount = determineTiles();
 	if (tileCount == 0)
