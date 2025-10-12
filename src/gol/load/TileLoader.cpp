@@ -4,6 +4,7 @@
 #include "TileLoader.h"
 #include <clarisma/cli/Console.h>
 #include <clarisma/cli/ConsoleWriter.h>
+#include <clarisma/util/FileVersion.h>
 #include <clarisma/zip/Zip.h>
 #include <geodesk/query/TileIndexWalker.h>
 #include "tile/compiler/IndexSettings.h"
@@ -138,6 +139,7 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 	const uint8_t* end = p + metadata.size();
 
 	FeatureStore::Metadata md(header.guid);
+	std::unique_ptr<uint32_t[]> tileIndex;
 	md.revision = header.revision;
 	md.revisionTimestamp = header.revisionTimestamp;
 	int sectionsPresent = 0;
@@ -164,9 +166,8 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 		case TesMetadataType::TILE_INDEX:
 		{
 			assert(sectionSize % 4 == 0);
-			std::unique_ptr<uint32_t[]> tileIndex(new uint32_t[sectionSize / 4]);
+			tileIndex.reset(new uint32_t[sectionSize / 4]);
 			memcpy(tileIndex.get(), p, sectionSize);
-			transaction_.setTileIndex(std::move(tileIndex));
 			break;
 		}
 		case TesMetadataType::INDEXED_KEYS:
@@ -188,7 +189,7 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 		throw std::runtime_error("Invalid metadata (missing sections)");
 	}
 
-	transaction_.setup(md);
+	transaction_.setup(md, std::move(tileIndex));
 }
 
 
@@ -198,11 +199,10 @@ void TileLoader::verifyHeader(const TesArchiveHeader& header)
 	{
 		throw std::runtime_error("Not a Geo-Object Bundle");
 	}
-	uint32_t version = (header.formatVersionMajor << 16) | header.formatVersionMinor;
-	if (version != (2 << 16))
-	{
-		throw std::runtime_error("Unsupported GOB version");
-	}
+
+	FileVersion version (header.formatVersionMajor, header.formatVersionMinor);
+	version.checkExact("GOB", FileVersion(2,0));
+
 	if (header.tileCount > 8000000)	// TODO: make constant
 	{
 		throw std::runtime_error("Invalid GOB header");
