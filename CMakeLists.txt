@@ -41,7 +41,7 @@ if (MSVC)
 else()
     if (CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
         message(STATUS "Applying optimization flags for size reduction")
-        add_compile_options(-ffunction-sections -fdata-sections)
+        add_compile_options(-ffunction-sections -fdata-sections -march=haswell -mtune=haswell)
         if(APPLE)
             add_link_options(-Wl,-dead_strip)
         else() # Linux, BSD with GNU ld/lld
