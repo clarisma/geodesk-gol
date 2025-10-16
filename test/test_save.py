@@ -13,10 +13,10 @@ def test_save():
         "philippines",
     ]
 
-    print("file,pbf_size,gol_size,gob_size,gol_ratio")
+    print("file,pbf_size,gol_size,gob_size,gol_ratio,gob_ratio")
 
     for file in files:
-        run(["build", file, mapdata_dir + file, "-l", "0,3,6,9,12", "-n", "10000000", "-Y"])
+        run(["build", file, mapdata_dir + file, "-l", "0,3,6,9,12", "-n", "150000", "-Y"])
         run(["save", file, "-Y"])
         size_pbf = os.path.getsize(mapdata_dir + file + ".osm.pbf")
         size_gol = os.path.getsize(file + ".gol")

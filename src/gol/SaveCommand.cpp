@@ -94,7 +94,7 @@ void SaveCommand::help()
     CliHelp help;
     help.command("gol save <gol-file> [<gob-file>] [<options>]",
         "Save a GOL's tiles as a Geo-Object Bundle.");
-    help.option("-M, --omit-metadata", "Omit metadata from TES\n");
+    // help.option("-M, --omit-metadata", "Omit metadata from GOB\n");
 	help.option("-w, --waynode-ids", "Include IDs of all nodes\n");
     areaOptions(help);
     generalOptions(help);
