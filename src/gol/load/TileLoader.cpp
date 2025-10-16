@@ -28,8 +28,9 @@ TileLoader::TileLoader(FeatureStore* store, int numberOfThreads) :
 {
 }
 
-void TileLoader::load(const char *golFileName, const char *gobFileName)
+void TileLoader::load(const char *golFileName, const char *gobFileName, bool wayNodeIds)
 {
+	wayNodeIds_ = wayNodeIds;
 	file_.open(gobFileName, File::OpenMode::READ);
 	Console::get()->start("Loading...");
 
@@ -48,6 +49,13 @@ void TileLoader::load(const char *golFileName, const char *gobFileName)
 		*reinterpret_cast<uint32_t*>(catalog_.get() + checksumOfs))
 	{
 		throw std::runtime_error("Invalid GOB catalog checksum");
+	}
+	if (wayNodeIds)  [[unlikely]]
+	{
+		if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
+		{
+			throw std::runtime_error("Bundle does not contain waynode IDs");
+		}
 	}
 
 	FeatureStore& store = transaction_.store();
@@ -77,6 +85,13 @@ void TileLoader::load(const char *golFileName, const char *gobFileName)
 		if (transaction_.header().guid != header.guid)
 		{
 			throw std::runtime_error("Incompatible tileset");
+		}
+		if (wayNodeIds)  [[unlikely]]
+		{
+			if (!store.hasWaynodeIds())
+			{
+				throw std::runtime_error("Library does not store waynode IDs");
+			}
 		}
 	}
 
@@ -141,6 +156,7 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 
 	FeatureStore::Metadata md(header.guid);
 	std::unique_ptr<uint32_t[]> tileIndex;
+	md.flags = wayNodeIds_ ? FeatureStore::Header::Flags::WAYNODE_IDS : 0;
 	md.revision = header.revision;
 	md.revisionTimestamp = header.revisionTimestamp;
 	int sectionsPresent = 0;
@@ -267,6 +283,7 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 	// uint8_t* pLoadedTile = new uint8_t[size];
 
 	TileModel tile;
+	tile.wayNodeIds(loader_->wayNodeIds_);
 	// store->prefetchBlob(pTile);
 	// TileReader reader(tile);
 	// reader.readTile(task.tile(), pTile);

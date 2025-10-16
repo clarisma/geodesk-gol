@@ -62,7 +62,7 @@ class TileLoader : public TaskEngine<TileLoader, TileLoaderWorker, TileLoaderTas
 public:
 	TileLoader(FeatureStore* store, int numberOfThreads);
 
-	void load(const char *golFileName, const char *gobFileName);
+	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds);
 	void processTask(TileData& task);
 	int64_t totalBytesWritten() const { return totalBytesWritten_; }
 	void reportSuccess(int tileCount);
@@ -84,6 +84,7 @@ private:
 	std::unique_ptr<Tile[]> tiles_;
 	Box bounds_ = Box::ofWorld();
 	Filter* filter_ = nullptr;
+	bool wayNodeIds_ = false;
 
 #ifdef _DEBUG
 	ElementCounts totalCounts_;

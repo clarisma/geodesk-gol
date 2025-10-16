@@ -10,8 +10,15 @@
 #include "gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
+LoadCommand::Option LoadCommand::OPTIONS[] =
+{
+	{ "w",				OPTION_METHOD(&LoadCommand::setWaynodeIds) },
+	{ "waynode-ids",	OPTION_METHOD(&LoadCommand::setWaynodeIds) }
+};
+
 LoadCommand::LoadCommand()
 {
+	addOptions(OPTIONS, sizeof(OPTIONS) / sizeof(Option));
 	openMode_ = DO_NOT_OPEN;
 	// TileLoader open/creates the GOL
 }
@@ -21,12 +28,6 @@ bool LoadCommand::setParam(int number, std::string_view value)
 	if(GolCommand::setParam(number, value)) return true;
 	tesFileNames_.emplace_back(FilePath::withDefaultExtension(value, ".gob"));
 	return true;
-}
-
-int LoadCommand::setOption(std::string_view name, std::string_view value)
-{
-	// TODO
-	return GolCommand::setOption(name, value);
 }
 
 int LoadCommand::run(char* argv[])
@@ -40,7 +41,7 @@ int LoadCommand::run(char* argv[])
 	}
 	
 	TileLoader loader(&store_, threadCount());
-	loader.load(golPath_.c_str(), tesFileNames_[0].c_str());
+	loader.load(golPath_.c_str(), tesFileNames_[0].c_str(), waynodeIds_);
 	return 0;
 }
 

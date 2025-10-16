@@ -21,7 +21,7 @@ void TileCompiler::modifyTile(Tip tip, Tile tile)
 
 void TileCompiler::addChanges(std::span<const uint8_t> tesData)
 {
-    TesReader tesReader(tile_, store_->hasWaynodeIds());
+    TesReader tesReader(tile_);
     tesReader.read(tesData.data(), tesData.size());
 }
 
