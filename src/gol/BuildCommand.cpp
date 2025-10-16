@@ -77,6 +77,7 @@ int BuildCommand::run(char* argv[])
 		out.arrow() << Console::FAINT_LIGHT_BLUE << FilePath::name(golPath_)
 			<< Console::DEFAULT << " exists already. Replace it?";
 		if(out.prompt(false) != 1) return 0;
+		File::remove(golPath_.c_str());
 	}
 
 
