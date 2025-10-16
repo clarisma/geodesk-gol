@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "DefaultCommand.h"
-#include "version.h"
 #include <clarisma/cli/CliHelp.h>
 
 using namespace clarisma;
