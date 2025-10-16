@@ -93,6 +93,21 @@ void TileLoader::load(const char *golFileName, const char *gobFileName, bool way
 				throw std::runtime_error("Library does not store waynode IDs");
 			}
 		}
+		else
+		{
+			// Even if waynode IDs are not explicitly requested, if the
+			// store contains waynode IDs, then we also need to load
+			// any new tiles with waynode IDs; hence, the Bundle must have them
+
+			if (store.hasWaynodeIds())  [[unlikely]]
+			{
+				if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
+				{
+					throw std::runtime_error("Library contains waynode IDs, but Bundle does not");
+				}
+				wayNodeIds_ = true;
+			}
+		}
 	}
 
 	ofs += header.metadataChunkSize;
