@@ -34,6 +34,11 @@ struct TesArchiveHeader
 	clarisma::DateTime revisionTimestamp;
 	uint32_t metadataChunkSize = 0;
 	uint32_t reserved[3] = {};
+
+	enum Flags
+	{
+		WAYNODE_IDS = 1 << 0,
+	};
 };
 
 static_assert(sizeof(TesArchiveHeader) == 64);

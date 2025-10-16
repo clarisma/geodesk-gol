@@ -301,7 +301,8 @@ void Updater::prepareUpdate()
     startPhase(Phase::PREPARE_UPDATE, changedTileCount, 0);
         // TODO: workPerUnit
     archiveWriter_.open(updateFileName_.c_str(), store->guid(),
-        targetRevision_, targetTimestamp_, changedTileCount);
+        targetRevision_, targetTimestamp_, changedTileCount, true);
+        // (always uses way-node IDs)
     for(const auto& [tip,changedTile] : model_.changedTiles())
     {
         postWork(UpdaterTask(tip));

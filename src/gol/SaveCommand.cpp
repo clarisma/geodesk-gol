@@ -82,7 +82,7 @@ int SaveCommand::run(char* argv[])
 
 	TileSaver saver(&store(), threadCount());
 	std::string tmpFilePath = gobPath_ + ".tmp";
-	saver.save(tmpFilePath.c_str(), tiles);
+	saver.save(tmpFilePath.c_str(), tiles, waynodeIds_);
 	File::rename(tmpFilePath.c_str(), gobPath_.c_str());
 	Console::end().success() << "Done.\n";
 	return 0;

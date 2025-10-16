@@ -12,7 +12,7 @@ class TesArchiveWriter
 {
 public:
     void open(const char* fileName, const clarisma::UUID& guid, uint32_t revision,
-        clarisma::DateTime timestamp, int tileCount);
+        clarisma::DateTime timestamp, int tileCount, bool wayNodeIds);
     void writeMetadata(TileData&& data);
     void writeTile(TileData&& data);
     void close();

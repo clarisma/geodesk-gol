@@ -18,7 +18,7 @@ TesArchiveWriter::TesArchiveWriter()
 
 
 void TesArchiveWriter::open(const char* fileName, const clarisma::UUID& guid, uint32_t revision,
-    DateTime timestamp, int tileCount)
+    DateTime timestamp, int tileCount, bool wayNodeIds)
 {
     fileName_ = fileName;
     tempFileName_ = Strings::combine(fileName, ".tmp");
@@ -33,7 +33,7 @@ void TesArchiveWriter::open(const char* fileName, const clarisma::UUID& guid, ui
     TesArchiveHeader* header = reinterpret_cast<TesArchiveHeader*>(catalog_.get());
     new (header) TesArchiveHeader();
     header->guid = guid;
-    // TODO: waynode flags
+    header->flags = wayNodeIds ? TesArchiveHeader::Flags::WAYNODE_IDS : 0;
     header->revision = revision;
     header->revisionTimestamp = timestamp;
     header->tileCount = tileCount;

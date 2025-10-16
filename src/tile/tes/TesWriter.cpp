@@ -333,8 +333,8 @@ void TesWriter::writeWay(TWay* way)
 	bool hasFeatureNodes = (wayRef.flags() & FeatureFlags::WAYNODE);
 	int flags =
 		(hasFeatureNodes ? TesFlags::MEMBERS_CHANGED : 0) |
-		(wayRef.isArea() ? TesFlags::IS_AREA : 0); // |
-		// TesFlags::NODE_IDS_CHANGED;   // TODO
+		(wayRef.isArea() ? TesFlags::IS_AREA : 0) |
+		(tile_.wayNodeIds() ? TesFlags::NODE_IDS_CHANGED : 0);
 	writeStub(way, flags);
 	
 	const TWayBody* body = way->body();

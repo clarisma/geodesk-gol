@@ -22,15 +22,18 @@ TileSaver::TileSaver(FeatureStore* store, int threadCount) :
 {
 }
 
-void TileSaver::save(const char* fileName, std::vector<std::pair<Tile,Tip>>& tiles)
+void TileSaver::save(const char* fileName,
+	std::vector<std::pair<Tile,Tip>>& tiles,
+	bool wayNodeIds)
 {
 	entryCount_ = static_cast<int>(tiles.size());
 	workPerTile_ = 100.0 / entryCount_;
 	workCompleted_ = 0;
+	wayNodeIds_ = wayNodeIds;
 
 	Console::get()->start("Saving...");
 	writer_.open(fileName, store_->guid(), store_->revision(),
-		store_->revisionTimestamp(), entryCount_);
+		store_->revisionTimestamp(), entryCount_, wayNodeIds);
 	start();
 
 	for(const auto& tile : tiles)
@@ -46,6 +49,7 @@ void TileSaverWorker::processTask(TileSaverTask& task)
 	FeatureStore* store = saver_->store_;
 	DataPtr pTile = store->fetchTile(task.tip());
 	TileModel tile;
+	tile.wayNodeIds(saver_->wayNodeIds_);
 	TileReader reader(tile);
 	// store->prefetchBlob(pTile);
 	reader.readTile(task.tile(), TilePtr(pTile));
