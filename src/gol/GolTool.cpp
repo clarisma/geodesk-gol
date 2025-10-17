@@ -41,12 +41,10 @@ int GolTool::run(char* argv[])
 		{ "info", &GolTool::info },
 		{ "install", &GolTool::install },
 		{ "query", &GolTool::query },
-#ifdef GOL_EXPERIMENTAL
 		{ "load", &GolTool::load },
-#endif
 		{ "map", &GolTool::map },
-#ifdef GOL_EXPERIMENTAL
 		{ "save", &GolTool::save },
+#ifdef GOL_EXPERIMENTAL
 		{ "update", &GolTool::update }
 #endif
 	};
@@ -121,12 +119,10 @@ int GolTool::install(char* argv[])
 	return InstallCommand().run(argv);
 }
 
-#ifdef GOL_EXPERIMENTAL
 int GolTool::load(char* argv[])
 {
 	return LoadCommand().run(argv);
 }
-#endif
 
 int GolTool::map(char* argv[])
 {
@@ -138,12 +134,12 @@ int GolTool::query(char* argv[])
 	return QueryCommand().run(argv);
 }
 
-#ifdef GOL_EXPERIMENTAL
 int GolTool::save(char* argv[])
 {
 	return SaveCommand().run(argv);
 }
 
+#ifdef GOL_EXPERIMENTAL
 int GolTool::update(char* argv[])
 {
 	return UpdateCommand().run(argv);
