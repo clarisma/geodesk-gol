@@ -58,6 +58,7 @@ int SaveCommand::run(char* argv[])
 
 	std::vector<std::pair<Tile, Tip>> tiles;
 	TileIndexWalker tiw(store().tileIndex(), store().zoomLevels(), Box::ofWorld(), filter_.get());
+	// TODO: Take box from filter/bbox param
 	do
 	{
 #ifndef NDEBUG
@@ -81,7 +82,7 @@ int SaveCommand::run(char* argv[])
 
 	TileSaver saver(&store(), threadCount());
 	std::string tmpFilePath = gobPath_ + ".tmp";
-	saver.save(tmpFilePath.c_str(), tiles);
+	saver.save(tmpFilePath.c_str(), tiles, waynodeIds_);
 	File::rename(tmpFilePath.c_str(), gobPath_.c_str());
 	Console::end().success() << "Done.\n";
 	return 0;
@@ -91,9 +92,9 @@ int SaveCommand::run(char* argv[])
 void SaveCommand::help()
 {
     CliHelp help;
-    help.command("gol save <gol-file> [<tes-file>] [<options>]",
-        "Save a GOL's tiles as a Tile Element Set.");
-    help.option("-M, --omit-metadata", "Omit metadata from TES\n");
+    help.command("gol save <gol-file> [<gob-file>] [<options>]",
+        "Save a GOL's tiles as a Geo-Object Bundle.");
+    // help.option("-M, --omit-metadata", "Omit metadata from GOB\n");
 	help.option("-w, --waynode-ids", "Include IDs of all nodes\n");
     areaOptions(help);
     generalOptions(help);

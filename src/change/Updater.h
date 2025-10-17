@@ -99,7 +99,7 @@ public:
 
 	const uint8_t* tesData(int n) const
 	{
-		assert(n >= 0 && n < tesArchive_.header().entryCount);
+		assert(n >= 0 && n < tesArchive_.header().tileCount);
 		assert(tesOffsets_);
 		return tesArchive_.dataAtOffset(tesOffsets_[n]);
 	}

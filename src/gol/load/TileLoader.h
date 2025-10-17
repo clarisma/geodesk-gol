@@ -12,6 +12,7 @@
 #include "tile/model/TileModel.h"
 #include "tile/tes/TesArchive.h"
 #include "tile/tes/TesParcel.h"
+#include "tile/util/TileData.h"
 
 namespace geodesk {
 class FeatureStore;
@@ -24,21 +25,22 @@ class TileLoaderTask
 public:
 	TileLoaderTask() {} // TODO: only to satisfy compiler
 	TileLoaderTask(Tip tip, Tile tile) : tip_(tip), tile_(tile) {}
-	TileLoaderTask(Tip tip, Tile tile, TesParcelPtr parcel) : 
+	TileLoaderTask(Tip tip, Tile tile, ByteBlock data) :
 		tip_(tip), 
 		tile_(tile),
-		firstParcel_(std::move(parcel)) 
+		data_(std::move(data))
 	{
 	}
 
 	Tile tile() const { return tile_; }
 	Tip tip() const { return tip_; }
-	TesParcelPtr takeFirstParcel() { return std::move(firstParcel_); }
+	const uint8_t* data() const { return data_.data(); }
+	size_t size() const { return data_.size(); }
 
 private:
 	Tip tip_;
 	Tile tile_;
-	TesParcelPtr firstParcel_;
+	ByteBlock data_;
 };
 
 
@@ -54,39 +56,22 @@ private:
 	TileLoader* loader_;
 };
 
-class TileLoaderOutputTask
-{
-public:
-	TileLoaderOutputTask() {} // TODO: only to satisfy compiler
-	TileLoaderOutputTask(int tip, ByteBlock&& data) :
-		data_(std::move(data)),
-		tip_(tip)
-	{}
 
-	Tip tip() const { return tip_; }
-	const uint8_t* data() const { return data_.data(); }
-	size_t size() const { return data_.size(); }
-	
-private:
-	ByteBlock data_; 
-	Tip tip_;
-};
-
-
-class TileLoader : public TaskEngine<TileLoader, TileLoaderWorker, TileLoaderTask, TileLoaderOutputTask>
+class TileLoader : public TaskEngine<TileLoader, TileLoaderWorker, TileLoaderTask, TileData>
 {
 public:
 	TileLoader(FeatureStore* store, int numberOfThreads);
 
-	int prepareLoad(const char *tesFileName);
-	void load();
-	void processTask(TileLoaderOutputTask& task);
+	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds);
+	void processTask(TileData& task);
 	int64_t totalBytesWritten() const { return totalBytesWritten_; }
 	void reportSuccess(int tileCount);
 
 private:
-	void initStore(const TesArchiveHeader& header,
-		ByteBlock&& compressedMetadata, uint32_t sizeUncompressed, uint32_t checksum);
+	void initStore(const TesArchiveHeader& header, ByteBlock&& compressedMetadata);
+
+	void verifyHeader(const TesArchiveHeader& header);
+	int determineTiles();
 
 	FeatureStore::Transaction transaction_;
 	double workPerTile_;
@@ -95,10 +80,11 @@ private:
 	size_t bytesSinceLastCommit_;
 	size_t headerAndCatalogSize_ = 0;
 	File file_;
-	uint32_t entryCount_ = 0;
-	std::unique_ptr<TesArchiveEntry[]> catalog_;
+	std::unique_ptr<std::byte> catalog_;
 	std::unique_ptr<Tile[]> tiles_;
-	std::unique_ptr<uint32_t[]> tileIndex_;
+	Box bounds_ = Box::ofWorld();
+	Filter* filter_ = nullptr;
+	bool wayNodeIds_ = false;
 
 #ifdef _DEBUG
 	ElementCounts totalCounts_;

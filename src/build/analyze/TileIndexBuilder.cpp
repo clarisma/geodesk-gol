@@ -59,6 +59,7 @@ void TileIndexBuilder::build(NodeCountTable nodeCounts)
 	trimTiles();
 	linkChildTiles();
 	int tipCount = assignTip(tiers_[0].firstTile, Tip(1));
+	tipCount = std::max(tipCount, 4);
 	tileIndex_.reset(new uint32_t[tipCount]);
 	tileIndex_[0] = tipCount-1;
 	tipToPile_ = std::make_unique<int[]>(tipCount);
@@ -73,8 +74,13 @@ void TileIndexBuilder::build(NodeCountTable nodeCounts)
 	{
 		// Special case: For a single-tile GOL, we need to clear
 		// the child mask of the root (since it has no children)
-		assert(tipCount == 3);
+		// and always treat the child mask as 64-bit
+		// (The TIW always reads a uint64, but for single-tile GOLs
+		//  this could cause a buffer overrun -- issue #7)
+
+		assert(tipCount == 4);
 		tileIndex_[2] = 0;
+		tileIndex_[3] = 0;
 	}
 
 	if(Console::verbosity() >= Console::Verbosity::DEBUG)	[[unlikely]]

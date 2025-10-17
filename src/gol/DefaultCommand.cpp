@@ -42,7 +42,7 @@ void DefaultCommand::help()
 {
     CliHelp help;
     help.command("gol [-V|--version] [-h|--help] <command> [<options>]",
-        "Build, manage and query Geographic Object Libraries.");
+        "Build, manage and query Geo-Object Libraries and Bundles.");
     help.beginSection("Commands:\n");
     help.subCommand("build", "Create a GOL from an OSM data file");
     help.subCommand("query", "Perform a GOQL query");

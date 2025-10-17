@@ -22,15 +22,18 @@ TileSaver::TileSaver(FeatureStore* store, int threadCount) :
 {
 }
 
-void TileSaver::save(const char* fileName, std::vector<std::pair<Tile,Tip>>& tiles)
+void TileSaver::save(const char* fileName,
+	std::vector<std::pair<Tile,Tip>>& tiles,
+	bool wayNodeIds)
 {
-	entryCount_ = static_cast<int>(tiles.size()) + 1;
+	entryCount_ = static_cast<int>(tiles.size());
 	workPerTile_ = 100.0 / entryCount_;
 	workCompleted_ = 0;
+	wayNodeIds_ = wayNodeIds;
 
 	Console::get()->start("Saving...");
 	writer_.open(fileName, store_->guid(), store_->revision(),
-		store_->revisionTimestamp(), entryCount_);
+		store_->revisionTimestamp(), entryCount_, wayNodeIds);
 	start();
 
 	for(const auto& tile : tiles)
@@ -46,6 +49,7 @@ void TileSaverWorker::processTask(TileSaverTask& task)
 	FeatureStore* store = saver_->store_;
 	DataPtr pTile = store->fetchTile(task.tip());
 	TileModel tile;
+	tile.wayNodeIds(saver_->wayNodeIds_);
 	TileReader reader(tile);
 	// store->prefetchBlob(pTile);
 	reader.readTile(task.tile(), TilePtr(pTile));
@@ -72,7 +76,7 @@ ByteBlock TileSaver::gatherMetadata() const
 	const FeatureStore::Header* header = store_->header();
 	DataPtr mainMapping(reinterpret_cast<const uint8_t*>(header));
 	DataPtr tileIndex = store_->tileIndex();
-	size_t tileIndexSize = (tileIndex.getUnsignedInt() + 1) * 4;
+	size_t tileIndexSize = (store_->tipCount() + 1) * 4;
 	DataPtr indexedKeys = mainMapping + header->indexSchemaPtr;
 	size_t indexedKeysSize = (indexedKeys.getUnsignedInt() + 1) * 4;
 	std::span<std::byte> stringTable = store_->stringTableData();
@@ -101,7 +105,7 @@ ByteBlock TileSaver::gatherMetadata() const
 ByteBlock TileSaver::createBlankTileIndex() const
 {
 	DataPtr tileIndex = store_->tileIndex();
-	int tipCount = tileIndex.getInt();
+	int tipCount = store_->tipCount();
 	size_t tileIndexSize = (tipCount+1) * 4;
 	std::unique_ptr<uint8_t[]> blankTileIndex(new uint8_t[tileIndexSize]);
 	memcpy(blankTileIndex.get(), tileIndex, tileIndexSize);
@@ -116,29 +120,25 @@ ByteBlock TileSaver::createBlankTileIndex() const
 
 TileData TileSaver::compressTile(Tip tip, ByteBlock&& data)
 {
-	ByteBlock compressed = Zip::deflateRaw(data);
+	ByteBlock compressed = Zip::compressSealedChunk(data);
 	LOGS << "Compressed " << data.size() << " bytes into " << compressed.size();
-	uint32_t originalSize = static_cast<uint32_t>(data.size());
 	uint32_t compressedSize = static_cast<uint32_t>(compressed.size());
 		// Get size here, because compressed.take() sets compressed.size to 0
-
-	return { tip, compressed.take(),
-		originalSize, compressedSize,
-		Crc32C::compute(data.data(), data.size()) };
+	return { tip, compressed.take(), compressedSize };
 }
 
 void TileSaver::preProcessOutput()
 {
 	ByteBlock data = gatherMetadata();
-	writer_.write(compressTile(Tip(), std::move(data)));
+	writer_.writeMetadata(compressTile(Tip(), std::move(data)));
 }
 
 void TileSaver::processTask(TileData& task)
 {
-	writer_.write(std::move(task));
+	writer_.writeTile(std::move(task));
 	workCompleted_ += workPerTile_;
 	Console::get()->setProgress(static_cast<int>(workCompleted_));
-	totalBytesWritten_ += task.sizeCompressed();
+	totalBytesWritten_ += task.size();
 }
 
 

@@ -1,0 +1,69 @@
+name: Publish Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      site_owner:
+        required: true
+        type: string
+      site_repo:
+        default: geodesk-site
+        type: string
+      site_branch:
+        default: main
+        type: string
+      site_file:
+        default: _data/geodesk_gol_latest.yml
+        type: string
+    secrets:
+      site_push_token:
+        required: true
+
+jobs:
+  publish:
+    name: Publish to geodesk-site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # write happens via PAT in GH_TOKEN
+    steps:
+      - name: Prepare YAML content
+        shell: bash
+        run: |
+          mkdir -p out
+          printf 'version: "%s"\n' "${{ inputs.version }}" > out/latest.yml
+          cat out/latest.yml
+
+      - name: Create/Update file via GitHub API (gh)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.site_push_token }}   # your fine-grained PAT
+        run: |
+          set -euo pipefail
+          OWNER="${{ inputs.site_owner }}"
+          REPO="${{ inputs.site_repo }}"
+          BRANCH="${{ inputs.site_branch }}"
+          FILE="${{ inputs.site_file }}"
+
+          # base64 (GNU vs BSD compat)
+          if base64 -w0 < /dev/null >/dev/null 2>&1; then
+            CONTENT_B64="$(base64 -w0 out/latest.yml)"
+          else
+            CONTENT_B64="$(base64 < out/latest.yml | tr -d '\n')"
+          fi
+
+          # get sha if file exists
+          SHA="$(gh api \
+            repos/$OWNER/$REPO/contents/$FILE?ref=$BRANCH \
+            --jq .sha 2>/dev/null || true)"
+
+          gh api --method PUT repos/$OWNER/$REPO/contents/$FILE \
+            -f message="latest: v${{ inputs.version }}" \
+            -f content="$CONTENT_B64" \
+            -f branch="$BRANCH" \
+            ${SHA:+-f sha="$SHA"}
+
+      - name: Done
+        run: echo "Published ${{ inputs.site_file }} to ${{ inputs.site_owner }}/${{ inputs.site_repo }}@${{ inputs.site_branch }}"

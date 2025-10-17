@@ -73,8 +73,7 @@ void UpdaterWorker::applyUpdate(int entryNumber)
     LOGS << "Updating Tile " << tip;
     compiler.modifyTile(tip, updater_->tileCatalog().tileOfTip(tip));
 
-    ByteBlock tesBlock = Zip::inflate(updater_->tesData(entryNumber), entry.size, entry.sizeUncompressed);
-    Zip::verifyChecksum(tesBlock, entry.checksum);
+    ByteBlock tesBlock = Zip::uncompressSealedChunk(updater_->tesData(entryNumber), entry.size);
     compiler.addChanges(tesBlock);
     // compiler.addChanges(updater_->tesEntry(entryNumber), updater_->tesData(entryNumber));
     ByteBlock block = compiler.compile();
@@ -129,14 +128,17 @@ void Updater::processTask(TileData& task)
 {
     if(phase_ == Phase::PREPARE_UPDATE)
     {
+        /*
         LOGS << "Writing tes for " << task.tip() << ": "
             << task.sizeOriginal() << " bytes ("
             << task.sizeCompressed() << " bytes compressed)";
-        archiveWriter_.write(std::move(task));
+        */
+        archiveWriter_.writeTile(std::move(task));
     }
     else
     {
         assert(phase_ == Phase::APPLY_UPDATE);
+        // TODO
     }
     taskCompleted();
 }
@@ -299,7 +301,8 @@ void Updater::prepareUpdate()
     startPhase(Phase::PREPARE_UPDATE, changedTileCount, 0);
         // TODO: workPerUnit
     archiveWriter_.open(updateFileName_.c_str(), store->guid(),
-        targetRevision_, targetTimestamp_, changedTileCount);
+        targetRevision_, targetTimestamp_, changedTileCount, true);
+        // (always uses way-node IDs)
     for(const auto& [tip,changedTile] : model_.changedTiles())
     {
         postWork(UpdaterTask(tip));
@@ -317,7 +320,7 @@ void Updater::applyUpdate()
     FeatureStore* store = model_.store();
 
     tesArchive_.open(updateFileName_.c_str());
-    int changedTileCount = static_cast<int>(tesArchive_.header().entryCount);
+    int changedTileCount = static_cast<int>(tesArchive_.header().tileCount);
     tesOffsets_.reset(new uint64_t[changedTileCount]);
     assert(changedTileCount == model_.changedTiles().size());
     startPhase(Phase::APPLY_UPDATE, changedTileCount,

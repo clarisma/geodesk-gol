@@ -236,7 +236,6 @@ private:
 	double workPerTile_;
 	FeatureStore store_;
 	FeatureStore::Transaction transaction_;
-	std::unique_ptr<uint32_t[]> tileIndex_;
 	#ifdef GOL_BUILD_STATS
 	TileStats stats_;
 	std::mutex statsMutex_;

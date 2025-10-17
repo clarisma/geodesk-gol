@@ -27,7 +27,8 @@ jobs:
             platform: win
           - os: macos-latest
             platform: macos
-
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - name: Derive VERSION from tag
         id: ver
@@ -204,7 +205,8 @@ jobs:
     name: Create tag v${{ needs.build.outputs.version }} & publish release
     runs-on: ubuntu-latest
     needs: build
-
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - name: Derive VERSION from tag
         id: ver
@@ -278,3 +280,15 @@ jobs:
             exit 1
           fi
           gh release upload "${FINAL_TAG}" "${ASSETS[@]}" --clobber
+
+  publish:
+    needs: release
+    uses: ./.github/workflows/publish.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+      site_owner: clarisma
+      site_repo: geodesk-site
+      site_branch: main
+      site_file: _data/geodesk_gol_latest.yml
+    secrets:
+      site_push_token: ${{ secrets.GEODESK_SITE_PUSH_TOKEN }}

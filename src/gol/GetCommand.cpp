@@ -59,7 +59,9 @@ int GetCommand::run(char* argv[])
 	out.writeConstString("\n");
 	out.flush();
 
+	/*
 	TileLoader loader(&store_, threadCount());
 	loader.load();
+	*/
 	return 0;
 }
