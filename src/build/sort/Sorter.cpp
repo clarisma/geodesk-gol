@@ -717,7 +717,7 @@ void SorterWorker::endBlock()	// CRTP override
     // index writes don't overlap in a non-atomic way
     // However, we don't need to flush the piles, we can allow them to
     // accumulate
-    GOL_DEBUG << "Finished block";
+    GOL_DEBUG << "Finished block (" << stringTranslationTable_.size() << " strings)";
     flushIndex();
     stringTranslationTable_.clear();
 }
@@ -743,17 +743,9 @@ Sorter::Sorter(GolBuilder* builder) :
 void Sorter::processTask(SorterOutputTask& task)
 {
     task.piles_.writeTo(builder_->featurePiles());
-    /*
-    IndexFile& index = builder_->featureIndex(task.currentPhase_);
-    printf("Writing %llu features into the index...\n", task.features_.size());
-    for (const FeatureIndexEntry entry : task.features_)
-    {
-        index.put(entry.id(), entry.pile());
-    }
-    */
     builder_->progress(task.bytesProcessed_ * workPerByte_);
     reportOutputQueueSpace();
-    // printf("-> Written\n");
+    GOL_DEBUG << "Wrote output of " << task.bytesProcessed_ << " source bytes";
 }
 
 static const char* PHASE_TASK_NAMES[] =
