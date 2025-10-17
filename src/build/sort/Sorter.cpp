@@ -3,7 +3,9 @@
 
 #include "Sorter.h"
 #include <cassert>
+#include <clarisma/thread/Threads.h>
 #include "build/GolBuilder.h"
+#include "gol/debug.h"
 #include <geodesk/geom/Mercator.h>
 #include <geodesk/geom/TilePair.h>
 #include "SuperRelationResolver.h"
@@ -245,7 +247,7 @@ void SorterWorker::way(int64_t id, ByteSpan keys, ByteSpan values, ByteSpan node
         firstNodeId = firstNodeId == 0 ? nodeId : firstNodeId;
         int nodePile = indexes_[0].get(nodeId);
         assert(nodePile >= 0 && nodePile <= pileCount_);  // pile numbers are 1-based
-        if (nodePile == 0)
+        if (nodePile == 0) [[unlikely]]
         {
             Console::msg("node/%lld not found in node index", nodeId);
         }
@@ -259,7 +261,7 @@ void SorterWorker::way(int64_t id, ByteSpan keys, ByteSpan values, ByteSpan node
         nodeCount++;
     }
 
-    if(nodeCount < 2)
+    if(nodeCount < 2) [[unlikely]]
     {
         if(Console::verbosity() >= Console::Verbosity::VERBOSE)
         {
@@ -277,7 +279,7 @@ void SorterWorker::way(int64_t id, ByteSpan keys, ByteSpan values, ByteSpan node
         nodes = ByteSpan(nodes.data(), pLast - nodes.data());
         isClosedRing = true;
         nodeCount--;
-        if(nodeCount < 3)
+        if(nodeCount < 3) [[unlikely]]
         {
             if(Console::verbosity() >= Console::Verbosity::VERBOSE)
             {
@@ -342,7 +344,7 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
         nodeId += readSignedVarint64(p);
         int nodePile = indexes_[0].get(nodeId);
         assert(nodePile >= 0 && nodePile <= pileCount_);  // pile numbers are 1-based
-        if (nodePile == 0)
+        if (nodePile == 0)  [[unlikely]]
         {
             Console::msg("node/%lld not found in node index", nodeId);
             continue;
@@ -357,7 +359,7 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
         children_.emplace_back(nodeId, nodePile, nodeTile);
     }
 
-    if(children_.size() < 2)
+    if(children_.size() < 2)  [[unlikely]]
     {
         Console::msg("Rejected way/%lld with %lld nodes", id, children_.size());
         children_.clear();
@@ -373,7 +375,7 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
         skipVarintsBackwardUnsafe(pLast, 1);
         nodes = ByteSpan(nodes.data(), pLast - nodes.data());
         isClosedRing = true;
-        if(children_.size() < 3)
+        if(children_.size() < 3)  [[unlikely]]
         {
             Console::msg("Rejected way/%lld (invalid closed ring)", id);
             children_.clear();
@@ -712,9 +714,10 @@ void SorterWorker::resolveSuperRelations()
 void SorterWorker::endBlock()	// CRTP override
 {
     // At the end of each OSM block, we flush the index to ensure that
-    // index writes does not overlap in a non-atomic way
+    // index writes don't overlap in a non-atomic way
     // However, we don't need to flush the piles, we can allow them to
     // accumulate
+    GOL_DEBUG << "Finished block";
     flushIndex();
     stringTranslationTable_.clear();
 }
@@ -763,7 +766,7 @@ static const char* PHASE_TASK_NAMES[] =
 
 void Sorter::advancePhase(int currentPhase, int newPhase)
 {
-    //Console::debug("Advancing phase from %d to %d...", currentPhase, newPhase);
+    GOL_DEBUG << "Advancing phase from " << currentPhase << " to " << newPhase;
     assert(newPhase > currentPhase);
     assert(newPhase <= 3);
     std::unique_lock<std::mutex> lock(phaseMutex_);
@@ -771,7 +774,7 @@ void Sorter::advancePhase(int currentPhase, int newPhase)
     {
         assert(phaseCountdowns_[i] > 0);
         phaseCountdowns_[i]--;
-        //Console::debug("Completed phase %d, countdown is now %d", i, phaseCountdowns_[i]);
+        GOL_DEBUG << "Completed phase " << i << ", countdown is now " << phaseCountdowns_[i];
         if (phaseCountdowns_[i] == 0)
         {
             builder_->console().setTask(PHASE_TASK_NAMES[newPhase]);
@@ -795,5 +798,6 @@ void Sorter::startFile(uint64_t size)		// CRTP override
 
 void Sorter::sort(const char* fileName)
 {
+    GOL_DEBUG << "Starting sort with " << threadCount() << " workers...";
     read(fileName);
 }
