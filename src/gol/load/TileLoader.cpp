@@ -17,6 +17,7 @@
 #include "tile/tes/TesReader.h"
 
 // TODO: Set waynode_ids flag in store
+// TODO: repsect area/bbox
 
 TileLoader::TileLoader(FeatureStore* store, int numberOfThreads) :
 	TaskEngine(numberOfThreads),
@@ -28,7 +29,9 @@ TileLoader::TileLoader(FeatureStore* store, int numberOfThreads) :
 {
 }
 
-void TileLoader::load(const char *golFileName, const char *gobFileName, bool wayNodeIds)
+void TileLoader::load(const char *golFileName,
+	const char *gobFileName, bool wayNodeIds,
+	Box bounds, const Filter* filter)
 {
 	wayNodeIds_ = wayNodeIds;
 	file_.open(gobFileName, File::OpenMode::READ);
@@ -66,6 +69,7 @@ void TileLoader::load(const char *golFileName, const char *gobFileName, bool way
 		// TODO: modes
 
 	transaction_.begin();
+	// TODO: start tx after we've veified tsid & determined tiles
 
 	uint64_t ofs = catalogSize;
 
@@ -112,7 +116,7 @@ void TileLoader::load(const char *golFileName, const char *gobFileName, bool way
 
 	ofs += header.metadataChunkSize;
 
-	int tileCount = determineTiles();
+	int tileCount = determineTiles(bounds, filter);
 	if (tileCount == 0)
 	{
 		Console::end().success() << "All tiles already loaded.\n";
@@ -241,7 +245,7 @@ void TileLoader::verifyHeader(const TesArchiveHeader& header)
 	}
 }
 
-int TileLoader::determineTiles()
+int TileLoader::determineTiles(Box bounds, const Filter* filter)
 {
 	uint32_t tipCount = transaction_.header().tipCount;
 	tiles_.reset(new Tile[tipCount+1]);
@@ -253,7 +257,7 @@ int TileLoader::determineTiles()
 	DataPtr tileIndex(reinterpret_cast<const uint8_t*>(transaction_.tileIndex()));
 	int tileCount = 0;
 	TileIndexWalker tiw(tileIndex, transaction_.store().zoomLevels(),
-		bounds_, filter_);
+		bounds, filter);
 	do
 	{
 		Tip tip = tiw.currentTip();

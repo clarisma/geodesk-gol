@@ -62,7 +62,8 @@ class TileLoader : public TaskEngine<TileLoader, TileLoaderWorker, TileLoaderTas
 public:
 	TileLoader(FeatureStore* store, int numberOfThreads);
 
-	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds);
+	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds,
+		Box bounds, const Filter* filter);
 	void processTask(TileData& task);
 	int64_t totalBytesWritten() const { return totalBytesWritten_; }
 	void reportSuccess(int tileCount);
@@ -71,7 +72,7 @@ private:
 	void initStore(const TesArchiveHeader& header, ByteBlock&& compressedMetadata);
 
 	void verifyHeader(const TesArchiveHeader& header);
-	int determineTiles();
+	int determineTiles(Box bounds, const Filter* filter);
 
 	FeatureStore::Transaction transaction_;
 	double workPerTile_;
@@ -82,8 +83,6 @@ private:
 	File file_;
 	std::unique_ptr<std::byte> catalog_;
 	std::unique_ptr<Tile[]> tiles_;
-	Box bounds_ = Box::ofWorld();
-	Filter* filter_ = nullptr;
 	bool wayNodeIds_ = false;
 
 #ifdef _DEBUG

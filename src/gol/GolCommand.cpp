@@ -64,7 +64,7 @@ void GolCommand::setAreaFromCoords(const char* coords)
 {
 	PolygonParser parser(coords);
 	filter_ = parser.parse();
-	// TODO: take bounds from filter
+	bounds_ = filter_->getBounds();
 }
 
 int GolCommand::setAreaOption(std::string_view value)

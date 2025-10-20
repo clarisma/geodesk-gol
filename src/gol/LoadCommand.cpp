@@ -41,7 +41,8 @@ int LoadCommand::run(char* argv[])
 	}
 	
 	TileLoader loader(&store_, threadCount());
-	loader.load(golPath_.c_str(), tesFileNames_[0].c_str(), waynodeIds_);
+	loader.load(golPath_.c_str(), tesFileNames_[0].c_str(), waynodeIds_,
+		bounds_, filter_.get());
 	return 0;
 }
 
