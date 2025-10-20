@@ -187,6 +187,9 @@ public:
 	void check() const;
 #endif
 
+	bool wayNodeIds() const noexcept { return wayNodeIds_; }
+	void wayNodeIds(bool b) noexcept { wayNodeIds_ = b; }
+
 private:
 	void addFeatureToIndex(TFeature* feature)
 	{
@@ -212,6 +215,7 @@ private:
 		//  of the tile, to ensure that new elements are assigned unique handles
 	uint32_t featureCount_;
 	Tile tile_;
+	bool wayNodeIds_ = false;
 };
 
 

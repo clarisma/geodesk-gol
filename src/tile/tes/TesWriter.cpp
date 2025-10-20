@@ -333,8 +333,8 @@ void TesWriter::writeWay(TWay* way)
 	bool hasFeatureNodes = (wayRef.flags() & FeatureFlags::WAYNODE);
 	int flags =
 		(hasFeatureNodes ? TesFlags::MEMBERS_CHANGED : 0) |
-		(wayRef.isArea() ? TesFlags::IS_AREA : 0); // |
-		// TesFlags::NODE_IDS_CHANGED;   // TODO
+		(wayRef.isArea() ? TesFlags::IS_AREA : 0) |
+		(tile_.wayNodeIds() ? TesFlags::NODE_IDS_CHANGED : 0);
 	writeStub(way, flags);
 	
 	const TWayBody* body = way->body();
@@ -431,10 +431,12 @@ void TesWriter::writeRelation(TRelation* relation)
 		TesFlags::MEMBERS_CHANGED | TesFlags::BBOX_CHANGED;
 	writeStub(relation, flags);
 
+	/*
 	if(relationRef.id() == 15773270)
 	{
 		LOGS << "Writing relation/" << relationRef.id() << "\n";
 	}
+	*/
 
 	const TRelationBody* body = relation->body();
 	DataPtr pBody = body->data();
@@ -447,18 +449,18 @@ void TesWriter::writeRelation(TRelation* relation)
 	MemberTableIterator iter(body->handle(), pBody);
 	while (iter.next())
 	{
-		int rolechangedFlag = iter.hasDifferentRole() ? 2 : 0;
+		int roleChangedFlag = iter.hasDifferentRole() ? 2 : 0;
 		if (iter.isForeign())
 		{
-			uint32_t zigzapTexDelta = toZigzag(iter.texDelta());
+			uint32_t zigzagTexDelta = toZigzag(iter.texDelta());
 			if (iter.isInDifferentTile())
 			{
-				out_.writeVarint((zigzapTexDelta << 3) | 5 | rolechangedFlag);
+				out_.writeVarint((zigzagTexDelta << 3) | 5 | roleChangedFlag);
 				out_.writeSignedVarint(iter.tipDelta());
 			}
 			else
 			{
-				out_.writeVarint((zigzapTexDelta << 3) | 1 | rolechangedFlag);
+				out_.writeVarint((zigzagTexDelta << 3) | 1 | roleChangedFlag);
 			}
 		}
 		else
@@ -470,9 +472,9 @@ void TesWriter::writeRelation(TRelation* relation)
 			{
 				LOGS << "- " << member->id() << "\n";
 			}
-			out_.writeVarint((member->location() << 2) | rolechangedFlag);
+			out_.writeVarint((member->location() << 2) | roleChangedFlag);
 		}
-		if (rolechangedFlag)
+		if (roleChangedFlag)
 		{
 			uint32_t roleValue;
 			if (iter.hasGlobalRole())

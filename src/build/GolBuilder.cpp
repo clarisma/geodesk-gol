@@ -4,6 +4,7 @@
 #include "GolBuilder.h"
 
 #include <clarisma/io/FilePath.h>
+#include <clarisma/io/FileSystem.h>
 #include <clarisma/sys/SystemInfo.h>
 #include "build/analyze/Analyzer.h"
 #include "build/analyze/TileIndexBuilder.h"
@@ -46,7 +47,7 @@ void GolBuilder::build(const char* golPath, int startPhase)
 	golPath_ = strGolPath;
 	std::string_view withoutExt = FilePath::withoutExtension(strGolPath);
 	workPath_ = Strings::combine(withoutExt, "-work");
-	std::filesystem::create_directories(workPath_);
+	FileSystem::makeWorkDir(workPath_);
 	if (settings_.keepIndexes())
 	{
 		indexPath_ = Strings::combine(withoutExt, "-indexes");

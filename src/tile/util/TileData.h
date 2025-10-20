@@ -9,30 +9,20 @@ using namespace geodesk;
 class TileData
 {
 public:
-    TileData() :
-        sizeOriginal_(0),
-        sizeCompressed_(0),
-        checksum_(0) {}
+    TileData() {}
 
-    TileData(Tip tip, std::unique_ptr<const uint8_t[]> data, uint32_t sizeOriginal,
-        uint32_t sizeCompressed = 0, uint32_t checksum = 0) :
+    TileData(Tip tip, std::unique_ptr<const uint8_t[]> data, uint32_t size) :
         tip_(tip),
-        sizeOriginal_(sizeOriginal),
-        sizeCompressed_(sizeCompressed),
-        checksum_(checksum),
+        size_(size),
         data_(std::move(data)) {}
 
     Tip tip() const { return tip_; }
-    uint32_t sizeOriginal() const { return sizeOriginal_; }
-    uint32_t sizeCompressed() const { return sizeCompressed_; }
-    uint32_t checksum() const { return checksum_; }
+    uint32_t size() const { return size_; }
     const uint8_t* data() const { return data_.get(); }
 
 private:
     Tip tip_;
-    uint32_t sizeOriginal_;
-    uint32_t sizeCompressed_;
-    uint32_t checksum_;
+    uint32_t size_ = 0;
     std::unique_ptr<const uint8_t[]> data_;
 };
 

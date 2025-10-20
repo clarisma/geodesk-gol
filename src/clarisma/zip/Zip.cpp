@@ -5,6 +5,9 @@
 
 #include <clarisma/zip/Zip.h>
 #include <zlib.h>
+#include <clarisma/util/Crc32C.h>
+
+#include "clarisma/alloc/ReusableBlock.h"
 
 namespace clarisma {
 
@@ -169,6 +172,65 @@ ByteBlock inflateRaw(const uint8_t* data, size_t size, size_t sizeUncompressed)
     return ByteBlock(std::move(uncompressedData), sizeUncompressed);
 }
 
+ByteBlock compressSealedChunk(const uint8_t* data, size_t size)
+{
+    assert(size <= 0xffff'ffff);
+    uLong maxCompressedSize = compressBound(size);
+    assert(maxCompressedSize <= 0xffff'ffff);
+
+    std::unique_ptr<uint8_t[]> out =
+        std::make_unique<uint8_t[]>(maxCompressedSize + 8);
+
+    uint8_t* p = out.get();
+
+    // Prepare z_stream for raw DEFLATE (no header, no footer).
+    z_stream zs;
+    zs.zalloc = Z_NULL;
+    zs.zfree = Z_NULL;
+    zs.opaque = Z_NULL;
+    zs.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(data));
+    zs.avail_in = static_cast<uInt>(size);
+
+    // Init with raw deflate: windowBits = -MAX_WBITS.
+    int res = deflateInit2(&zs,
+        Z_DEFAULT_COMPRESSION,
+        Z_DEFLATED,
+        -MAX_WBITS,
+        8,
+        Z_DEFAULT_STRATEGY);
+    if (res != Z_OK)
+    {
+        throw ZipException(res);
+    }
+
+    *reinterpret_cast<uint32_t*>(p) = size;
+    *reinterpret_cast<uint32_t*>(p + 4) = Crc32C::compute(data, size);
+
+    // Compress into tail buffer.
+    zs.next_out = reinterpret_cast<Bytef*>(p + 8);
+    zs.avail_out = maxCompressedSize;
+
+    res = deflate(&zs, Z_FINISH);
+    size_t compressedSize = maxCompressedSize - zs.avail_out;
+    deflateEnd(&zs);
+    if (res != Z_STREAM_END)
+    {
+        throw ZipException(res);
+    }
+    return ByteBlock(std::move(out), compressedSize + 8);
+}
+
+ByteBlock uncompressSealedChunk(const uint8_t* data, size_t size)
+{
+    uint32_t sizeUncompressed = *reinterpret_cast<const uint32_t*>(data);
+    uint32_t checksum = *reinterpret_cast<const uint32_t*>(data + 4);
+    ByteBlock uncompressed = inflateRaw(data + 8, size - 8, sizeUncompressed);
+    if (Crc32C::compute(uncompressed.data(), uncompressed.size()) != checksum)
+    {
+        throw ZipException("Checksum mismatch");
+    }
+    return uncompressed;
+}
 
 }  // end namespace Zip
 

@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Clarisma / GeoDesk contributors
-// SPDX-License-Identifier: LGPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 #include <clarisma/util/DateTime.h>
 #ifdef CLARISMA_WITH_ZLIB
@@ -23,6 +23,23 @@ ByteBlock deflateRaw(const uint8_t* data, size_t size);
 inline ByteBlock deflateRaw(const ByteBlock& block)
 {
     return deflateRaw(block.data(), block.size());
+}
+
+/// @brief Compresses the given data into a chunk with the following format:
+/// Byte 0-3  size_uncompressed
+/// Byte 4-7  checksum (CRC32C)
+/// Byte 8-n  raw zlib-deflated data
+///
+ByteBlock compressSealedChunk(const uint8_t* data, size_t size);
+inline ByteBlock compressSealedChunk(const ByteBlock& block)
+{
+    return compressSealedChunk(block.data(), block.size());
+}
+
+ByteBlock uncompressSealedChunk(const uint8_t* data, size_t size);
+inline ByteBlock uncompressSealedChunk(const ByteBlock& block)
+{
+    return uncompressSealedChunk(block.data(), block.size());
 }
 
 ByteBlock inflate(const uint8_t* data, size_t size, size_t sizeUncompressed);

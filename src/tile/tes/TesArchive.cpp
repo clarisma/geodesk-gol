@@ -26,7 +26,7 @@ void TesArchive::close()
 
 std::unique_ptr<uint64_t[]> TesArchive::computeOffsets() const
 {
-    uint32_t count = header().entryCount;
+    uint32_t count = header().tileCount;
     std::unique_ptr<uint64_t[]> offsets(new uint64_t[count]);
     uint64_t currentOfs = sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * count;
     for(int i=0; i<count; i++)
