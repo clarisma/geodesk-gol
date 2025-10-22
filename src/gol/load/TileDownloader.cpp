@@ -119,14 +119,61 @@ bool TileDownloader::Worker::skipTile()
 }
 
 
-void TileDownloader::determineRanges(uint64_t skipped)
+void TileDownloader::determineRanges(Worker& mainWorker, uint64_t skippedBytes)
 {
-    uint64_t ofs = catalogSize_ + skipped;
+    uint64_t ofs = catalogSize_ + skippedBytes;
     const TesArchiveEntry* p = reinterpret_cast<const TesArchiveEntry*>(
         catalog_.get() + sizeof(TesArchiveHeader));
+    const TesArchiveEntry* pStart = p;
+    const TesArchiveEntry* pRangeStart = p;
+    const TesArchiveEntry* pRangeEnd = p;
     const TesArchiveEntry* pEnd = p + header_.tileCount;
+    uint64_t rangeStartOfs = ofs;
+    uint64_t rangeLen = 0;
+
     while (p < pEnd)
     {
+        if (tiles_[p->tip].isNull())
+        {
+            skippedBytes += p->size;
+        }
+        else
+        {
+            if (skippedBytes > maxSkippedBytes_)
+            {
+                if (pRangeStart == pStart)
+                {
+                    mainWorker.setRange(pRangeStart, pRangeEnd);
+                }
+                else
+                {
+                    ranges_.emplace_back(rangeStartOfs, rangeLen,
+                        pRangeStart - pStart,
+                        pRangeEnd - pRangeStart);
+                }
+                rangeStartOfs = ofs;
+                pRangeStart = p;
+            }
+            else
+            {
+                rangeLen += skippedBytes;
+            }
+            skippedBytes = 0;
+            rangeLen += p->size;
+            pRangeEnd = p + 1;
+        }
+        ofs += p->size;
+        p++;
+    }
 
+    if (pRangeStart == pStart)
+    {
+        mainWorker.setRange(pRangeStart, pRangeEnd);
+    }
+    else
+    {
+        ranges_.emplace_back(rangeStartOfs, rangeLen,
+            pRangeStart - pStart,
+            pRangeEnd - pRangeStart);
     }
 }

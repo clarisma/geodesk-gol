@@ -42,6 +42,12 @@ private:
 		void downloadRanges();
 		bool acceptHeaders(const HttpResponseHeaders& headers);  // CRTP override
 
+		void setRange(const TesArchiveEntry* pStart, const TesArchiveEntry* pEnd)
+		{
+			pCurrentTile_ = pStart;
+			pEndTile_ = pEnd;
+		}
+
 	private:
 		bool processHeader();
 		bool processCatalog();
@@ -59,7 +65,7 @@ private:
 		std::string etag_;
 	};
 
-	void determineRanges(uint64_t skipped);
+	void determineRanges(Worker& mainWorker, uint64_t skipped);
 
 	const char* url_ = nullptr;
 	TesArchiveHeader header_;
