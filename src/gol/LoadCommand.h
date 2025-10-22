@@ -12,7 +12,7 @@ public:
 
 	int run(char* argv[]) override;
 
-private:
+protected:
 	static Option OPTIONS[];
 
 	bool setParam(int number, std::string_view value) override;

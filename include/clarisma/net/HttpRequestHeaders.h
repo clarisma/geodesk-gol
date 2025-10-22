@@ -18,22 +18,17 @@
 
 namespace clarisma {
 
-class HttpHeaders
+class HttpRequestHeaders
 {
 public:
-#ifdef _WIN32
-    explicit HttpHeaders(const HINTERNET hRequest) : hRequest_(hRequest) {}
-#else
-    explicit HttpHeaders(const httplib::Headers& headers) :
-        headers_(headers) {}
-#endif
+    void add(const std::string_view& key, const std::string_view& value);
+    void addRange(uint64_t start, uint64_t len);
 
-    int status() const;
-    size_t contentLength() const;
-
-private:
 #ifdef _WIN32
-    HINTERNET hRequest_;
+    bool isEmpty() const noexcept { return headers_.empty(); }
+    std::string_view asStringView() const noexcept { return headers_; }
+
+    std::string headers_;
 #else
     const httplib::Headers& headers_;
 #endif
@@ -42,7 +37,7 @@ private:
 } // namespace clarisma
 
 #if defined(_WIN32)
-#include "detail/HttpHeaders_win.inl"
+#include "detail/HttpRequestHeaders_win.inl"
 #else
-#include "detail/HttpHeaders_posix.inl"
+#include "detail/HttpRequestHeaders_posix.inl"
 #endif

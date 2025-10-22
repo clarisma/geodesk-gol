@@ -5,32 +5,39 @@
 
 #include <clarisma/net/HttpClient.h>
 #include <clarisma/net/HttpException.h>
-#include <clarisma/net/HttpHeaders.h>
+#include <clarisma/net/HttpResponseHeaders.h>
 
 namespace clarisma {
 
-class HttpHeaders;
+class HttpRequestHeaders;
+class HttpResponseHeaders;
 
 template<typename Derived>
 class HttpResponseReader
 {
 public:
-    HttpResponseReader(HttpClient& client) :
-        client_(client) {}
+    bool get(const char* url, const HttpRequestHeaders& headers);
 
-    bool get(const char* url);
+    using Dispatcher = bool (Derived::*)();
 
-    using Dispatcher = void (Derived::*)();
-
-    bool acceptHeaders(const HttpHeaders& headers)  // CRTP virtual
+    bool acceptHeaders(const HttpResponseHeaders& headers)  // CRTP virtual
     {
         return true;
+    }
+
+    // HttpClient* client(); // CRTP override
+protected:
+    void receive(std::byte* data, size_t size, Dispatcher dp)
+    {
+        chunk_ = data;
+        assert(size < (1ULL << 32));
+        chunkSize_ = static_cast<uint32_t>(size);
+        dispatcher_ = dp;
     }
 
 private:
     Derived* self() { return reinterpret_cast<Derived*>(this); }
 
-    HttpClient& client_;
     std::byte* chunk_ = nullptr;
     uint32_t chunkSize_ = 0;
     Dispatcher dispatcher_ = nullptr;

@@ -39,27 +39,10 @@ void TileLoader::load(const char *golFileName,
 
 	TesArchiveHeader header;
 	file_.readAll(&header, sizeof(header));
-	verifyHeader(header);
-	size_t catalogSize = sizeof(TesArchiveHeader) +
-		sizeof(TesArchiveEntry) * header.tileCount +
-		sizeof(uint32_t);
-	catalog_.reset(new std::byte[catalogSize]);
-	memcpy(catalog_.get(), &header, sizeof(header));
+	prepareCatalog(header);
 	file_.readAll(catalog_.get() + sizeof(TesArchiveHeader),
-		catalogSize - sizeof(TesArchiveHeader));
-	size_t checksumOfs = catalogSize - sizeof(uint32_t);
-	if (Crc32C::compute(catalog_.get(), checksumOfs) !=
-		*reinterpret_cast<uint32_t*>(catalog_.get() + checksumOfs))
-	{
-		throw std::runtime_error("Invalid GOB catalog checksum");
-	}
-	if (wayNodeIds)  [[unlikely]]
-	{
-		if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
-		{
-			throw std::runtime_error("Bundle does not contain waynode IDs");
-		}
-	}
+		catalogSize_ - sizeof(TesArchiveHeader));
+	verifyCatalog();
 
 	FeatureStore& store = transaction_.store();
 	store.open(golFileName,
@@ -69,9 +52,9 @@ void TileLoader::load(const char *golFileName,
 		// TODO: modes
 
 	transaction_.begin();
-	// TODO: start tx after we've veified tsid & determined tiles
+	// TODO: start tx after we've verified tsid & determined tiles
 
-	uint64_t ofs = catalogSize;
+	uint64_t ofs = catalogSize_;
 
 	if (store.isCreated())
 	{
@@ -229,6 +212,16 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 }
 
 
+void TileLoader::prepareCatalog(const TesArchiveHeader& header)
+{
+	verifyHeader(header);
+	catalogSize_ = static_cast<uint32_t>(sizeof(TesArchiveHeader) +
+		sizeof(TesArchiveEntry) * header.tileCount +
+		sizeof(uint32_t));
+	catalog_.reset(new std::byte[catalogSize_]);
+	memcpy(catalog_.get(), &header, sizeof(header));
+}
+
 void TileLoader::verifyHeader(const TesArchiveHeader& header)
 {
 	if (header.magic != TesArchiveHeader::MAGIC)
@@ -242,6 +235,26 @@ void TileLoader::verifyHeader(const TesArchiveHeader& header)
 	if (header.tileCount > 8000000)	// TODO: make constant
 	{
 		throw std::runtime_error("Invalid GOB header");
+	}
+}
+
+
+void TileLoader::verifyCatalog() const
+{
+	size_t checksumOfs = catalogSize_ - sizeof(uint32_t);
+	if (Crc32C::compute(catalog_.get(), checksumOfs) !=
+		*reinterpret_cast<uint32_t*>(catalog_.get() + checksumOfs))
+	{
+		throw std::runtime_error("Invalid GOB catalog checksum");
+	}
+	if (wayNodeIds_)  [[unlikely]]
+	{
+		const TesArchiveHeader* header =
+			reinterpret_cast<const TesArchiveHeader*>(catalog_.get());
+		if ((header->flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
+		{
+			throw std::runtime_error("Bundle does not contain waynode IDs");
+		}
 	}
 }
 

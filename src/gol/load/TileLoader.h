@@ -68,21 +68,30 @@ public:
 	int64_t totalBytesWritten() const { return totalBytesWritten_; }
 	void reportSuccess(int tileCount);
 
-private:
+protected:
 	void initStore(const TesArchiveHeader& header, ByteBlock&& compressedMetadata);
 
-	void verifyHeader(const TesArchiveHeader& header);
+	static void verifyHeader(const TesArchiveHeader& header);
+	void prepareCatalog(const TesArchiveHeader& header);
+	void verifyCatalog() const;
 	int determineTiles(Box bounds, const Filter* filter);
+
+	const TesArchiveEntry* entry(uint32_t n) const
+	{
+		return reinterpret_cast<const TesArchiveEntry*>(
+			catalog_.get() + sizeof(TesArchiveHeader) +
+			n * sizeof(TesArchiveEntry));
+	}
 
 	FeatureStore::Transaction transaction_;
 	double workPerTile_;
 	double workCompleted_;
 	size_t totalBytesWritten_;
 	size_t bytesSinceLastCommit_;
-	size_t headerAndCatalogSize_ = 0;
 	File file_;
 	std::unique_ptr<std::byte> catalog_;
 	std::unique_ptr<Tile[]> tiles_;
+	uint32_t catalogSize_ = 0;
 	bool wayNodeIds_ = false;
 
 #ifdef _DEBUG

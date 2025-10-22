@@ -8,15 +8,16 @@
 #endif
 #include <windows.h>
 #include <winhttp.h>
+#include <clarisma/net/HttpRequestHeaders.h>
 
 namespace clarisma {
 
 template<typename Derived>
-bool HttpResponseReader<Derived>::get(const char* url)
+bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders& reqHeaders)
 {
-    HttpResponse response = client_.get(url);
+    HttpResponse response = self()->client()->get(url, reqHeaders);
     HINTERNET request = response.handle();
-    HttpHeaders headers(request);
+    HttpResponseHeaders headers(request);
     if (!self()->acceptHeaders(headers)) return false;
 
     do
@@ -34,9 +35,8 @@ bool HttpResponseReader<Derived>::get(const char* url)
             remaining -= bytesRead;
         }
         while (remaining > 0);
-        dispatcher_();
     }
-    while (dispatcher_ != nullptr);
+    while ((self()->*dispatcher_)());
     return true;
 }
 

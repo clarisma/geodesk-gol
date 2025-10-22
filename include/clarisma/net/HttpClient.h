@@ -11,6 +11,7 @@
 #include <vector>
 #include <httplib.h>
 #endif
+#include "HttpRequestHeaders.h"
 
 namespace clarisma {
 
@@ -26,12 +27,11 @@ public:
     void close();
 #ifdef _WIN32
     bool isOpen() const { return hConnect_ != nullptr; }
-    HttpResponse get(const char* url);
+    HttpResponse get(const char* url, const HttpRequestHeaders& headers = HttpRequestHeaders());
 #endif
     void get(const char* url, std::vector<std::byte>& data);
 
 private:
-    static std::wstring toWideString(std::string_view s);
 
 #ifdef _WIN32
     static void closeAndThrow(HINTERNET& handle);

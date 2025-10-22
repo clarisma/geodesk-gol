@@ -6,7 +6,7 @@
 
 namespace clarisma {
 
-inline int HttpHeaders::status() const
+inline int HttpResponseHeaders::status() const
 {
     DWORD statusCode = 0;
     DWORD statusCodeSize = sizeof(statusCode);
@@ -24,7 +24,7 @@ inline int HttpHeaders::status() const
     return static_cast<int>(statusCode);
 }
 
-inline size_t HttpHeaders::contentLength() const
+inline size_t HttpResponseHeaders::contentLength() const
 {
     wchar_t buf[32];
     DWORD bufSize = sizeof(buf);
