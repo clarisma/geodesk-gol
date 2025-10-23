@@ -64,7 +64,7 @@ jobs:
           cmake -S . -B build $([[ "${{ matrix.platform }}" == "macos" ]] && \
             echo '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64') \
             -DCMAKE_BUILD_TYPE=Release \
-            -DGOL_DIAGNOSTICS:BOOL=ON \
+            -DGOL_DIAGNOSTICS:BOOL=OFF \
             -DGOL_EXPERIMENTAL:BOOL=OFF \
             -DGEODESK_GOL_VERSION="${{ steps.ver.outputs.version }}"
 

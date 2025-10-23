@@ -131,7 +131,7 @@ void TileLoader::load(const char *golFileName,
 		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
 		<< Console::FAINT_LIGHT_BLUE << store.fileName()
 		<< Console::DEFAULT << " from "
-		<< Console::FAINT_LIGHT_BLUE << golFileName
+		<< Console::FAINT_LIGHT_BLUE << gobFileName
 		<< Console::DEFAULT << ":\n";
 
 	start();
