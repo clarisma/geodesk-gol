@@ -33,7 +33,11 @@ void TileLoader::load(const char *golFileName,
 	const char *gobFileName, bool wayNodeIds,
 	Box bounds, const Filter* filter)
 {
+	golFileName_ = golFileName;
+	gobFileName_ = gobFileName;
 	wayNodeIds_ = wayNodeIds;
+	bounds_ = bounds;
+	filter_ = filter;
 	file_.open(gobFileName, File::OpenMode::READ);
 	Console::get()->start("Loading...");
 
@@ -44,80 +48,13 @@ void TileLoader::load(const char *golFileName,
 		catalogSize_ - sizeof(TesArchiveHeader));
 	verifyCatalog();
 
-	FeatureStore& store = transaction_.store();
-	store.open(golFileName,
-		FeatureStore::OpenMode::WRITE |
-		FeatureStore::OpenMode::CREATE |
-		FeatureStore::OpenMode::TRY_EXCLUSIVE);
-		// TODO: modes
-
-	transaction_.begin();
-	// TODO: start tx after we've verified tsid & determined tiles
-
-	uint64_t ofs = catalogSize_;
-
-	if (store.isCreated())
+	if (openStore())
 	{
-		// TODO: metadata must be present
-		/*
-		if(!metadataEntry)
-		{
-			throw TesException("Can't create GOL: TES does not contain metadata");
-		}
-		*/
 		initStore(header, file_.readBlock(header.metadataChunkSize));
 	}
-	else
-	{
-		if (transaction_.header().guid != header.guid)
-		{
-			throw std::runtime_error("Incompatible tileset");
-		}
-		if (wayNodeIds)  [[unlikely]]
-		{
-			if (!store.hasWaynodeIds())
-			{
-				throw std::runtime_error("Library does not store waynode IDs");
-			}
-		}
-		else
-		{
-			// Even if waynode IDs are not explicitly requested, if the
-			// store contains waynode IDs, then we also need to load
-			// any new tiles with waynode IDs; hence, the Bundle must have them
+	if (!beginTiles()) return;
 
-			if (store.hasWaynodeIds())  [[unlikely]]
-			{
-				if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
-				{
-					throw std::runtime_error("Library contains waynode IDs, but Bundle does not");
-				}
-				wayNodeIds_ = true;
-			}
-		}
-	}
-
-	ofs += header.metadataChunkSize;
-
-	int tileCount = determineTiles(bounds, filter);
-	if (tileCount == 0)
-	{
-		Console::end().success() << "All tiles already loaded.\n";
-		return;
-	}
-
-	workPerTile_ = 100.0 / tileCount;
-	workCompleted_ = 0;
-
-	ConsoleWriter().blank() << "Loading "
-		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
-		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
-		<< Console::FAINT_LIGHT_BLUE << store.fileName()
-		<< Console::DEFAULT << " from "
-		<< Console::FAINT_LIGHT_BLUE << gobFileName
-		<< Console::DEFAULT << ":\n";
-
-	start();
+	uint64_t ofs = catalogSize_ + gobHeader().metadataChunkSize;
 
 	auto p = reinterpret_cast<const TesArchiveEntry*>(
 		catalog_.get() + sizeof(TesArchiveHeader));
@@ -142,6 +79,82 @@ void TileLoader::load(const char *golFileName,
 	Console::end().success() << "Done.\n";
 }
 
+bool TileLoader::openStore()
+{
+	FeatureStore& store = transaction_.store();
+	store.open(golFileName_,
+		FeatureStore::OpenMode::WRITE |
+		FeatureStore::OpenMode::CREATE |
+		FeatureStore::OpenMode::TRY_EXCLUSIVE);
+	// TODO: modes
+
+	const TesArchiveHeader header = gobHeader();
+
+	if (store.isCreated())
+	{
+		transaction_.begin();
+		transactionStarted_ = true;
+		return true;
+	}
+
+	if (transaction_.header().guid != header.guid)
+	{
+		throw std::runtime_error("Incompatible tileset");
+	}
+	if (wayNodeIds_)  [[unlikely]]
+	{
+		if (!store.hasWaynodeIds())
+		{
+			throw std::runtime_error("Library does not store waynode IDs");
+		}
+	}
+	else
+	{
+		// Even if waynode IDs are not explicitly requested, if the
+		// store contains waynode IDs, then we also need to load
+		// any new tiles with waynode IDs; hence, the Bundle must have them
+
+		if (store.hasWaynodeIds())  [[unlikely]]
+		{
+			if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
+			{
+				throw std::runtime_error("Library contains waynode IDs, but Bundle does not");
+			}
+			wayNodeIds_ = true;
+		}
+	}
+	return false;
+}
+
+bool TileLoader::beginTiles()
+{
+	int tileCount = determineTiles();
+	if (tileCount == 0)
+	{
+		Console::end().success() << "All tiles already loaded.\n";
+		return false;
+	}
+
+	if (!transactionStarted_)
+	{
+		transaction_.begin();
+		transactionStarted_ = true;
+	}
+
+	workPerTile_ = 100.0 / tileCount;
+	workCompleted_ = 0;
+
+	ConsoleWriter().blank() << "Loading "
+		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
+		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
+		<< Console::FAINT_LIGHT_BLUE << transaction_.store().fileName()
+		<< Console::DEFAULT << " from "
+		<< Console::FAINT_LIGHT_BLUE << gobFileName_
+		<< Console::DEFAULT << ":\n";
+
+	start();
+	return true;
+}
 
 void TileLoader::reportSuccess(int tileCount)
 {
@@ -258,7 +271,7 @@ void TileLoader::verifyCatalog() const
 	}
 }
 
-int TileLoader::determineTiles(Box bounds, const Filter* filter)
+int TileLoader::determineTiles()
 {
 	uint32_t tipCount = transaction_.header().tipCount;
 	tiles_.reset(new Tile[tipCount+1]);
@@ -270,7 +283,7 @@ int TileLoader::determineTiles(Box bounds, const Filter* filter)
 	DataPtr tileIndex(reinterpret_cast<const uint8_t*>(transaction_.tileIndex()));
 	int tileCount = 0;
 	TileIndexWalker tiw(tileIndex, transaction_.store().zoomLevels(),
-		bounds, filter);
+		bounds_, filter_);
 	do
 	{
 		Tip tip = tiw.currentTip();

@@ -71,10 +71,16 @@ public:
 protected:
 	void initStore(const TesArchiveHeader& header, ByteBlock&& compressedMetadata);
 
+	const TesArchiveHeader& gobHeader() const
+	{
+		return reinterpret_cast<const TesArchiveHeader&>(*catalog_);
+	};
 	static void verifyHeader(const TesArchiveHeader& header);
 	void prepareCatalog(const TesArchiveHeader& header);
 	void verifyCatalog() const;
-	int determineTiles(Box bounds, const Filter* filter);
+	bool openStore();
+	bool beginTiles();
+	int determineTiles();
 
 	const TesArchiveEntry* entry(uint32_t n) const
 	{
@@ -93,6 +99,11 @@ protected:
 	std::unique_ptr<Tile[]> tiles_;
 	uint32_t catalogSize_ = 0;
 	bool wayNodeIds_ = false;
+	bool transactionStarted_ = false;
+	const char* golFileName_ = nullptr;
+	const char* gobFileName_ = nullptr;
+	Box bounds_;
+	const Filter* filter_ = nullptr;
 
 #ifdef _DEBUG
 	ElementCounts totalCounts_;

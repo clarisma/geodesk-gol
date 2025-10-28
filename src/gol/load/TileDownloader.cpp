@@ -7,8 +7,11 @@ void TileDownloader::download(
     const char *golFileName, bool wayNodeIds, const char* url,
     Box bounds, const Filter* filter)
 {
+    golFileName_ = golFileName;
     wayNodeIds_ = wayNodeIds;
     url_ = url;
+    bounds_ = bounds;
+    filter_ = filter;
 
     std::string_view svUrl = url;
     Worker mainWorker(*this, svUrl);
@@ -77,14 +80,26 @@ bool TileDownloader::Worker::processHeader()
 bool TileDownloader::Worker::processCatalog()
 {
     downloader_.verifyCatalog();
-    // TODO
-    return true;
+    uint32_t metadataSize = downloader_.header_.metadataChunkSize;
+    if (downloader_.openStore())
+    {
+        compressed_ = ByteBlock(metadataSize);
+        receive(reinterpret_cast<std::byte*>(compressed_.data()),
+            compressed_.size(),
+            &Worker::processMetadata);
+        return true;
+    }
+    if (!downloader_.beginTiles()) return false;
+    downloader_.determineRanges(*this, metadataSize);
+    return nextTile();
 }
 
 
 bool TileDownloader::Worker::processMetadata()
 {
     downloader_.initStore(downloader_.header_, std::move(compressed_));
+    if (!downloader_.beginTiles()) return false;
+    downloader_.determineRanges(*this, 0);
     return nextTile();
 }
 
