@@ -25,6 +25,7 @@ void TileDownloader::download(
     end();
     transaction_.commit();
     transaction_.end();
+    if (tile)
     Console::end().success() << "Done.\n";
 }
 
@@ -158,7 +159,7 @@ void TileDownloader::determineRanges(Worker& mainWorker, bool loadedMetadata)
 {
     uint64_t compressedMetadataSize = header_.metadataChunkSize;
     uint64_t skippedBytes = loadedMetadata ? 0 : compressedMetadataSize;
-    uint64_t ofs = catalogSize_ + compressedMetadataSize - skippedBytes;
+    uint64_t ofs = catalogSize_ + compressedMetadataSize;
     const TesArchiveEntry* p = reinterpret_cast<const TesArchiveEntry*>(
         catalog_.get() + sizeof(TesArchiveHeader));
     const TesArchiveEntry* pStart = p;
@@ -219,6 +220,7 @@ void TileDownloader::determineRanges(Worker& mainWorker, bool loadedMetadata)
 
 void TileDownloader::dumpRanges()
 {
+    LOGS << ranges_.size() << " ranges:";
     for (Range r : ranges_)
     {
         Tip tip = entry(r.firstEntry)->tip;
