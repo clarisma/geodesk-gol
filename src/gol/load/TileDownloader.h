@@ -65,7 +65,8 @@ private:
 		std::string etag_;
 	};
 
-	void determineRanges(Worker& mainWorker, uint64_t skipped);
+	void determineRanges(Worker& mainWorker, bool loadedMetadata);
+	void dumpRanges();
 
 	const char* url_ = nullptr;
 	TesArchiveHeader header_;

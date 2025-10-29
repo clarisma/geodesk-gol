@@ -43,6 +43,7 @@ int GetCommand::run(char* argv[])
 	store.open(GolCommand::golPath(golName_).c_str());
 	*/
 
+	/*
 	ConsoleWriter& out = CliApplication::get()->out();
 	out.writeConstString("Checking ");
 	out.color(111);
@@ -66,6 +67,7 @@ int GetCommand::run(char* argv[])
 	out.normal();
 	out.writeConstString("\n");
 	out.flush();
+	*/
 
 	/*
 	TileLoader loader(&store_, threadCount());

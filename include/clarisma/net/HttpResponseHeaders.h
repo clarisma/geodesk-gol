@@ -30,6 +30,7 @@ public:
 
     int status() const;
     size_t contentLength() const;
+    std::string etag() const;
 
 private:
 #ifdef _WIN32

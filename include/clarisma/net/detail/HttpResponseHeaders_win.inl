@@ -42,4 +42,11 @@ inline size_t HttpResponseHeaders::contentLength() const
     return Parsing::parseUnsignedLong(buf);
 }
 
+/*
+inline std::string HttpResponseHeaders::etag() const
+{
+
+}
+*/
+
 } // namespace clarisma

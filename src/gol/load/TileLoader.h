@@ -89,6 +89,8 @@ protected:
 			n * sizeof(TesArchiveEntry));
 	}
 
+	Tile tileOfTip(Tip tip) const { return tiles_[tip]; }
+
 	FeatureStore::Transaction transaction_;
 	double workPerTile_;
 	double workCompleted_;

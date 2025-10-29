@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
 #pragma once
+#include <clarisma/util/log.h>
 
 namespace clarisma {
 
@@ -13,6 +14,7 @@ inline void HttpRequestHeaders::add(const std::string_view& key, const std::stri
     headers_.append(": ");
     headers_.append(value);
     headers_.push_back('\n');
+    LOGS << "Added header: " << key << ": " << value;
 }
 
 } // namespace clarisma

@@ -54,6 +54,7 @@ void TileLoader::load(const char *golFileName,
 	}
 	if (!beginTiles()) return;
 
+	start();
 	uint64_t ofs = catalogSize_ + gobHeader().metadataChunkSize;
 
 	auto p = reinterpret_cast<const TesArchiveEntry*>(
@@ -90,14 +91,22 @@ bool TileLoader::openStore()
 
 	const TesArchiveHeader header = gobHeader();
 
+	// We always start the tx, even if no tiles will
+	// ultimately be loaded, because this simplifies the workflow
+	// TODO: flag is not needed
+	// TODO: No, don't use tx unless needed, because end() writes
+	//  the tile index even if no tiles were loaded
+
+	transaction_.begin();
+	transactionStarted_ = true;
+
 	if (store.isCreated())
 	{
-		transaction_.begin();
-		transactionStarted_ = true;
 		return true;
 	}
 
 	if (transaction_.header().guid != header.guid)
+	// if (store.guid() != header.guid)
 	{
 		throw std::runtime_error("Incompatible tileset");
 	}
@@ -152,7 +161,6 @@ bool TileLoader::beginTiles()
 		<< Console::FAINT_LIGHT_BLUE << gobFileName_
 		<< Console::DEFAULT << ":\n";
 
-	start();
 	return true;
 }
 
@@ -379,7 +387,7 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 
 	loader_->postOutput(TileData(task.tip(),
 		std::move(std::unique_ptr<uint8_t[]>(newTileData)),
-		static_cast<size_t>(layout.size())));
+		static_cast<size_t>(layout.size() + 4)));
 }
 
 

@@ -8,14 +8,24 @@ void TileDownloader::download(
     Box bounds, const Filter* filter)
 {
     golFileName_ = golFileName;
+    gobFileName_ = url; // TODO: consolidate local file & url
     wayNodeIds_ = wayNodeIds;
     url_ = url;
     bounds_ = bounds;
     filter_ = filter;
 
+    Console::get()->start("Downloading...");
+    start();
     std::string_view svUrl = url;
     Worker mainWorker(*this, svUrl);
     mainWorker.download();
+    dumpRanges();
+    mainWorker.downloadRanges();
+
+    end();
+    transaction_.commit();
+    transaction_.end();
+    Console::end().success() << "Done.\n";
 }
 
 void TileDownloader::Worker::download()
@@ -33,6 +43,8 @@ void TileDownloader::Worker::downloadRanges()
         int next = downloader_.nextRange_.fetch_add(1);
         if (next >= downloader_.ranges_.size()) break;
         auto [ofs, size, firstEntry, tileCount] = downloader_.ranges_[next];
+        LOGS << "Requesting " << tileCount << " tile(s) at offset "
+            << ofs << " (" << size << " bytes)";
         pCurrentTile_ = downloader_.entry(firstEntry);
         pEndTile_ = pCurrentTile_ + tileCount;
         nextTile();
@@ -54,6 +66,11 @@ bool TileDownloader::Worker::acceptHeaders(const HttpResponseHeaders& headers)
                 throw HttpException("Tileset not found");
             }
             throw HttpException("Server error %d", status);
+        }
+        // etag_ = headers.etag();   // TODO: enable
+        if (etag_.empty())  [[unlikely]]
+        {
+            etag_ = "etag";
         }
     }
     else if (status != 206)
@@ -90,7 +107,7 @@ bool TileDownloader::Worker::processCatalog()
         return true;
     }
     if (!downloader_.beginTiles()) return false;
-    downloader_.determineRanges(*this, metadataSize);
+    downloader_.determineRanges(*this, false);
     return nextTile();
 }
 
@@ -99,7 +116,7 @@ bool TileDownloader::Worker::processMetadata()
 {
     downloader_.initStore(downloader_.header_, std::move(compressed_));
     if (!downloader_.beginTiles()) return false;
-    downloader_.determineRanges(*this, 0);
+    downloader_.determineRanges(*this, true);
     return nextTile();
 }
 
@@ -112,9 +129,12 @@ bool TileDownloader::Worker::nextTile()
 {
     if (pCurrentTile_ >= pEndTile_) return false;
     compressed_ = ByteBlock(pCurrentTile_->size);
+    bool isSkipped = downloader_.tiles_[pCurrentTile_->tip].isNull();
+    LOGS << "Worker::nextTile: Preparing to " << (isSkipped ? "skip " : "read ")
+        << compressed_.size() << " bytes for tile " <<
+            downloader_.tileOfTip(pCurrentTile_->tip);
     receive(reinterpret_cast<std::byte*>(compressed_.data()),
-        compressed_.size(),
-        downloader_.tiles_[pCurrentTile_->tip].isNull() ?
+        compressed_.size(), isSkipped ?
             &Worker::skipTile : &Worker::processTile);
     return true;
 }
@@ -134,9 +154,11 @@ bool TileDownloader::Worker::skipTile()
 }
 
 
-void TileDownloader::determineRanges(Worker& mainWorker, uint64_t skippedBytes)
+void TileDownloader::determineRanges(Worker& mainWorker, bool loadedMetadata)
 {
-    uint64_t ofs = catalogSize_ + skippedBytes;
+    uint64_t compressedMetadataSize = header_.metadataChunkSize;
+    uint64_t skippedBytes = loadedMetadata ? 0 : compressedMetadataSize;
+    uint64_t ofs = catalogSize_ + compressedMetadataSize - skippedBytes;
     const TesArchiveEntry* p = reinterpret_cast<const TesArchiveEntry*>(
         catalog_.get() + sizeof(TesArchiveHeader));
     const TesArchiveEntry* pStart = p;
@@ -167,6 +189,7 @@ void TileDownloader::determineRanges(Worker& mainWorker, uint64_t skippedBytes)
                         pRangeEnd - pRangeStart);
                 }
                 rangeStartOfs = ofs;
+                rangeLen = 0;
                 pRangeStart = p;
             }
             else
@@ -190,5 +213,18 @@ void TileDownloader::determineRanges(Worker& mainWorker, uint64_t skippedBytes)
         ranges_.emplace_back(rangeStartOfs, rangeLen,
             pRangeStart - pStart,
             pRangeEnd - pRangeStart);
+    }
+}
+
+
+void TileDownloader::dumpRanges()
+{
+    for (Range r : ranges_)
+    {
+        Tip tip = entry(r.firstEntry)->tip;
+        LOGS << "Ofs = " << r.ofs << ", len = " << r.size
+            << ", tiles = " << r.tileCount << ", starting at #"
+            << r.firstEntry << ": " << tip << " ("
+            << tiles_[tip]  << ")";
     }
 }
