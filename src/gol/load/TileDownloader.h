@@ -6,6 +6,8 @@
 #include "TileLoader.h"
 #include <clarisma/net/HttpResponseReader.h>
 
+class TileDownloadClient;
+
 class TileDownloader : public TileLoader
 {
 public:
@@ -25,47 +27,7 @@ private:
 		uint32_t tileCount;
 	};
 
-	class Worker : public HttpResponseReader<Worker>
-	{
-	public:
-		Worker(TileDownloader& downloader, const std::string_view& url) :
-			downloader_(downloader),
-			client_(url)
-		{
-			// client_.setUserAgent("gol/" GEODESK_GOL_VERSION);
-			// TODO!!!
-		}
-
-		HttpClient* client() { return &client_; }	// CRTP override
-
-		void download();
-		void downloadRanges();
-		bool acceptHeaders(const HttpResponseHeaders& headers);  // CRTP override
-
-		void setRange(const TesArchiveEntry* pStart, const TesArchiveEntry* pEnd)
-		{
-			pCurrentTile_ = pStart;
-			pEndTile_ = pEnd;
-		}
-
-	private:
-		bool processHeader();
-		bool processCatalog();
-		bool processMetadata();
-		bool skipMetadata();
-		bool processTile();
-		bool skipTile();
-		bool nextTile();
-
-		TileDownloader& downloader_;
-		HttpClient client_;
-		ByteBlock compressed_;
-		const TesArchiveEntry* pCurrentTile_ = nullptr;
-		const TesArchiveEntry* pEndTile_ = nullptr;
-		std::string etag_;
-	};
-
-	void determineRanges(Worker& mainWorker, bool loadedMetadata);
+	void determineRanges(TileDownloadClient& mainClient, bool loadedMetadata);
 	void dumpRanges();
 
 	const char* url_ = nullptr;
@@ -73,6 +35,8 @@ private:
 	std::vector<Range> ranges_;
 	std::atomic<int> nextRange_ = 0;
 	uint32_t maxSkippedBytes_ = 1024 * 1024;   // 1 MB
+
+	friend class TileDownloadClient;
 };
 
 

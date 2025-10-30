@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "TileDownloader.h"
+#include "TileDownloadClient.h"
 
 void TileDownloader::download(
     const char *golFileName, bool wayNodeIds, const char* url,
@@ -17,10 +18,10 @@ void TileDownloader::download(
     Console::get()->start("Downloading...");
     start();
     std::string_view svUrl = url;
-    Worker mainWorker(*this, svUrl);
-    mainWorker.download();
+    TileDownloadClient mainClient(*this, svUrl);
+    mainClient.download();
     dumpRanges();
-    mainWorker.downloadRanges();
+    mainClient.downloadRanges();
 
     end();
     transaction_.commit();
@@ -30,133 +31,7 @@ void TileDownloader::download(
     Console::end().success() << "Done.\n";
 }
 
-void TileDownloader::Worker::download()
-{
-    receive(reinterpret_cast<std::byte*>(&downloader_.header_),
-        sizeof(downloader_.header_), &Worker::processHeader);
-    HttpRequestHeaders headers;
-    get("", headers);
-}
-
-void TileDownloader::Worker::downloadRanges()
-{
-    for (;;)
-    {
-        int next = downloader_.nextRange_.fetch_add(1);
-        if (next >= downloader_.ranges_.size()) break;
-        auto [ofs, size, firstEntry, tileCount] = downloader_.ranges_[next];
-        LOGS << "Requesting " << tileCount << " tile(s) at offset "
-            << ofs << " (" << size << " bytes)";
-        pCurrentTile_ = downloader_.entry(firstEntry);
-        pEndTile_ = pCurrentTile_ + tileCount;
-        nextTile();
-        HttpRequestHeaders headers;
-        headers.addRange(ofs, size);
-        get("", headers);
-    }
-}
-
-bool TileDownloader::Worker::acceptHeaders(const HttpResponseHeaders& headers)
-{
-    int status = headers.status();
-    if (etag_.empty())
-    {
-        if (status != 200)
-        {
-            if (status == 404)
-            {
-                throw HttpException("Tileset not found");
-            }
-            throw HttpException("Server error %d", status);
-        }
-        etag_ = headers.etag();
-        if (etag_.empty())  [[unlikely]]
-        {
-            etag_ = "etag";
-        }
-    }
-    else if (status != 206)
-    {
-        if (status == 200)
-        {
-            throw HttpException("Server does not support range queries");
-        }
-        throw HttpException("Server error %d", status);
-    }
-    return true;
-}
-
-
-bool TileDownloader::Worker::processHeader()
-{
-    downloader_.prepareCatalog(downloader_.header_);
-    receive(downloader_.catalog_.get() + sizeof(TesArchiveHeader),
-        downloader_.catalogSize_ - sizeof(TesArchiveHeader),
-        &Worker::processCatalog);
-    return true;
-}
-
-bool TileDownloader::Worker::processCatalog()
-{
-    downloader_.verifyCatalog();
-    uint32_t metadataSize = downloader_.header_.metadataChunkSize;
-    if (downloader_.openStore())
-    {
-        compressed_ = ByteBlock(metadataSize);
-        receive(reinterpret_cast<std::byte*>(compressed_.data()),
-            compressed_.size(),
-            &Worker::processMetadata);
-        return true;
-    }
-    if (!downloader_.beginTiles()) return false;
-    downloader_.determineRanges(*this, false);
-    return nextTile();
-}
-
-
-bool TileDownloader::Worker::processMetadata()
-{
-    downloader_.initStore(downloader_.header_, std::move(compressed_));
-    if (!downloader_.beginTiles()) return false;
-    downloader_.determineRanges(*this, true);
-    return nextTile();
-}
-
-bool TileDownloader::Worker::skipMetadata()
-{
-    return nextTile();
-}
-
-bool TileDownloader::Worker::nextTile()
-{
-    if (pCurrentTile_ >= pEndTile_) return false;
-    compressed_ = ByteBlock(pCurrentTile_->size);
-    bool isSkipped = downloader_.tiles_[pCurrentTile_->tip].isNull();
-    LOGS << "Worker::nextTile: Preparing to " << (isSkipped ? "skip " : "read ")
-        << compressed_.size() << " bytes for tile " <<
-            downloader_.tileOfTip(pCurrentTile_->tip);
-    receive(reinterpret_cast<std::byte*>(compressed_.data()),
-        compressed_.size(), isSkipped ?
-            &Worker::skipTile : &Worker::processTile);
-    return true;
-}
-
-bool TileDownloader::Worker::processTile()
-{
-    Tip tip = pCurrentTile_->tip;
-    downloader_.postWork({ tip, downloader_.tiles_[tip], std::move(compressed_) });
-    pCurrentTile_++;
-    return nextTile();
-}
-
-bool TileDownloader::Worker::skipTile()
-{
-    pCurrentTile_++;
-    return nextTile();
-}
-
-
-void TileDownloader::determineRanges(Worker& mainWorker, bool loadedMetadata)
+void TileDownloader::determineRanges(TileDownloadClient& mainClient, bool loadedMetadata)
 {
     uint64_t compressedMetadataSize = header_.metadataChunkSize;
     uint64_t skippedBytes = loadedMetadata ? 0 : compressedMetadataSize;
@@ -182,7 +57,7 @@ void TileDownloader::determineRanges(Worker& mainWorker, bool loadedMetadata)
             {
                 if (pRangeStart == pStart)
                 {
-                    mainWorker.setRange(pRangeStart, pRangeEnd);
+                    mainClient.setRange(pRangeStart, pRangeEnd);
                 }
                 else
                 {
@@ -208,7 +83,7 @@ void TileDownloader::determineRanges(Worker& mainWorker, bool loadedMetadata)
 
     if (pRangeStart == pStart)
     {
-        mainWorker.setRange(pRangeStart, pRangeEnd);
+        mainClient.setRange(pRangeStart, pRangeEnd);
     }
     else
     {

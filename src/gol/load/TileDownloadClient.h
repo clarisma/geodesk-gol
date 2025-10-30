@@ -9,11 +9,12 @@
 using namespace clarisma;
 
 class TileLoader;
+class TileDownloader;
 
 class TileDownloadClient : public HttpResponseReader<TileDownloadClient>
 {
 public:
-	TileDownloadClient(TileLoader& loader, const std::string_view& url) :
+	TileDownloadClient(TileDownloader& loader, const std::string_view& url) :
 		loader_(loader),
 		client_(url)
 	{
@@ -42,7 +43,7 @@ private:
 	bool skipTile();
 	bool nextTile();
 
-	TileLoader& loader_;
+	TileDownloader& loader_;
 	HttpClient client_;
 	ByteBlock compressed_;
 	const TesArchiveEntry* pCurrentTile_ = nullptr;
