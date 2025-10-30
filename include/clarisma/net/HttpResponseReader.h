@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <clarisma/net/HttpClient.h>
-#include <clarisma/net/HttpException.h>
 #include <clarisma/net/HttpResponseHeaders.h>
 
 namespace clarisma {
@@ -16,12 +14,11 @@ template<typename Derived>
 class HttpResponseReader
 {
 public:
-    bool get(const char* url, const HttpRequestHeaders& headers);
+    bool get(const char* url, const HttpRequestHeaders& reqHeaders);
 
     using Dispatcher = bool (Derived::*)();
 
-    // TODO: rename acceptResponse(int status, const HttpResponseHeaders& headers)
-    bool acceptHeaders(const HttpResponseHeaders& headers)  // CRTP virtual
+    bool acceptResponse(int status, const HttpResponseHeaders& headers)  // CRTP virtual
     {
         return true;
     }

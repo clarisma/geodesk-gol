@@ -28,7 +28,6 @@ public:
         headers_(headers) {}
 #endif
 
-    int status() const;     // TODO: move, not a header!
     size_t contentLength() const;
     std::string etag() const;
 

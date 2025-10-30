@@ -30,9 +30,8 @@ void TileDownloadClient::downloadRanges()
     }
 }
 
-bool TileDownloadClient::acceptHeaders(const HttpResponseHeaders& headers)
+bool TileDownloadClient::acceptResponse(int status, const HttpResponseHeaders& headers)
 {
-    int status = headers.status();
     if (etag_.empty())
     {
         if (status != 200)
@@ -102,7 +101,7 @@ bool TileDownloadClient::processCatalog()
 
     // Otherwise, we'll continue reading from the initial response;
     // first, we'll skip the metadata chunk
-    
+
     receive(reinterpret_cast<std::byte*>(compressed_.data()),
             compressed_.size(),
             &TileDownloadClient::skipMetadata);

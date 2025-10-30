@@ -31,9 +31,16 @@ private:
 	void dumpRanges();
 
 	const char* url_ = nullptr;
+
+	// A buffer used for reading the GOB's header
+	// (only used if downloading)
 	TesArchiveHeader header_;
 	std::vector<Range> ranges_;
 	std::atomic<int> nextRange_ = 0;
+
+	// When downloading, it makes sense to simply read and discard
+	// a range of bytes instead of issuing a separate range request,
+	// which incurs latency. This field specifies the threshold
 	uint32_t maxSkippedBytes_ = 1024 * 1024;   // 1 MB
 
 	friend class TileDownloadClient;

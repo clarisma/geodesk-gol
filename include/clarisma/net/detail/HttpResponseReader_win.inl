@@ -8,7 +8,8 @@
 #endif
 #include <windows.h>
 #include <winhttp.h>
-#include <clarisma/net/HttpRequestHeaders.h>
+#include <clarisma/net/HttpException.h>
+#include <clarisma/net/HttpResponse.h>
 
 namespace clarisma {
 
@@ -18,7 +19,7 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
     HttpResponse response = self()->client()->get(url, reqHeaders);
     HINTERNET request = response.handle();
     HttpResponseHeaders headers(request);
-    if (!self()->acceptHeaders(headers)) return false;
+    if (!self()->acceptResponse(response.status(), headers)) return false;
 
     do
     {

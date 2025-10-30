@@ -26,7 +26,7 @@ public:
 
 	void download();
 	void downloadRanges();
-	bool acceptHeaders(const HttpResponseHeaders& headers);  // CRTP override
+	bool acceptResponse(int status, const HttpResponseHeaders& headers);  // CRTP override
 
 	void setRange(const TesArchiveEntry* pStart, const TesArchiveEntry* pEnd)
 	{

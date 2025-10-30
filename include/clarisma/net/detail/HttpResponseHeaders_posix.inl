@@ -6,11 +6,6 @@
 
 namespace clarisma {
 
-inline int HttpResponseHeaders::status() const
-{
-
-}
-
 inline size_t HttpResponseHeaders::contentLength() const
 {
     auto it = headers_.find("Content-Length");

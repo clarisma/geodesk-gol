@@ -8,6 +8,9 @@
 
 namespace clarisma {
 
+/*
+ // Move, not a header
+
 inline int HttpResponseHeaders::status() const
 {
     DWORD statusCode = 0;
@@ -25,6 +28,7 @@ inline int HttpResponseHeaders::status() const
     }
     return static_cast<int>(statusCode);
 }
+*/
 
 inline size_t HttpResponseHeaders::contentLength() const
 {
