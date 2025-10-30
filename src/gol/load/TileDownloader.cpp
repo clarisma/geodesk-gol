@@ -25,7 +25,8 @@ void TileDownloader::download(
     end();
     transaction_.commit();
     transaction_.end();
-    if (tile)
+
+    // TODO: only display "Done" if tiles were downloaded
     Console::end().success() << "Done.\n";
 }
 
@@ -68,7 +69,7 @@ bool TileDownloader::Worker::acceptHeaders(const HttpResponseHeaders& headers)
             }
             throw HttpException("Server error %d", status);
         }
-        // etag_ = headers.etag();   // TODO: enable
+        etag_ = headers.etag();
         if (etag_.empty())  [[unlikely]]
         {
             etag_ = "etag";

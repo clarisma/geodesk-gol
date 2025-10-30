@@ -4,6 +4,8 @@
 #pragma once
 #include <clarisma/text/Parsing.h>
 
+#include "clarisma/util/Unicode.h"
+
 namespace clarisma {
 
 inline int HttpResponseHeaders::status() const
@@ -42,11 +44,26 @@ inline size_t HttpResponseHeaders::contentLength() const
     return Parsing::parseUnsignedLong(buf);
 }
 
-/*
+inline std::string queryHeader(HINTERNET hRequest, DWORD flag,
+    const wchar_t *name = WINHTTP_HEADER_NAME_BY_INDEX)
+{
+    wchar_t buf[1024];
+    DWORD sizeBytes = sizeof(buf);
+
+    if (!WinHttpQueryHeaders(hRequest, flag, name,
+         &buf, &sizeBytes, WINHTTP_NO_HEADER_INDEX))
+    {
+        return {};
+    }
+    size_t n = sizeBytes / sizeof(wchar_t);
+    if (n && buf[n - 1] == L'\0') n--;       // trim NUL
+    return Unicode::toUtf8(std::wstring_view{buf, n});
+}
+
+
 inline std::string HttpResponseHeaders::etag() const
 {
-
+    return queryHeader(hRequest_, WINHTTP_QUERY_ETAG);
 }
-*/
 
 } // namespace clarisma

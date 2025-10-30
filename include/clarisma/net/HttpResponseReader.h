@@ -20,6 +20,7 @@ public:
 
     using Dispatcher = bool (Derived::*)();
 
+    // TODO: rename acceptResponse(int status, const HttpResponseHeaders& headers)
     bool acceptHeaders(const HttpResponseHeaders& headers)  // CRTP virtual
     {
         return true;
