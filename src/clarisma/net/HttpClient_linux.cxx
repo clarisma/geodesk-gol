@@ -9,33 +9,24 @@
 
 namespace clarisma {
 
-HttpClient::HttpClient(std::string_view url)
+HttpClient::HttpClient(std::string_view url) :
+    origin_(UrlView(url).origin()),
+    client_(origin_)
 {
-    UrlView uv(url);
-    if (uv.scheme() == "https")
-    {
-        useSSL_ = true;
-        new (&client_.ssl) httplib::SSLClient(std::string(uv.host()), uv.port());
-    }
-    else if (uv.scheme() == "http")
-    {
-        useSSL_ = false;
-        new (&client_.http) httplib::Client(std::string(uv.host()), uv.port());
-    }
-    else
-    {
-        throw IOException("Unsupported scheme: %s", uv.scheme());
-    }
-    std::string_view path = uv.path();
+    // TODO
+    /*
+    std::string_view path = urlView_.path();
     if (!path.empty())
     {
         if (path.back() == '/') path.remove_suffix(1);
         path_ = path;
     }
+    */
 }
 
 HttpClient::~HttpClient()
 {
+    /*
     if(useSSL_)
     {
         client_.ssl.~SSLClient();
@@ -44,6 +35,7 @@ HttpClient::~HttpClient()
     {
         client_.http.~Client();
     }
+    */
 }
 
 

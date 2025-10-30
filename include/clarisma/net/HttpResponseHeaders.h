@@ -24,7 +24,7 @@ public:
 #ifdef _WIN32
     explicit HttpResponseHeaders(const HINTERNET hRequest) : hRequest_(hRequest) {}
 #else
-    explicit HttpHeaders(const httplib::Headers& headers) :
+    explicit HttpResponseHeaders(const httplib::Headers& headers) :
         headers_(headers) {}
 #endif
 

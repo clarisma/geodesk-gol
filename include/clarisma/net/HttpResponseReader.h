@@ -8,7 +8,6 @@
 namespace clarisma {
 
 class HttpRequestHeaders;
-class HttpResponseHeaders;
 
 template<typename Derived>
 class HttpResponseReader

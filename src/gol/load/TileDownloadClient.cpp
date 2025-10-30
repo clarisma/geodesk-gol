@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "TileDownloadClient.h"
+#include <clarisma/net/HttpException.h>
 #include "TileLoader.h"
 
 void TileDownloadClient::download()

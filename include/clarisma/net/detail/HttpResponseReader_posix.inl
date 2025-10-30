@@ -3,6 +3,8 @@
 
 #pragma once
 #include <httplib.h>
+#include <clarisma/net/HttpException.h>
+#include <clarisma/net/HttpRequestHeaders.h>
 
 namespace clarisma {
 
@@ -12,15 +14,20 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
     auto derived = self();
     uint32_t filled = 0;
 
-    auto res = derived->client()->Get(url, reqHeaders,
+    UrlView urlView(url);
+    // TODO, this is dirty, path may not be 0-terminated
+    url = "/"; // TODO urlView.path().data();
+
+    auto res = derived->client()->client().Get(url,
+        reqHeaders.asHttplibHeaders(),
         [&](const httplib::Response& response)
         {
-            return derived->acceptResponse(response.status, response.headers);
+            return derived->acceptResponse(response.status,
+                HttpResponseHeaders(response.headers));
         },
         [&](const char* data, size_t dataLen)
         {
-            const std::byte* src =
-                reinterpret_cast<const std::byte*>(data);
+            auto src = reinterpret_cast<const std::byte*>(data);
 
             while (dataLen > 0)
             {
@@ -35,16 +42,25 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
 
                 if (filled == chunkSize_)
                 {
-                    if (!(d->*dispatcher_)())
+                    if (!(derived->*dispatcher_)())
                     {
                         return false;   // tell httplib to stop
                     }
                     filled = 0;
                 }
             }
+            return true;
         });
 
-    return res;
+    if (!res)
+    {
+        httplib::Error error = res.error();
+        if (error != httplib::Error::Canceled)
+        {
+            throw HttpException(res.error());
+        }
+    }
+    return true;
 }
 
 } // namespace clarisma

@@ -103,4 +103,12 @@ int UrlView::port() const noexcept
     return 80;
 }
 
+std::string_view UrlView::origin() const noexcept
+{
+    if (scheme_.empty() || host_.empty()) return {};
+    const char* start = scheme_.data();
+    const char* end = port_.empty() ? host_.end() : port_.end();
+    return { start, end };
+}
+
 } // namespace clarisma

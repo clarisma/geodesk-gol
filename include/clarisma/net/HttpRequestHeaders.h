@@ -30,7 +30,9 @@ public:
 
     std::string headers_;
 #else
-    const httplib::Headers& headers_;
+    const httplib::Headers& asHttplibHeaders() const noexcept { return headers_; }
+
+    httplib::Headers headers_;
 #endif
 };
 

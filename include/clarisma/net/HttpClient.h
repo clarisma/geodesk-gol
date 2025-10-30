@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 #include <httplib.h>
+#include "UrlView.h"
 #endif
 #include "HttpRequestHeaders.h"
 
@@ -28,6 +29,8 @@ public:
 #ifdef _WIN32
     bool isOpen() const { return hConnect_ != nullptr; }
     HttpResponse get(const char* url, const HttpRequestHeaders& headers = HttpRequestHeaders());
+#else
+    httplib::Client& client() { return client_; }
 #endif
     void get(const char* url, std::vector<std::byte>& data);
 
@@ -43,15 +46,9 @@ private:
     int port_;
     bool useSSL_ = false;
 #else
-    union Clients
-    {
-        httplib::Client http;
-        httplib::SSLClient ssl;
-
-        Clients() {}  // Does nothing, objects constructed manually
-        ~Clients() {} // Destructor must be manually called
-    } client_;
-    bool useSSL_ = false;
+    std::string origin_;
+    httplib::Client client_;
+    // bool useSSL_ = false;
 #endif
     std::string path_;
 };
