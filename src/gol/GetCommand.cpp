@@ -4,7 +4,7 @@
 #include "GetCommand.h"
 #include "GolCommand.h"
 #include <clarisma/cli/CliApplication.h>
-#include "gol/load/TileDownloader.h"
+#include "gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
 
@@ -34,7 +34,7 @@ int GetCommand::run(char* argv[])
 	// TODO !!!!
 	url_ = tesFileNames_[0];
 
-	TileDownloader downloader(&store_, threadCount());
+	TileLoader downloader(&store_, threadCount());
 	downloader.download(golPath_.c_str(), waynodeIds_,
 		url_.data(), bounds_, filter_.get());
 		// url_ is guaranteed to be null-terminated

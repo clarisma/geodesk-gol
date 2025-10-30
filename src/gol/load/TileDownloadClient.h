@@ -3,18 +3,18 @@
 
 #pragma once
 #include <clarisma/alloc/Block.h>
+#include <clarisma/net/HttpClient.h>
 #include <clarisma/net/HttpResponseReader.h>
 #include "tile/tes/TesArchive.h"
 
 using namespace clarisma;
 
 class TileLoader;
-class TileDownloader;
 
 class TileDownloadClient : public HttpResponseReader<TileDownloadClient>
 {
 public:
-	TileDownloadClient(TileDownloader& loader, const std::string_view& url) :
+	TileDownloadClient(TileLoader& loader, const std::string_view& url) :
 		loader_(loader),
 		client_(url)
 	{
@@ -43,7 +43,7 @@ private:
 	bool skipTile();
 	bool nextTile();
 
-	TileDownloader& loader_;
+	TileLoader& loader_;
 	HttpClient client_;
 	ByteBlock compressed_;
 	const TesArchiveEntry* pCurrentTile_ = nullptr;
