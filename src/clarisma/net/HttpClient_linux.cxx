@@ -10,18 +10,10 @@
 namespace clarisma {
 
 HttpClient::HttpClient(std::string_view url) :
-    origin_(UrlView(url).origin()),
+    urlView_(url),
+    origin_(urlView_.origin()),
     client_(origin_)
 {
-    // TODO
-    /*
-    std::string_view path = urlView_.path();
-    if (!path.empty())
-    {
-        if (path.back() == '/') path.remove_suffix(1);
-        path_ = path;
-    }
-    */
 }
 
 HttpClient::~HttpClient()

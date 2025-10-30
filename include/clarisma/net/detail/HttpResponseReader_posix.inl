@@ -12,13 +12,24 @@ template<typename Derived>
 bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders& reqHeaders)
 {
     auto derived = self();
+    auto client = derived->client();
     uint32_t filled = 0;
 
-    UrlView urlView(url);
-    // TODO, this is dirty, path may not be 0-terminated
-    url = "/"; // TODO urlView.path().data();
+    std::string path;
+    if (url[0] == '/')
+    {
+        path = url;
+    }
+    else if (url[0] == 0)
+    {
+        path = client->path();
+    }
+    else
+    {
+        path = std::string(client->path()) + "/" + url;
+    }
 
-    auto res = derived->client()->client().Get(url,
+    auto res = client->client().Get(path,
         reqHeaders.asHttplibHeaders(),
         [&](const httplib::Response& response)
         {

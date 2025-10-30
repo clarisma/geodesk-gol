@@ -13,6 +13,7 @@
 #include "UrlView.h"
 #endif
 #include "HttpRequestHeaders.h"
+#include "SimpleUrlView.h"
 
 namespace clarisma {
 
@@ -29,8 +30,10 @@ public:
 #ifdef _WIN32
     bool isOpen() const { return hConnect_ != nullptr; }
     HttpResponse get(const char* url, const HttpRequestHeaders& headers = HttpRequestHeaders());
+    std::string_view path() const { return path_; }
 #else
     httplib::Client& client() { return client_; }
+    std::string_view path() const { return urlView_.path(); }
 #endif
     void get(const char* url, std::vector<std::byte>& data);
 
@@ -46,6 +49,7 @@ private:
     int port_;
     bool useSSL_ = false;
 #else
+    SimpleUrlView urlView_;
     std::string origin_;
     httplib::Client client_;
     // bool useSSL_ = false;
