@@ -107,8 +107,10 @@ std::string_view UrlView::origin() const noexcept
 {
     if (scheme_.empty() || host_.empty()) return {};
     const char* start = scheme_.data();
-    const char* end = port_.empty() ? host_.end() : port_.end();
-    return { start, end };
+    const char* end = port_.empty() ?
+        (host_.data() + host_.size()) :
+        (port_.data() + port_.size());
+    return { start, static_cast<size_t>(end-start) };   // NOLINT escape
 }
 
 } // namespace clarisma
