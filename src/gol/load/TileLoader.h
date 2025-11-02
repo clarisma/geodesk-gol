@@ -65,8 +65,8 @@ public:
 
 	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds,
 		Box bounds, const Filter* filter);
-	void download(const char *golFileName, bool wayNodeIds,
-		const char* url, Box bounds, const Filter* filter);
+	void download(const char *golFileName, const char* url,
+		 bool wayNodeIds, Box bounds, const Filter* filter);
 
 	void processTask(TileData& task);
 

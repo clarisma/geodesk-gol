@@ -23,6 +23,7 @@ protected:
 	}
 	void help() override;
 
-	std::vector<std::string> tesFileNames_;
+	std::string gobFileName_;
 	bool waynodeIds_ = false;
+	bool isRemoteGob_ = false;
 };

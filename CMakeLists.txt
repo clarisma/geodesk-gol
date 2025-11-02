@@ -1,8 +1,8 @@
 ﻿cmake_minimum_required(VERSION 3.15)
 project(geodesk-gol)
 
-option(GOL_DIAGNOSTICS "Enable diagnostic commands" ON)
-option(GOL_EXPERIMENTAL "Enable experimental features" ON)
+option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
+option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)

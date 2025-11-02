@@ -136,7 +136,7 @@ bool TileLoader::openStore()
 }
 
 void TileLoader::download(
-	const char *golFileName, bool wayNodeIds, const char* url,
+	const char *golFileName, const char* url, bool wayNodeIds, 
 	Box bounds, const Filter* filter)
 {
 	golFileName_ = golFileName;

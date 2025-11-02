@@ -16,7 +16,7 @@ GetCommand::GetCommand()
 bool GetCommand::setParam(int number, std::string_view value)
 {
 	if(GolCommand::setParam(number, value)) return true;
-	tesFileNames_.emplace_back(value);
+	// tesFileNames_.emplace_back(value);
 	return true;
 }
 
@@ -31,6 +31,7 @@ int GetCommand::run(char* argv[])
 	int res = GolCommand::run(argv);
 	if (res != 0) return res;
 
+	/*
 	// TODO !!!!
 	url_ = tesFileNames_[0];
 
@@ -38,6 +39,7 @@ int GetCommand::run(char* argv[])
 	downloader.download(golPath_.c_str(), waynodeIds_,
 		url_.data(), bounds_, filter_.get());
 		// url_ is guaranteed to be null-terminated
+	*/
 	/*
 	FeatureStore store;
 	store.open(GolCommand::golPath(golName_).c_str());

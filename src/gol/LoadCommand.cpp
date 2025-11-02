@@ -6,6 +6,7 @@
 #include <clarisma/cli/CliApplication.h>
 #include <clarisma/cli/CliHelp.h>
 #include <clarisma/io/FilePath.h>
+#include <clarisma/net/UrlUtils.h>
 
 #include "gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
@@ -25,8 +26,39 @@ LoadCommand::LoadCommand()
 
 bool LoadCommand::setParam(int number, std::string_view value)
 {
-	if(GolCommand::setParam(number, value)) return true;
-	tesFileNames_.emplace_back(FilePath::withDefaultExtension(value, ".gob"));
+	if (number == 0) return true;   // command itself
+	if (number > 1)
+	{
+		if (number > 2 || isRemoteGob_) return false;
+		// more than 2 params (or more than 2 URLs) are not allowed
+	}
+
+	if (UrlUtils::isUrl(value.data()))	// safe, value is 0-terminated
+	{
+		gobFileName_ = value;
+		isRemoteGob_ = true;
+		if (number == 1)
+		{
+			std::string_view baseName = FilePath::withoutExtension(
+				FilePath::name(value));
+			if (std::string_view(FilePath::extension(baseName)) == ".osm")
+			{
+				baseName = FilePath::withoutExtension(baseName);
+			}
+			golPath_ = FilePath::withExtension(baseName, ".gol");
+		}
+	}
+	else
+	{
+		if (number == 1)
+		{
+			golPath_ = FilePath::withDefaultExtension(value, ".gol");
+		}
+		else
+		{
+			gobFileName_ = FilePath::withDefaultExtension(value, ".gob");
+		}
+	}
 	return true;
 }
 
@@ -35,14 +67,22 @@ int LoadCommand::run(char* argv[])
 	int res = GolCommand::run(argv);
 	if (res != 0) return res;
 
-	if (tesFileNames_.empty())
+	if (gobFileName_.empty())
 	{
-		tesFileNames_.emplace_back(FilePath::withExtension(golPath_, ".gob"));
+		gobFileName_ = FilePath::withExtension(golPath_, ".gob");
 	}
 	
 	TileLoader loader(&store_, threadCount());
-	loader.load(golPath_.c_str(), tesFileNames_[0].c_str(), waynodeIds_,
+	if (isRemoteGob_)
+	{
+		loader.download(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
 		bounds_, filter_.get());
+	}
+	else
+	{
+		loader.load(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
+			bounds_, filter_.get());
+	}
 	return 0;
 }
 
