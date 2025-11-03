@@ -106,16 +106,18 @@ private:
 	Tile tileOfTip(Tip tip) const { return tiles_[tip]; }
 
 	FeatureStore::Transaction transaction_;
-	double workPerTile_;
-	double workCompleted_;
-	size_t totalBytesWritten_;
-	size_t bytesSinceLastCommit_;
+	double workPerTile_ = 0;
+	double workCompleted_ = 0;
+	uint64_t requestedTileBytesCompressed_ = 0;
+	uint64_t totalBytesWritten_ = 0;
+	uint64_t bytesSinceLastCommit_ = 0;
 	File file_;
 	std::unique_ptr<std::byte> catalog_;
 	std::unique_ptr<Tile[]> tiles_;
 	uint32_t catalogSize_ = 0;
 	bool wayNodeIds_ = false;
 	bool transactionStarted_ = false;
+	bool isRemoteGob_ = false;
 	const char* golFileName_ = nullptr;
 	const char* gobFileName_ = nullptr;
 	Box bounds_;

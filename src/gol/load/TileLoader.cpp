@@ -5,6 +5,7 @@
 #include "TileDownloadClient.h"
 #include <clarisma/cli/Console.h>
 #include <clarisma/cli/ConsoleWriter.h>
+#include <clarisma/util/FileSize.h>
 #include <clarisma/util/FileVersion.h>
 #include <clarisma/zip/Zip.h>
 #include <geodesk/query/TileIndexWalker.h>
@@ -21,11 +22,7 @@
 
 TileLoader::TileLoader(FeatureStore* store, int numberOfThreads) :
 	TaskEngine(numberOfThreads),
-	transaction_(*store),
-	workCompleted_(0),
-	workPerTile_(0),
-	totalBytesWritten_(0),
-	bytesSinceLastCommit_(0)
+	transaction_(*store)
 {
 }
 
@@ -136,17 +133,18 @@ bool TileLoader::openStore()
 }
 
 void TileLoader::download(
-	const char *golFileName, const char* url, bool wayNodeIds, 
+	const char *golFileName, const char* url, bool wayNodeIds,
 	Box bounds, const Filter* filter)
 {
 	golFileName_ = golFileName;
 	gobFileName_ = url; // TODO: consolidate local file & url
 	wayNodeIds_ = wayNodeIds;
+	isRemoteGob_ = true;
 	url_ = url;
 	bounds_ = bounds;
 	filter_ = filter;
 
-	Console::get()->start("Downloading...");
+	Console::get()->start("Contacting host...");
 	start();
 	std::string_view svUrl = url;
 	TileDownloadClient mainClient(*this, svUrl);
@@ -158,8 +156,11 @@ void TileLoader::download(
 	transaction_.commit();
 	transaction_.end();
 
-	// TODO: only display "Done" if tiles were downloaded
-	Console::end().success() << "Done.\n";
+	// TODO check: only display "Done" if tiles were downloaded
+	if (requestedTileBytesCompressed_)
+	{
+		Console::end().success() << "Done.\n";
+	}
 }
 
 
@@ -181,11 +182,21 @@ bool TileLoader::beginTiles()
 	workPerTile_ = 100.0 / tileCount;
 	workCompleted_ = 0;
 
-	ConsoleWriter().blank() << "Loading "
+	ConsoleWriter out;
+	out.blank() << (isRemoteGob_ ? "Downloading " : "Loading ")
 		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
-		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
-		<< Console::FAINT_LIGHT_BLUE << transaction_.store().fileName()
-		<< Console::DEFAULT << " from "
+		<< Console::DEFAULT << (isRemoteGob_ ?
+			(tileCount == 1 ? " tile (" : " tiles (") :
+			(tileCount == 1 ? " tile into " : " tiles into "));
+	if (isRemoteGob_)
+	{
+		Console::get()->setTask("Downloading...");
+
+		out << Console::FAINT_LIGHT_BLUE << FileSize(requestedTileBytesCompressed_)
+			<< Console::DEFAULT << " compressed) into ";
+	}
+	out	<< Console::FAINT_LIGHT_BLUE << transaction_.store().fileName()
+		<< Console::DEFAULT << (isRemoteGob_ && out.isTerminal() ? "\n  from " : " from ")
 		<< Console::FAINT_LIGHT_BLUE << gobFileName_
 		<< Console::DEFAULT << ":\n";
 
@@ -347,6 +358,7 @@ int TileLoader::determineTiles()
 			if (!tiles_[p->tip].isNull())
 			{
 				tileCount++;
+				requestedTileBytesCompressed_ += p->size;
 			}
 			++p;
 		}

@@ -10,6 +10,10 @@ void TileDownloadClient::download()
     receive(reinterpret_cast<std::byte*>(&loader_.header_),
         sizeof(loader_.header_), &TileDownloadClient::processHeader);
     HttpRequestHeaders headers;
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Issuing initial request";
+    }
     get("", headers);
 }
 
@@ -27,6 +31,12 @@ void TileDownloadClient::downloadRanges()
         nextTile();
         HttpRequestHeaders headers;
         headers.addRange(ofs, size);
+        if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+        {
+            ConsoleWriter().timestamp() << "Requesting " << tileCount <<
+                (tileCount==1 ? " tile at " : " tiles at ")
+                << ofs << " (" << size << " bytes)";
+        }
         get("", headers);
     }
 }
@@ -56,6 +66,10 @@ bool TileDownloadClient::acceptResponse(int status, const HttpResponseHeaders& h
             throw HttpException("Server does not support range queries");
         }
         throw HttpException("Server error %d", status);
+    }
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Accepting response";
     }
     return true;
 }
