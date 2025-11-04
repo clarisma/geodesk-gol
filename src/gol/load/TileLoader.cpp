@@ -551,8 +551,8 @@ void TileLoader::downloadRanges()
 	}
 	catch (std::exception& ex)
 	{
-		// TODO
-		ConsoleWriter() << ex.what();
+		// TODO: more lenient error handling
+		CliApplication::abort(ex.what());
 	}
 }
 
