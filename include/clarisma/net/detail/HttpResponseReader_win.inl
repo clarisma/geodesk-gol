@@ -14,7 +14,7 @@
 namespace clarisma {
 
 template<typename Derived>
-bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders& reqHeaders)
+bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders& reqHeaders, bool readAll)
 {
     HttpResponse response = self()->client()->get(url, reqHeaders);
     HINTERNET request = response.handle();

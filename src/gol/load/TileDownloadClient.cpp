@@ -37,7 +37,7 @@ void TileDownloadClient::downloadRanges()
                 (tileCount==1 ? " tile at " : " tiles at ")
                 << ofs << " (" << size << " bytes)";
         }
-        get("", headers);
+        get("", headers, true);
     }
 }
 

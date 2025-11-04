@@ -6,10 +6,12 @@
 #include <clarisma/net/HttpException.h>
 #include <clarisma/net/HttpRequestHeaders.h>
 
+#include "clarisma/util/log.h"
+
 namespace clarisma {
 
 template<typename Derived>
-bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders& reqHeaders)
+bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders& reqHeaders, bool readAll)
 {
     auto derived = self();
     auto client = derived->client();
@@ -29,6 +31,8 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
         path = std::string(client->path()) + "/" + url;
     }
 
+    LOGS << "Client is open: " << client->client().is_socket_open();
+
     auto res = client->client().Get(path,
         reqHeaders.asHttplibHeaders(),
         [&](const httplib::Response& response)
@@ -38,6 +42,11 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
         },
         [&](const char* data, size_t dataLen)
         {
+            if (!derived->*dispatcher_) [[unlikely]]
+            {
+                return readAll;
+            }
+
             auto src = reinterpret_cast<const std::byte*>(data);
 
             while (dataLen > 0)
@@ -55,7 +64,8 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
                 {
                     if (!(derived->*dispatcher_)())
                     {
-                        return false;   // tell httplib to stop
+                        return readAll;
+                        // return false;   // tell httplib to stop
                     }
                     filled = 0;
                 }
@@ -71,6 +81,8 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
             throw HttpException(res.error());
         }
     }
+    LOGS << "Client stayed open: " << client->client().is_socket_open();
+
     return true;
 }
 

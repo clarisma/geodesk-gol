@@ -20,6 +20,11 @@ public:
 	{
 		// client_.setUserAgent("gol/" GEODESK_GOL_VERSION);
 		// TODO!!!
+		client_.client().set_keep_alive(true);       // ensure we don't send Connection: close
+		client_.client().set_tcp_nodelay(true);      // avoid Nagle delays on small requests
+		client_.client().set_connection_timeout(5);  // connect() only
+		//client_.setWriteTimeout(60);
+		//client_.setReadTimeout(60);
 	}
 
 	HttpClient* client() { return &client_; }	// CRTP override

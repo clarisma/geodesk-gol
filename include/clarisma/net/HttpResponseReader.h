@@ -13,7 +13,7 @@ template<typename Derived>
 class HttpResponseReader
 {
 public:
-    bool get(const char* url, const HttpRequestHeaders& reqHeaders);
+    bool get(const char* url, const HttpRequestHeaders& reqHeaders, bool readAll = false);
 
     using Dispatcher = bool (Derived::*)();
 
