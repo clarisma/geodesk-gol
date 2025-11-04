@@ -42,7 +42,7 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
         },
         [&](const char* data, size_t dataLen)
         {
-            if (!derived->*dispatcher_) [[unlikely]]
+            if (!derived->dispatcher_) [[unlikely]]
             {
                 return readAll;
             }
