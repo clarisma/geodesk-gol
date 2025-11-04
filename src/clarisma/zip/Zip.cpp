@@ -5,9 +5,9 @@
 
 #include <clarisma/zip/Zip.h>
 #include <zlib.h>
+#include <clarisma/alloc/ReusableBlock.h>
 #include <clarisma/util/Crc32C.h>
-
-#include "clarisma/alloc/ReusableBlock.h"
+#include <clarisma/util/log.h>
 
 namespace clarisma {
 
@@ -224,6 +224,8 @@ ByteBlock uncompressSealedChunk(const uint8_t* data, size_t size)
 {
     uint32_t sizeUncompressed = *reinterpret_cast<const uint32_t*>(data);
     uint32_t checksum = *reinterpret_cast<const uint32_t*>(data + 4);
+    LOGS << "Uncompressing chunk of " << size << " bytes to to " <<
+        sizeUncompressed << " bytes (uncompressed)";
     ByteBlock uncompressed = inflateRaw(data + 8, size - 8, sizeUncompressed);
     if (Crc32C::compute(uncompressed.data(), uncompressed.size()) != checksum)
     {

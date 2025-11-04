@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "TileLoader.h"
+#include "TileDownloadClient.h"
 #include <clarisma/cli/Console.h>
 #include <clarisma/cli/ConsoleWriter.h>
+#include <clarisma/util/FileSize.h>
 #include <clarisma/util/FileVersion.h>
 #include <clarisma/zip/Zip.h>
 #include <geodesk/query/TileIndexWalker.h>
@@ -17,15 +19,10 @@
 #include "tile/tes/TesReader.h"
 
 // TODO: Set waynode_ids flag in store
-// TODO: repsect area/bbox
 
 TileLoader::TileLoader(FeatureStore* store, int numberOfThreads) :
 	TaskEngine(numberOfThreads),
-	transaction_(*store),
-	workCompleted_(0),
-	workPerTile_(0),
-	totalBytesWritten_(0),
-	bytesSinceLastCommit_(0)
+	transaction_(*store)
 {
 }
 
@@ -33,108 +30,29 @@ void TileLoader::load(const char *golFileName,
 	const char *gobFileName, bool wayNodeIds,
 	Box bounds, const Filter* filter)
 {
+	golFileName_ = golFileName;
+	gobFileName_ = gobFileName;
 	wayNodeIds_ = wayNodeIds;
+	bounds_ = bounds;
+	filter_ = filter;
 	file_.open(gobFileName, File::OpenMode::READ);
 	Console::get()->start("Loading...");
 
 	TesArchiveHeader header;
 	file_.readAll(&header, sizeof(header));
-	verifyHeader(header);
-	size_t catalogSize = sizeof(TesArchiveHeader) +
-		sizeof(TesArchiveEntry) * header.tileCount +
-		sizeof(uint32_t);
-	catalog_.reset(new std::byte[catalogSize]);
-	memcpy(catalog_.get(), &header, sizeof(header));
+	prepareCatalog(header);
 	file_.readAll(catalog_.get() + sizeof(TesArchiveHeader),
-		catalogSize - sizeof(TesArchiveHeader));
-	size_t checksumOfs = catalogSize - sizeof(uint32_t);
-	if (Crc32C::compute(catalog_.get(), checksumOfs) !=
-		*reinterpret_cast<uint32_t*>(catalog_.get() + checksumOfs))
+		catalogSize_ - sizeof(TesArchiveHeader));
+	verifyCatalog();
+
+	if (openStore())
 	{
-		throw std::runtime_error("Invalid GOB catalog checksum");
-	}
-	if (wayNodeIds)  [[unlikely]]
-	{
-		if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
-		{
-			throw std::runtime_error("Bundle does not contain waynode IDs");
-		}
-	}
-
-	FeatureStore& store = transaction_.store();
-	store.open(golFileName,
-		FeatureStore::OpenMode::WRITE |
-		FeatureStore::OpenMode::CREATE |
-		FeatureStore::OpenMode::TRY_EXCLUSIVE);
-		// TODO: modes
-
-	transaction_.begin();
-	// TODO: start tx after we've veified tsid & determined tiles
-
-	uint64_t ofs = catalogSize;
-
-	if (store.isCreated())
-	{
-		// TODO: metadata must be present
-		/*
-		if(!metadataEntry)
-		{
-			throw TesException("Can't create GOL: TES does not contain metadata");
-		}
-		*/
 		initStore(header, file_.readBlock(header.metadataChunkSize));
 	}
-	else
-	{
-		if (transaction_.header().guid != header.guid)
-		{
-			throw std::runtime_error("Incompatible tileset");
-		}
-		if (wayNodeIds)  [[unlikely]]
-		{
-			if (!store.hasWaynodeIds())
-			{
-				throw std::runtime_error("Library does not store waynode IDs");
-			}
-		}
-		else
-		{
-			// Even if waynode IDs are not explicitly requested, if the
-			// store contains waynode IDs, then we also need to load
-			// any new tiles with waynode IDs; hence, the Bundle must have them
-
-			if (store.hasWaynodeIds())  [[unlikely]]
-			{
-				if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
-				{
-					throw std::runtime_error("Library contains waynode IDs, but Bundle does not");
-				}
-				wayNodeIds_ = true;
-			}
-		}
-	}
-
-	ofs += header.metadataChunkSize;
-
-	int tileCount = determineTiles(bounds, filter);
-	if (tileCount == 0)
-	{
-		Console::end().success() << "All tiles already loaded.\n";
-		return;
-	}
-
-	workPerTile_ = 100.0 / tileCount;
-	workCompleted_ = 0;
-
-	ConsoleWriter().blank() << "Loading "
-		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
-		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
-		<< Console::FAINT_LIGHT_BLUE << store.fileName()
-		<< Console::DEFAULT << " from "
-		<< Console::FAINT_LIGHT_BLUE << gobFileName
-		<< Console::DEFAULT << ":\n";
+	if (!beginTiles()) return;
 
 	start();
+	uint64_t ofs = catalogSize_ + gobHeader().metadataChunkSize;
 
 	auto p = reinterpret_cast<const TesArchiveEntry*>(
 		catalog_.get() + sizeof(TesArchiveHeader));
@@ -159,6 +77,132 @@ void TileLoader::load(const char *golFileName,
 	Console::end().success() << "Done.\n";
 }
 
+bool TileLoader::openStore()
+{
+	FeatureStore& store = transaction_.store();
+	store.open(golFileName_,
+		FeatureStore::OpenMode::WRITE |
+		FeatureStore::OpenMode::CREATE |
+		FeatureStore::OpenMode::TRY_EXCLUSIVE);
+	// TODO: modes
+
+	const TesArchiveHeader header = gobHeader();
+
+	// We always start the tx, even if no tiles will
+	// ultimately be loaded, because this simplifies the workflow
+	// TODO: flag is not needed
+	// TODO: No, don't use tx unless needed, because end() writes
+	//  the tile index even if no tiles were loaded
+
+	transaction_.begin();
+	transactionStarted_ = true;
+
+	if (store.isCreated())
+	{
+		return true;
+	}
+
+	if (transaction_.header().guid != header.guid)
+	// if (store.guid() != header.guid)
+	{
+		throw std::runtime_error("Incompatible tileset");
+	}
+	if (wayNodeIds_)  [[unlikely]]
+	{
+		if (!store.hasWaynodeIds())
+		{
+			throw std::runtime_error("Library does not store waynode IDs");
+		}
+	}
+	else
+	{
+		// Even if waynode IDs are not explicitly requested, if the
+		// store contains waynode IDs, then we also need to load
+		// any new tiles with waynode IDs; hence, the Bundle must have them
+
+		if (store.hasWaynodeIds())  [[unlikely]]
+		{
+			if ((header.flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
+			{
+				throw std::runtime_error("Library contains waynode IDs, but Bundle does not");
+			}
+			wayNodeIds_ = true;
+		}
+	}
+	return false;
+}
+
+void TileLoader::download(
+	const char *golFileName, const char* url, bool wayNodeIds,
+	Box bounds, const Filter* filter, int maxConnections)
+{
+	golFileName_ = golFileName;
+	gobFileName_ = url; // TODO: consolidate local file & url
+	wayNodeIds_ = wayNodeIds;
+	isRemoteGob_ = true;
+	url_ = url;
+	bounds_ = bounds;
+	filter_ = filter;
+	maxConnections_ = maxConnections;
+
+	Console::get()->start("Contacting host...");
+	start();
+	std::string_view svUrl = url;
+	TileDownloadClient mainClient(*this, svUrl);
+	mainClient.download();
+	dumpRanges();
+	mainClient.downloadRanges();
+	awaitDownloadThreads();
+	end();
+	transaction_.commit();
+	transaction_.end();
+
+	// TODO check: only display "Done" if tiles were downloaded
+	if (requestedTileBytesCompressed_)
+	{
+		Console::end().success() << "Done.\n";
+	}
+}
+
+
+bool TileLoader::beginTiles()
+{
+	int tileCount = determineTiles();
+	if (tileCount == 0)
+	{
+		Console::end().success() << "All tiles already loaded.\n";
+		return false;
+	}
+
+	if (!transactionStarted_)
+	{
+		transaction_.begin();
+		transactionStarted_ = true;
+	}
+
+	workPerTile_ = 100.0 / tileCount;
+	workCompleted_ = 0;
+
+	ConsoleWriter out;
+	out.blank() << (isRemoteGob_ ? "Downloading " : "Loading ")
+		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
+		<< Console::DEFAULT << (isRemoteGob_ ?
+			(tileCount == 1 ? " tile (" : " tiles (") :
+			(tileCount == 1 ? " tile into " : " tiles into "));
+	if (isRemoteGob_)
+	{
+		Console::get()->setTask("Downloading...");
+
+		out << Console::FAINT_LIGHT_BLUE << FileSize(requestedTileBytesCompressed_)
+			<< Console::DEFAULT << " compressed) into ";
+	}
+	out	<< Console::FAINT_LIGHT_BLUE << transaction_.store().fileName()
+		<< Console::DEFAULT << (isRemoteGob_ && out.isTerminal() ? "\n  from " : " from ")
+		<< Console::FAINT_LIGHT_BLUE << gobFileName_
+		<< Console::DEFAULT << ":\n";
+
+	return true;
+}
 
 void TileLoader::reportSuccess(int tileCount)
 {
@@ -229,6 +273,16 @@ void TileLoader::initStore(const TesArchiveHeader& header, ByteBlock&& compresse
 }
 
 
+void TileLoader::prepareCatalog(const TesArchiveHeader& header)
+{
+	verifyHeader(header);
+	catalogSize_ = static_cast<uint32_t>(sizeof(TesArchiveHeader) +
+		sizeof(TesArchiveEntry) * header.tileCount +
+		sizeof(uint32_t));
+	catalog_.reset(new std::byte[catalogSize_]);
+	memcpy(catalog_.get(), &header, sizeof(header));
+}
+
 void TileLoader::verifyHeader(const TesArchiveHeader& header)
 {
 	if (header.magic != TesArchiveHeader::MAGIC)
@@ -245,7 +299,27 @@ void TileLoader::verifyHeader(const TesArchiveHeader& header)
 	}
 }
 
-int TileLoader::determineTiles(Box bounds, const Filter* filter)
+
+void TileLoader::verifyCatalog() const
+{
+	size_t checksumOfs = catalogSize_ - sizeof(uint32_t);
+	if (Crc32C::compute(catalog_.get(), checksumOfs) !=
+		*reinterpret_cast<uint32_t*>(catalog_.get() + checksumOfs))
+	{
+		throw std::runtime_error("Invalid GOB catalog checksum");
+	}
+	if (wayNodeIds_)  [[unlikely]]
+	{
+		const TesArchiveHeader* header =
+			reinterpret_cast<const TesArchiveHeader*>(catalog_.get());
+		if ((header->flags & TesArchiveHeader::Flags::WAYNODE_IDS) == 0)
+		{
+			throw std::runtime_error("Bundle does not contain waynode IDs");
+		}
+	}
+}
+
+int TileLoader::determineTiles()
 {
 	uint32_t tipCount = transaction_.header().tipCount;
 	tiles_.reset(new Tile[tipCount+1]);
@@ -257,7 +331,7 @@ int TileLoader::determineTiles(Box bounds, const Filter* filter)
 	DataPtr tileIndex(reinterpret_cast<const uint8_t*>(transaction_.tileIndex()));
 	int tileCount = 0;
 	TileIndexWalker tiw(tileIndex, transaction_.store().zoomLevels(),
-		bounds, filter);
+		bounds_, filter_);
 	do
 	{
 		Tip tip = tiw.currentTip();
@@ -285,6 +359,7 @@ int TileLoader::determineTiles(Box bounds, const Filter* filter)
 			if (!tiles_[p->tip].isNull())
 			{
 				tileCount++;
+				requestedTileBytesCompressed_ += p->size;
 			}
 			++p;
 		}
@@ -353,13 +428,20 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 
 	loader_->postOutput(TileData(task.tip(),
 		std::move(std::unique_ptr<uint8_t[]>(newTileData)),
-		static_cast<size_t>(layout.size())));
+		static_cast<size_t>(layout.size() + 4)));
 }
 
 
 void TileLoader::processTask(TileData& task)
 {
-	transaction_.putTile(task.tip(), {task.data(), task.size()});
+	try
+	{
+		transaction_.putTile(task.tip(), {task.data(), task.size()});
+	}
+	catch (std::exception& ex)
+	{
+		CliApplication::abort(ex.what());
+	}
 	workCompleted_ += workPerTile_;
 	Console::get()->setProgress(static_cast<int>(workCompleted_));
 	totalBytesWritten_ += task.size();
@@ -371,6 +453,131 @@ void TileLoader::processTask(TileData& task)
 		bytesSinceLastCommit_ = 0;
 	}
 	*/
+}
+
+void TileLoader::determineRanges(TileDownloadClient& mainClient, bool loadedMetadata)
+{
+    uint64_t compressedMetadataSize = header_.metadataChunkSize;
+    uint64_t skippedBytes = loadedMetadata ? 0 : compressedMetadataSize;
+    uint64_t ofs = catalogSize_ + compressedMetadataSize;
+    const TesArchiveEntry* p = reinterpret_cast<const TesArchiveEntry*>(
+        catalog_.get() + sizeof(TesArchiveHeader));
+    const TesArchiveEntry* pStart = p;
+    const TesArchiveEntry* pRangeStart = p;
+    const TesArchiveEntry* pRangeEnd = p;
+    const TesArchiveEntry* pEnd = p + header_.tileCount;
+    uint64_t rangeStartOfs = ofs;
+    uint64_t rangeLen = 0;
+
+    while (p < pEnd)
+    {
+        if (tiles_[p->tip].isNull())
+        {
+            skippedBytes += p->size;
+        }
+        else
+        {
+            if (skippedBytes > maxSkippedBytes_)
+            {
+                if (pRangeStart == pStart)
+                {
+                    mainClient.setRange(pRangeStart, pRangeEnd);
+                }
+                else
+                {
+                    ranges_.emplace_back(rangeStartOfs, rangeLen,
+                        pRangeStart - pStart,
+                        pRangeEnd - pRangeStart);
+                }
+                rangeStartOfs = ofs;
+                rangeLen = 0;
+                pRangeStart = p;
+            }
+            else
+            {
+                rangeLen += skippedBytes;
+            }
+            skippedBytes = 0;
+            rangeLen += p->size;
+            pRangeEnd = p + 1;
+        }
+        ofs += p->size;
+        p++;
+    }
+
+    if (pRangeStart == pStart)
+    {
+        mainClient.setRange(pRangeStart, pRangeEnd);
+    }
+    else
+    {
+        ranges_.emplace_back(rangeStartOfs, rangeLen,
+            pRangeStart - pStart,
+            pRangeEnd - pRangeStart);
+    }
+}
+
+
+void TileLoader::startDownloadThreads()
+{
+	// TODO: could use ranges_.size() if main connection does
+	//  not continue downloading tiles
+
+	int downloadThreadCount = std::min(
+		static_cast<int>(ranges_.size()), maxConnections_ - 1);
+
+	if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+	{
+		ConsoleWriter().timestamp() << "Starting " << downloadThreadCount <<
+			" additional thread(s) to download " << ranges_.size() << " range(s)";
+	}
+
+	if (downloadThreadCount < 1) return;
+
+	downloadThreads_.reserve(downloadThreadCount);
+	for (int i = 0; i < downloadThreadCount; ++i)
+	{
+		downloadThreads_.emplace_back(&TileLoader::downloadRanges, this);
+	}
+}
+
+void TileLoader::downloadRanges()
+{
+	try
+	{
+		TileDownloadClient client(*this, url_);
+		client.setEtag("etag");	// TODO
+		client.downloadRanges();
+	}
+	catch (std::exception& ex)
+	{
+		// TODO: more lenient error handling
+		CliApplication::abort(ex.what());
+	}
+}
+
+void TileLoader::awaitDownloadThreads()
+{
+	for (auto& t : downloadThreads_)
+	{
+		if (t.joinable()) t.join();
+	}
+	downloadThreads_.clear();
+}
+
+
+
+void TileLoader::dumpRanges()
+{
+    LOGS << ranges_.size() << " ranges:";
+    for (Range r : ranges_)
+    {
+        Tip tip = entry(r.firstEntry)->tip;
+        LOGS << "Ofs = " << r.ofs << ", len = " << r.size
+            << ", tiles = " << r.tileCount << ", starting at #"
+            << r.firstEntry << ": " << tip << " ("
+            << tiles_[tip]  << ")";
+    }
 }
 
 #ifdef _DEBUG

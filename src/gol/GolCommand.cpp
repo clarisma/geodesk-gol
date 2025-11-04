@@ -128,7 +128,7 @@ void GolCommand::areaOptions(CliHelp& help)
 	help.beginSection("Area Options:");
 	help.option("-a, --area <coords> | <file>","Restrict to polygon");
 	help.option("-b, --bbox <W>,<S>,<E>,<N>","Restrict to bounding box");
-	help.option("-c, --circle <m>,<lon>,<lat>","Restrict to <m> meters around a point");
+	// help.option("-c, --circle <m>,<lon>,<lat>","Restrict to <m> meters around a point");
 	help.endSection();
 }
 

@@ -12,7 +12,7 @@ public:
 
 	int run(char* argv[]) override;
 
-private:
+protected:
 	static Option OPTIONS[];
 
 	bool setParam(int number, std::string_view value) override;
@@ -21,8 +21,14 @@ private:
 		waynodeIds_ = true;
 		return 0;
 	}
+	int setConnections(std::string_view s);
 	void help() override;
 
-	std::vector<std::string> tesFileNames_;
+	static constexpr int MIN_CONNECTIONS = 1;
+	static constexpr int MAX_CONNECTIONS = 256;
+
+	std::string gobFileName_;
 	bool waynodeIds_ = false;
+	bool isRemoteGob_ = false;
+	int connections_ = 4;
 };

@@ -33,6 +33,7 @@ public:
 
     HttpResponse(const HttpResponse&) = delete;
     HttpResponse& operator=(const HttpResponse&) = delete;
+    HINTERNET handle() const { return hRequest_; }
 
     int status() const;
     size_t contentLength() const;

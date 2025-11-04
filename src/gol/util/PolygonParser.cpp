@@ -101,6 +101,7 @@ void PolygonParser::parseRings(char closingParen)
             addRing();
             return;
         }
+        if (closingParen == 0) return;
         while(!accept(closingParen))
         {
             accept(',');

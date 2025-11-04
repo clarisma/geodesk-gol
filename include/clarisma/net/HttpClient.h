@@ -10,7 +10,10 @@
 #include <string_view>
 #include <vector>
 #include <httplib.h>
+#include "UrlView.h"
 #endif
+#include "HttpRequestHeaders.h"
+#include "SimpleUrlView.h"
 
 namespace clarisma {
 
@@ -26,12 +29,15 @@ public:
     void close();
 #ifdef _WIN32
     bool isOpen() const { return hConnect_ != nullptr; }
-    HttpResponse get(const char* url);
+    HttpResponse get(const char* url, const HttpRequestHeaders& headers = HttpRequestHeaders());
+    std::string_view path() const { return path_; }
+#else
+    httplib::Client& client() { return client_; }
+    std::string_view path() const { return urlView_.path(); }
 #endif
     void get(const char* url, std::vector<std::byte>& data);
 
 private:
-    static std::wstring toWideString(std::string_view s);
 
 #ifdef _WIN32
     static void closeAndThrow(HINTERNET& handle);
@@ -43,15 +49,10 @@ private:
     int port_;
     bool useSSL_ = false;
 #else
-    union Clients
-    {
-        httplib::Client http;
-        httplib::SSLClient ssl;
-
-        Clients() {}  // Does nothing, objects constructed manually
-        ~Clients() {} // Destructor must be manually called
-    } client_;
-    bool useSSL_ = false;
+    SimpleUrlView urlView_;
+    std::string origin_;
+    httplib::Client client_;
+    // bool useSSL_ = false;
 #endif
     std::string path_;
 };
