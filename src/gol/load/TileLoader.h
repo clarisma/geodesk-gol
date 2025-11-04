@@ -66,7 +66,8 @@ public:
 	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds,
 		Box bounds, const Filter* filter);
 	void download(const char *golFileName, const char* url,
-		 bool wayNodeIds, Box bounds, const Filter* filter);
+		 bool wayNodeIds, Box bounds, const Filter* filter,
+		 int maxConnections);
 
 	void processTask(TileData& task);
 
@@ -95,6 +96,9 @@ private:
 	int determineTiles();
 	void determineRanges(TileDownloadClient& mainClient, bool loadedMetadata);
 	void dumpRanges();
+	void startDownloadThreads();
+	void downloadRanges();
+	void awaitDownloadThreads();
 
 	const TesArchiveEntry* entry(uint32_t n) const
 	{
@@ -129,12 +133,14 @@ private:
 	// (only used if downloading)
 	TesArchiveHeader header_;
 	std::vector<Range> ranges_;
+	std::vector<std::thread> downloadThreads_;
 	std::atomic<int> nextRange_ = 0;
 
 	// When downloading, it makes sense to simply read and discard
 	// a range of bytes instead of issuing a separate range request,
 	// which incurs latency. This field specifies the threshold
 	uint32_t maxSkippedBytes_ = 1024 * 1024;   // 1 MB
+	int maxConnections_ = 4;
 
 	friend class TileDownloadClient;
 

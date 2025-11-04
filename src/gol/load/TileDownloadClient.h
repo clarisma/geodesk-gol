@@ -34,6 +34,9 @@ public:
 		pEndTile_ = pEnd;
 	}
 
+	std::string_view etag() const { return etag_; }
+	void setEtag(std::string_view etag) { etag_ = etag; }
+
 private:
 	bool processHeader();
 	bool processCatalog();

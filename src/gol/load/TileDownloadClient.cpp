@@ -102,6 +102,7 @@ bool TileDownloadClient::processCatalog()
     }
     if (!loader_.beginTiles()) return false;
     loader_.determineRanges(*this, false);
+    loader_.startDownloadThreads();
 
     if (pCurrentTile_ >= pEndTile_)
     {
@@ -129,6 +130,7 @@ bool TileDownloadClient::processMetadata()
     loader_.initStore(loader_.header_, std::move(compressed_));
     if (!loader_.beginTiles()) return false;
     loader_.determineRanges(*this, true);
+    loader_.startDownloadThreads();
     return nextTile();
 }
 

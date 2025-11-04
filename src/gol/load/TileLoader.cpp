@@ -134,7 +134,7 @@ bool TileLoader::openStore()
 
 void TileLoader::download(
 	const char *golFileName, const char* url, bool wayNodeIds,
-	Box bounds, const Filter* filter)
+	Box bounds, const Filter* filter, int maxConnections)
 {
 	golFileName_ = golFileName;
 	gobFileName_ = url; // TODO: consolidate local file & url
@@ -143,6 +143,7 @@ void TileLoader::download(
 	url_ = url;
 	bounds_ = bounds;
 	filter_ = filter;
+	maxConnections_ = maxConnections;
 
 	Console::get()->start("Contacting host...");
 	start();
@@ -151,7 +152,7 @@ void TileLoader::download(
 	mainClient.download();
 	dumpRanges();
 	mainClient.downloadRanges();
-
+	awaitDownloadThreads();
 	end();
 	transaction_.commit();
 	transaction_.end();
@@ -433,7 +434,14 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 
 void TileLoader::processTask(TileData& task)
 {
-	transaction_.putTile(task.tip(), {task.data(), task.size()});
+	try
+	{
+		transaction_.putTile(task.tip(), {task.data(), task.size()});
+	}
+	catch (std::exception& ex)
+	{
+		CliApplication::abort(ex.what());
+	}
 	workCompleted_ += workPerTile_;
 	Console::get()->setProgress(static_cast<int>(workCompleted_));
 	totalBytesWritten_ += task.size();
@@ -508,6 +516,55 @@ void TileLoader::determineRanges(TileDownloadClient& mainClient, bool loadedMeta
             pRangeEnd - pRangeStart);
     }
 }
+
+
+void TileLoader::startDownloadThreads()
+{
+	// TODO: could use ranges_.size() if main connection does
+	//  not continue downloading tiles
+
+	int downloadThreadCount = std::min(
+		static_cast<int>(ranges_.size()), maxConnections_ - 1);
+
+	if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+	{
+		ConsoleWriter().timestamp() << "Starting " << downloadThreadCount <<
+			" additional thread(s) to download " << ranges_.size() << " range(s)";
+	}
+
+	if (downloadThreadCount < 1) return;
+
+	downloadThreads_.reserve(downloadThreadCount);
+	for (int i = 0; i < downloadThreadCount; ++i)
+	{
+		downloadThreads_.emplace_back(&TileLoader::downloadRanges, this);
+	}
+}
+
+void TileLoader::downloadRanges()
+{
+	try
+	{
+		TileDownloadClient client(*this, url_);
+		client.setEtag("etag");	// TODO
+		client.downloadRanges();
+	}
+	catch (std::exception& ex)
+	{
+		// TODO
+		ConsoleWriter() << ex.what();
+	}
+}
+
+void TileLoader::awaitDownloadThreads()
+{
+	for (auto& t : downloadThreads_)
+	{
+		if (t.joinable()) t.join();
+	}
+	downloadThreads_.clear();
+}
+
 
 
 void TileLoader::dumpRanges()

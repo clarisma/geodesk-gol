@@ -7,12 +7,15 @@
 #include <clarisma/cli/CliHelp.h>
 #include <clarisma/io/FilePath.h>
 #include <clarisma/net/UrlUtils.h>
-
+#include <clarisma/validate/Validate.h>
 #include "gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
+
 LoadCommand::Option LoadCommand::OPTIONS[] =
 {
+	{ "C",				OPTION_METHOD(&LoadCommand::setConnections) },
+	{ "connections",	OPTION_METHOD(&LoadCommand::setConnections) },
 	{ "w",				OPTION_METHOD(&LoadCommand::setWaynodeIds) },
 	{ "waynode-ids",	OPTION_METHOD(&LoadCommand::setWaynodeIds) }
 };
@@ -62,6 +65,13 @@ bool LoadCommand::setParam(int number, std::string_view value)
 	return true;
 }
 
+int LoadCommand::setConnections(std::string_view s)
+{
+	connections_ = Validate::intValue(s.data(), MIN_CONNECTIONS, MAX_CONNECTIONS);
+	return 1;
+}
+
+
 int LoadCommand::run(char* argv[])
 {
 	int res = GolCommand::run(argv);
@@ -76,7 +86,7 @@ int LoadCommand::run(char* argv[])
 	if (isRemoteGob_)
 	{
 		loader.download(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
-		bounds_, filter_.get());
+			bounds_, filter_.get(), connections_);
 	}
 	else
 	{
@@ -90,8 +100,11 @@ int LoadCommand::run(char* argv[])
 void LoadCommand::help()
 {
 	CliHelp help;
-	help.command("gol load <gol-file> [<gob-file>] [<options>]",
-		"Load tiles from a Geo-Object Bundle.");
+	help.command("gol load [<gol-file>] <gob-file-or-url> [<options>]",
+		"Load tiles from a Geo-Object Bundle (local or remote).");
+
+	help.option("-C, --connections", "Max connections when downloading (default: 4)\n");
+	help.option("-w, --waynode-ids", "Include IDs of all nodes\n");
 	areaOptions(help);
 	generalOptions(help);
 }
