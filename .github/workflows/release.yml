@@ -58,15 +58,78 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install ninja
 
+      - name: Set up universal OpenSSL on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          # 1) Ensure Rosetta exists for x86_64 tools
+          softwareupdate --install-rosetta --agree-to-license || true
+
+          # 2) Install ARM Homebrew OpenSSL (arm64 slice)
+          brew update
+          brew install openssl@3
+          ARM_PREFIX="$(brew --prefix openssl@3)"
+
+          # 3) Install Intel Homebrew side-by-side in /usr/local (x86_64 slice)
+          #    This installs a *separate* Homebrew tree for x86_64.
+          if [[ ! -x /usr/local/bin/brew ]]; then
+            /usr/bin/arch -x86_64 /bin/bash -lc \
+              '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+          fi
+
+          # 4) Install x86_64 OpenSSL via Intel brew
+          /usr/bin/arch -x86_64 /usr/local/bin/brew update
+          /usr/bin/arch -x86_64 /usr/local/bin/brew install openssl@3
+          X86_PREFIX="$(/usr/bin/arch -x86_64 /usr/local/bin/brew --prefix openssl@3)"
+
+          echo "ARM OpenSSL: $ARM_PREFIX"
+          echo "X86 OpenSSL: $X86_PREFIX"
+
+          # 5) Create a temporary *universal* OpenSSL staging dir
+          UNIVERSAL="$(pwd)/universal-openssl"
+          mkdir -p "$UNIVERSAL/lib" "$UNIVERSAL/include"
+
+          # Headers (identical across slices)
+          rsync -a "$ARM_PREFIX/include/" "$UNIVERSAL/include/"
+
+          # 6) Lipo the dylibs into universal binaries
+          # libssl
+          lipo -create \
+            "$ARM_PREFIX/lib/libssl.3.dylib" \
+            "$X86_PREFIX/lib/libssl.3.dylib" \
+            -output "$UNIVERSAL/lib/libssl.3.dylib"
+          # libcrypto
+          lipo -create \
+            "$ARM_PREFIX/lib/libcrypto.3.dylib" \
+            "$X86_PREFIX/lib/libcrypto.3.dylib" \
+            -output "$UNIVERSAL/lib/libcrypto.3.dylib"
+
+          # Create versionless symlinks expected by linkers
+          ( cd "$UNIVERSAL/lib"
+            ln -sf libssl.3.dylib libssl.dylib
+            ln -sf libcrypto.3.dylib libcrypto.dylib
+          )
+
+          # Optional: ad-hoc codesign to avoid quarantine issues
+          codesign -s - -f "$UNIVERSAL/lib/libssl.3.dylib" || true
+          codesign -s - -f "$UNIVERSAL/lib/libcrypto.3.dylib" || true
+
+          echo "UNIVERSAL_OPENSSL_ROOT=$UNIVERSAL" >> "$GITHUB_ENV"
+
       - name: Configure (CMake)
         shell: bash
         run: |
-          cmake -S . -B build $([[ "${{ matrix.platform }}" == "macos" ]] && \
-            echo '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64') \
+          cmake -S . -B build \
+            -DCMAKE_OSX_ARCHITECTURES=arm64;x86_64 \
             -DCMAKE_BUILD_TYPE=Release \
             -DGOL_DIAGNOSTICS:BOOL=OFF \
             -DGOL_EXPERIMENTAL:BOOL=OFF \
-            -DGEODESK_GOL_VERSION="${{ steps.ver.outputs.version }}"
+            -DGEODESK_GOL_VERSION="${{ steps.ver.outputs.version }}" \
+            -DOPENSSL_ROOT_DIR="${UNIVERSAL_OPENSSL_ROOT}" \
+            -DCMAKE_INSTALL_RPATH="@loader_path" \
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 
       - name: Build (CMake)
         shell: bash
