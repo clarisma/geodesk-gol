@@ -4,7 +4,7 @@
 #pragma once
 #include "ParallelQueryPrinter.h"
 #include <clarisma/text/Csv.h>
-#include "FeatureRow.h"
+#include <geodesk/format/FeatureRow.h>
 
 using namespace geodesk;
 
