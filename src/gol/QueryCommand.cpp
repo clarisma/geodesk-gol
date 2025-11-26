@@ -227,17 +227,17 @@ void QueryCommand::interactive()
 #ifdef _WIN32
     script_ << "python -i -c \""
         "try:\n"
-        "    from geodesk2 import *\n"
+        "    from geodesk import *\n"
         "except ImportError:\n"
         "    r = input('GeoDesk for Python is not installed. Install it now? [Y/n]').strip()\n"
         "    if r not in ('','Y','y'):\n"
         "        quit()\n"
         "    import subprocess, sys\n"
         "    try:\n"
-        "        res = subprocess.check_call([sys.executable,'-m','pip','install','geodesk2'])\n"
+        "        res = subprocess.check_call([sys.executable,'-m','pip','install','geodesk'])\n"
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
-        "    from geodesk2 import *\n";
+        "    from geodesk import *\n";
     if (true)   // TODO: only if golName is a valid Pytohn identifier
     {
         script_ << golName << " = ";
@@ -246,17 +246,17 @@ void QueryCommand::interactive()
 #else
     script_ << "python3 -i -c '"
         "try:\n"
-        "    from geodesk2 import *\n"
+        "    from geodesk import *\n"
         "except ImportError:\n"
         "    r = input(\"GeoDesk for Python is not installed. Install it now? [Y/n]\").strip()\n"
         "    if r not in (\"\",\"Y\",\"y\"):\n"
         "        quit()\n"
         "    import subprocess, sys\n"
         "    try:\n"
-        "        res = subprocess.check_call([sys.executable,\"-m\",\"pip\",\"install\",\"geodesk2\"])\n"
+        "        res = subprocess.check_call([sys.executable,\"-m\",\"pip\",\"install\",\"geodesk\"])\n"
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
-        "    from geodesk2 import *\n";
+        "    from geodesk import *\n";
     if (true)   // TODO: only if golName is a valid Pytohn identifier
     {
         script_ << golName << " = ";
