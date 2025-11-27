@@ -110,8 +110,10 @@ protected:
 			bool isTagged = (id & 1);
 			id = prevId + (id >> 1);
 			prevId = id;
-			x += readSignedVarint32(p);
-			y += readSignedVarint32(p);
+			x = static_cast<int32_t>(
+				static_cast<int64_t>(x) + readSignedVarint35(p));
+			y = static_cast<int32_t>(
+				static_cast<int64_t>(y) + readSignedVarint35(p));
 			uint32_t tagsSize;
 			if (isTagged)
 			{
