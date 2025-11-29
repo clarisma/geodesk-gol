@@ -4,6 +4,7 @@
 #pragma once
 #include "ParallelQueryPrinter.h"
 #include <clarisma/text/Csv.h>
+#include <clarisma/util/StringBuilder.h>
 #include <geodesk/format/FeatureRow.h>
 
 using namespace geodesk;
@@ -33,7 +34,8 @@ public:
     void print(FeaturePrinterBuffer& out, FeatureStore* store, FeaturePtr feature) // CRTP override
     {
         const KeySchema& keys = spec()->keys();
-        FeatureRow row(keys, store, feature, spec()->precision());
+        clarisma::StringBuilder stringBuilder;
+        FeatureRow row(keys, store, feature, spec()->precision(), stringBuilder);
         size_t colCount = keys.columnCount();
         for (int i=0; i<colCount; i++)
         {
