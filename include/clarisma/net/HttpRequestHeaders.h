@@ -13,6 +13,7 @@
 #else
 #include <httplib.h>        // use cpp-httplib for non-Windows
 #endif
+#include <cstdint>
 #include <string>
 #include <vector>
 
