@@ -9,6 +9,22 @@ OsmPbfWriter::OsmPbfWriter()
 {
 }
 
+void OsmPbfWriter::writeNode(NodePtr node)
+{
+    for(;;)
+    {
+        if(encoder_.addNode(node)) [[likely]] return;
+        flush();
+    }
+}
+
+void OsmPbfWriter::writeNode(int64_t id, Coordinate xy)
+{
+    if(encoder_.addNode(id, xy)) [[likely]] return;
+    flush();
+    bool ok = encoder_.addNode(id, xy);
+    assert(ok);
+}
 
 void OsmPbfWriter::writeOsmDataHeader(uint32_t compressedSize, uint32_t uncompressedSize)
 {
