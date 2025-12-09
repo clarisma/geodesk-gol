@@ -29,7 +29,7 @@ protected:
 	void setAreaFromFile(const char* path);
 	void setAreaFromCoords(const char* coords);
 	int setBox(std::string_view value);
-	int setCircle(std::string_view value);
+	// int setCircle(std::string_view value);
 	int setOutput(std::string_view value);
 
 	int promptCreate(std::string_view filePath);
