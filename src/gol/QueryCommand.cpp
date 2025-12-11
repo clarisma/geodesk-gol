@@ -16,6 +16,7 @@
 #include "gol/query/CsvQueryPrinter.h"
 #include "gol/query/GeoJsonQueryPrinter.h"
 #include "gol/query/ListQueryPrinter.h"
+#include "gol/query/OsmPbfQueryPrinter.h"
 #include "gol/query/WktQueryPrinter.h"
 //#include "gol/query/TableQueryPrinter.h"
 #include "gol/query/XmlQueryPrinter.h"

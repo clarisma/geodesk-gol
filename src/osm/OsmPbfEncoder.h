@@ -22,6 +22,8 @@ using namespace geodesk;
 class OsmPbfEncoder
 {
 public:
+    OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema);
+
     struct Manifest
     {
         const uint8_t* pStrings;
@@ -29,6 +31,7 @@ public:
         const uint8_t* pNodeLons;
         const uint8_t* pNodeLats;
         const uint8_t* pNodeTags;
+        int groupCode;
         uint32_t stringsSize;
         uint32_t featuresSize;
         uint32_t nodeLonsSize;
@@ -44,13 +47,24 @@ public:
             WAYS = OsmPbf::GROUP_WAY,
             RELATIONS = OsmPbf::GROUP_RELATION
         };
+
+        static int fromTypeCode(int typeCode)
+        {
+            assert(typeCode >= 0 && typeCode <= 2);
+            static constexpr int GROUPS[] = { NODES, WAYS, RELATIONS };
+            return GROUPS[typeCode];
+        };
     };
+
+    static constexpr int BLOCK_SIZE = 16 * 1024 * 1024;
 
     std::unique_ptr<uint8_t[]> start(int groupCode);
     bool addNode(NodePtr node);
     bool addNode(int64_t id, Coordinate xy);
+    bool addNode(int64_t id, int32_t lon, int32_t lat);
     bool addWay(WayPtr way);
     bool addRelation(RelationPtr rel);
+    bool isEmpty() const { return block_.get() == nullptr; }
     std::unique_ptr<uint8_t[]> takeBlock()
     {
         assert(block_);
@@ -73,8 +87,6 @@ private:
     void writeBuffer(int tag, const Buffer& buf);
     void finishBlock();
 
-    static constexpr int BLOCK_SIZE = 16 * 1024 * 1024;
-
     std::unique_ptr<uint8_t[]> block_;
     uint8_t* p_ = nullptr;
     uint8_t* pEnd_ = nullptr;
@@ -95,7 +107,10 @@ private:
     ShortVarStringMap<int> localStringIndex_;
     FeatureStore* store_ = nullptr;
     StringTable& strings_;
-    KeySchema* keySchema_;
+    const KeySchema& keySchema_;
+
+    // Reset for each block
+
     int groupCode_ = 0;
     int stringCount_ = 0;
     int64_t prevId_ = 0;

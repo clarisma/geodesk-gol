@@ -111,6 +111,16 @@ public:
         initialized_ = false;
     }
 
+    size_t uncompressedSize() const
+    {
+        return stream_.total_in;
+    }
+
+    std::span<uint8_t> deflated() const
+    {
+        return { buf_.get(), stream_.total_out };
+    }
+
 private:
     z_stream stream_;
     std::unique_ptr<std::uint8_t[]> buf_;

@@ -42,7 +42,7 @@ void OsmQueryPrinter::addFeature(FeaturePtr feature)     // NOLINT recursive
 
 void OsmQueryPrinter::addNode(NodePtr node)
 {
-    features_[0][node.id() << 1] = {node};
+    features_[0][node.id()] = node;
 }
 
 void OsmQueryPrinter::addWay(WayPtr way)
@@ -61,7 +61,9 @@ void OsmQueryPrinter::addWay(WayPtr way)
             {
                 if (wayNodeIds_)
                 {
-                    features_[0][(node.id << 1) | 1] = {node.xy};
+                    features_[0][node.id] = FeatureData(
+                        Mercator::lon100ndFromX(node.xy.x),
+                        Mercator::lat100ndFromY(node.xy.y));
                 }
             }
             else

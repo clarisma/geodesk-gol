@@ -25,12 +25,18 @@ protected:
 private:
     void flush();
     void processOutput();
+    void processTask(std::unique_ptr<const uint8_t[]> block);
+    void deflateMessageStart(int typeByte, uint32_t size);
+    void deflateMessage(int typeByte, const uint8_t* p, uint32_t size);
+    void deflatePrimitiveBlockStart(const uint8_t* pStringTable,
+        uint32_t stringTableSize, uint32_t primitiveGroupSize);
     void writeOsmDataHeader(uint32_t compressedSize, uint32_t uncompressedSize);
 
     OsmPbfEncoder encoder_;
-    TaskQueue<OsmPbfQueryPrinter,std::unique_ptr<uint8_t[]>> queue_;
-    std::thread outputThread_;
+    TaskQueue<OsmPbfQueryPrinter,std::unique_ptr<const uint8_t[]>> outputQueue_;
+    FileHandle out_;
+    // TODO: maybe add padding so we don't get false sharing; the following
+    //  are used exclusively by the output thread
     Deflater deflater_;
-    File out_;
-    std::unique_ptr<uint8_t[]> buf_;
+    std::thread outputThread_;
 };

@@ -7,7 +7,21 @@
 #include "OsmPbf.h"
 #include "geodesk/feature/FastMemberIterator.h"
 #include "geodesk/feature/MemberIterator.h"
+#include "geodesk/geom/FixedLonLat.h"
 
+
+OsmPbfEncoder::OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema) :
+    store_(store),
+    strings_(store->strings()),
+    keySchema_(keySchema)
+{
+    int stringCount = strings_.stringCount();
+    globalStringIndex_.reset(new int[stringCount]);
+        // no need to initialize yet, do this in start()
+}
+
+// TODO: make #0 avialable as stribng, but never for dense nodes
+//  (because dense nodes treats 0 as separator)
 
 std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
 {
@@ -19,6 +33,8 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
     constexpr int FEATURES_SIZE = BLOCK_SIZE * 3 / 4;
     manifest->pFeatures = p_ = block_.get() + (BLOCK_SIZE - FEATURES_SIZE);
     pStringsEnd_ = p_;
+    groupCode_ = groupCode;
+    manifest->groupCode = groupCode;
 
     if (groupCode == GroupCode::NODES)
     {
@@ -33,6 +49,10 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
         pLatsEnd_ = pLons_ - 16;
         pLonsEnd_ = pTags_ - 16;
         pTagsEnd_ = p_ + FEATURES_SIZE - 16;
+        anyNodesHaveTags_ = false;
+        prevId_ = 0;
+        prevLon_ = 0;
+        prevLat_ = 0;
     }
     else
     {
@@ -44,6 +64,10 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
     manifest->pNodeLats = pLats_;
     manifest->pNodeLons = pLons_;
     manifest->pNodeTags = pTags_;
+    stringCount_ = 0;
+
+    std::fill_n(globalStringIndex_.get(), strings_.stringCount(), -1);
+    localStringIndex_.clear();
 
     return prevBlock;
 }
@@ -143,7 +167,7 @@ bool OsmPbfEncoder::addTags(TagTablePtr tags)
 {
     keys_.clear();
     values_.clear();
-    FilteredTagWalker tw(tags, strings_, keySchema_);
+    FilteredTagWalker tw(tags, strings_, &keySchema_);
     for (;;)
     {
         if (tw.next() == 0) break;
@@ -158,10 +182,11 @@ bool OsmPbfEncoder::addTags(TagTablePtr tags)
 
 bool OsmPbfEncoder::addNode(NodePtr node)
 {
+    assert(groupCode_ == GroupCode::NODES);
     uint8_t* pPrevStrings = pStrings_;
     uint8_t* pPrevTags = pTags_;
     bool hasTags = false;
-    FilteredTagWalker tw(node.tags(), strings_, keySchema_);
+    FilteredTagWalker tw(node.tags(), strings_, &keySchema_);
     while (tw.next() != 0)
     {
         Tag tag = getTag(tw);
@@ -189,6 +214,13 @@ bool OsmPbfEncoder::addNode(NodePtr node)
 
 bool OsmPbfEncoder::addNode(int64_t id, Coordinate xy)
 {
+    return addNode(id, Mercator::lon100ndFromX(xy.x), Mercator::lat100ndFromY(xy.y));
+}
+
+bool OsmPbfEncoder::addNode(int64_t id, int32_t lon, int32_t lat)
+{
+    assert(groupCode_ == GroupCode::NODES);
+
     // Sections have a 16-byte safety margin,
     // so we don't need to add to the pointers in order to see
     // if we can still fit one 64-bit varint (or two 32-bit varints)
@@ -199,8 +231,6 @@ bool OsmPbfEncoder::addNode(int64_t id, Coordinate xy)
     if (pTags_ > pTagsEnd_) [[unlikely]] return false;
     writeSignedVarint(p_, id - prevId_);
     prevId_ = id;
-    int32_t lon = Mercator::lon100ndFromX(xy.x);
-    int32_t lat = Mercator::lat100ndFromY(xy.y);
     writeSignedVarint(pLons_, lon - prevLon_);
     prevLon_ = lon;
     writeSignedVarint(pLats_, lat - prevLat_);
@@ -221,11 +251,14 @@ void OsmPbfEncoder::writeBuffer(int tag, const Buffer& buf)
 
 bool OsmPbfEncoder::addWay(WayPtr way)
 {
-
+    assert(groupCode_ == GroupCode::WAYS);
+    // TODO
+    return true;
 }
 
 bool OsmPbfEncoder::addRelation(RelationPtr rel)
 {
+    assert(groupCode_ == GroupCode::RELATIONS);
     uint8_t* pPrevStrings = pStrings_;
     nodesOrRoles_.clear();
     latsOrMembers_.clear();

@@ -18,29 +18,50 @@ public:
     explicit OsmQueryPrinter(QuerySpec* spec);
 
 protected:
-    union FeatureData
+    class FeatureData
     {
-        FeatureData() {}
-        FeatureData(Coordinate xy) : xy(xy) {}
-        FeatureData(NodePtr node) : node(node) {}
-        FeatureData(WayPtr way) : way(way) {}
-        FeatureData(RelationPtr relation) : relation(relation) {}
+    public:
+        FeatureData() : data_(0) {}
 
-        FeatureData(const FeatureData& other)
+        FeatureData(FeaturePtr f)       // NOLINT implicit
         {
-            std::memcpy(this, &other, sizeof(FeatureData));
+            data_ = reinterpret_cast<uintptr_t>(f.ptr().ptr());
         }
 
-        FeatureData& operator=(const FeatureData& other)
+        FeatureData(int32_t lon, int32_t lat)
         {
-            std::memcpy(this, &other, sizeof(FeatureData));
-            return *this;
+            data_ = (static_cast<uintptr_t>(lat) << 33) |
+                (static_cast<uintptr_t>(static_cast<uint32_t>(lon)) << 1) | 1;
+                // need to cast to uint32 first to avoid sign extension
         }
 
-        Coordinate xy;
-        NodePtr node;
-        WayPtr way;
-        RelationPtr relation;
+        FeaturePtr feature() const
+        {
+            assert(isFeature());
+            return FeaturePtr(reinterpret_cast<const uint8_t*>(data_));
+        }
+
+        NodePtr node() const { return NodePtr(feature()); }
+        WayPtr way() const { return WayPtr(feature()); }
+        RelationPtr relation() const { return RelationPtr(feature()); }
+
+        int32_t lon() const
+        {
+            assert(isCoordinate());
+            return static_cast<int32_t>(static_cast<int64_t>(data_) >> 1);
+        }
+
+        int32_t lat() const
+        {
+            assert(isCoordinate());
+            return static_cast<int32_t>(data_ >> 33);
+        }
+
+        bool isFeature() const { return !isCoordinate(); }
+        bool isCoordinate() const { return data_ & 1; }
+
+    private:
+        uintptr_t data_;
     };
 
     struct SortedFeature
