@@ -9,6 +9,56 @@
 #include "geodesk/feature/MemberIterator.h"
 
 
+std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
+{
+    if (block_) finishBlock();
+    std::unique_ptr<uint8_t[]> prevBlock = std::move(block_);
+    block_.reset(new uint8_t[BLOCK_SIZE]);
+    Manifest *manifest = reinterpret_cast<Manifest*>(block_.get());
+    manifest->pStrings = pStrings_ = block_.get() + sizeof(Manifest);
+    constexpr int FEATURES_SIZE = BLOCK_SIZE * 3 / 4;
+    manifest->pFeatures = p_ = block_.get() + (BLOCK_SIZE - FEATURES_SIZE);
+    pStringsEnd_ = p_;
+
+    if (groupCode == GroupCode::NODES)
+    {
+        // We need to carve up the features section into IDs, lats, lons, tags
+        // Since OSM PBF encodes lats before lons, we follow that order
+
+        constexpr int SECTION_SIZE = FEATURES_SIZE / 4;
+        pLats_ = p_ + SECTION_SIZE;
+        pLons_ = pLats_ + SECTION_SIZE;
+        pTags_ = pLons_ + SECTION_SIZE;
+        pEnd_ = pLons_ - 16;
+        pLatsEnd_ = pLons_ - 16;
+        pLonsEnd_ = pTags_ - 16;
+        pTagsEnd_ = p_ + FEATURES_SIZE - 16;
+    }
+    else
+    {
+        pEnd_ = p_ + FEATURES_SIZE - 16;
+        pLats_ = pLatsEnd_ = nullptr;
+        pLons_ = pLonsEnd_ = nullptr;
+        pTags_ = pTagsEnd_ = nullptr;
+    }
+    manifest->pNodeLats = pLats_;
+    manifest->pNodeLons = pLons_;
+    manifest->pNodeTags = pTags_;
+
+    return prevBlock;
+}
+
+void OsmPbfEncoder::finishBlock()
+{
+    assert(block_);
+    Manifest* manifest = reinterpret_cast<Manifest*>(block_.get());
+    manifest->stringsSize = Pointers::offset32(pStrings_, manifest->pStrings);
+    manifest->featuresSize = Pointers::offset32(p_, manifest->pFeatures);
+    manifest->nodeLatsSize = Pointers::offset32(pLats_, manifest->pNodeLats);
+    manifest->nodeLonsSize = Pointers::offset32(pLons_, manifest->pNodeLons);
+    manifest->nodeTagsSize = Pointers::offset32(pTags_, manifest->pNodeTags);
+}
+
 int OsmPbfEncoder::addString(const ShortVarString* s)
 {
     int n = stringCount_;
@@ -115,9 +165,10 @@ bool OsmPbfEncoder::addNode(NodePtr node)
     while (tw.next() != 0)
     {
         Tag tag = getTag(tw);
-        if (tag.key < 0 || pTags_ + 10 > pTagsEnd_) [[unlikely]]
+        if (tag.key < 0 || pTags_ > pTagsEnd_) [[unlikely]]
         {
             // There must be room for at least 2 32-bit varints
+            // (pTagsEnd_ has a safety margin)
             pStrings_ = pPrevStrings;
             pTags_ = pPrevTags;
             return false;
@@ -138,10 +189,14 @@ bool OsmPbfEncoder::addNode(NodePtr node)
 
 bool OsmPbfEncoder::addNode(int64_t id, Coordinate xy)
 {
-    if (p_ + 10 > pEnd_) [[unlikely]] return false;
-    if (pLats_ + 10 > pLatsEnd_) [[unlikely]] return false;
-    if (pLons_ + 10 > pLonsEnd_) [[unlikely]] return false;
-    if (pTags_ == pTagsEnd_) [[unlikely]] return false;
+    // Sections have a 16-byte safety margin,
+    // so we don't need to add to the pointers in order to see
+    // if we can still fit one 64-bit varint (or two 32-bit varints)
+
+    if (p_ > pEnd_) [[unlikely]] return false;
+    if (pLats_ > pLatsEnd_) [[unlikely]] return false;
+    if (pLons_ > pLonsEnd_) [[unlikely]] return false;
+    if (pTags_ > pTagsEnd_) [[unlikely]] return false;
     writeSignedVarint(p_, id - prevId_);
     prevId_ = id;
     int32_t lon = Mercator::lon100ndFromX(xy.x);
