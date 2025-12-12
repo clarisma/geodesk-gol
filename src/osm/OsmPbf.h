@@ -49,6 +49,8 @@ enum OsmPbf
 	ELEMENT_INFO = (4 << 3) | 2,
 
 	WAY_NODES = (8 << 3) | 2,
+	WAY_LATS = (9 << 3) | 2,
+	WAY_LONS = (10 << 3) | 2,
 
 	RELATION_MEMBER_ROLES = (8 << 3) | 2,
 	RELATION_MEMBER_IDS = (9 << 3) | 2,

@@ -14,6 +14,7 @@ class OsmPbfQueryPrinter : public OsmQueryPrinter
 {
 public:
     explicit OsmPbfQueryPrinter(QuerySpec* spec);
+    void processTask(const std::unique_ptr<const uint8_t[]>& block);
 
 protected:
     void beginFeatures(int typeCode) override;
@@ -25,12 +26,14 @@ protected:
 private:
     void flush();
     void processOutput();
-    void processTask(std::unique_ptr<const uint8_t[]> block);
-    void deflateMessageStart(int typeByte, uint32_t size);
-    void deflateMessage(int typeByte, const uint8_t* p, uint32_t size);
+    void deflateMessageStart(int tagByte, uint32_t size);
+    void deflateMessage(int tagByte, const uint8_t* p, uint32_t size);
     void deflatePrimitiveBlockStart(const uint8_t* pStringTable,
         uint32_t stringTableSize, uint32_t primitiveGroupSize);
-    void writeOsmDataHeader(uint32_t compressedSize, uint32_t uncompressedSize);
+    void writeOsmHeaderBlock();
+    void writeOsmDataBlock(std::span<uint8_t> compressed, uint32_t uncompressedSize);
+    static void encodeBlobHeader(uint8_t*& p, uint32_t dataSize, bool forHeader);
+    static void encodeTinyString(uint8_t*& p, int tagByte, const std::string_view& s);
 
     OsmPbfEncoder encoder_;
     TaskQueue<OsmPbfQueryPrinter,std::unique_ptr<const uint8_t[]>> outputQueue_;

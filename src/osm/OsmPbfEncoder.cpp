@@ -7,13 +7,16 @@
 #include "OsmPbf.h"
 #include "geodesk/feature/FastMemberIterator.h"
 #include "geodesk/feature/MemberIterator.h"
+#include "geodesk/feature/WayNodeCursor.h"
+#include <geodesk/feature/WayNodeIterator.h>
 #include "geodesk/geom/FixedLonLat.h"
 
 
 OsmPbfEncoder::OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema) :
     store_(store),
     strings_(store->strings()),
-    keySchema_(keySchema)
+    keySchema_(keySchema),
+    wayNodeIds_(store->hasWaynodeIds())
 {
     int stringCount = strings_.stringCount();
     globalStringIndex_.reset(new int[stringCount]);
@@ -252,8 +255,116 @@ void OsmPbfEncoder::writeBuffer(int tag, const Buffer& buf)
 bool OsmPbfEncoder::addWay(WayPtr way)
 {
     assert(groupCode_ == GroupCode::WAYS);
-    // TODO
+    uint8_t* pPrevStrings = pStrings_;
+    latsOrMembers_.clear();
+    lonsOrTypes_.clear();
+
+    if (!addTags(way.tags())) [[unlikely]]
+    {
+        pStrings_ = pPrevStrings;
+        return false;
+    }
+
+    bool isArea = way.isArea();
+    const uint8_t* pNodeIds = nullptr;
+    size_t storedNodeIdsSize = 0;
+    int64_t lastNodeIdDelta = 0;
+    size_t totalNodeIdsSize = 0;
+    size_t latsAndLonsEncodedSize;
+    if (locationsOnWays_)
+    {
+        nodesOrRoles_.clear();
+
+        WayNodeIterator iter(store_, way, false, wayNodeIds_);
+        int64_t prevId_ = 0;
+        int32_t prevLon_ = 0;
+        int32_t prevLat_ = 0;
+        for (;;)
+        {
+            WayNodeIterator::WayNode node = iter.next();
+            if (node.xy.isNull()) break;
+            int32_t lon = Mercator::lon100ndFromX(node.xy.x);
+            int32_t lat = Mercator::lat100ndFromY(node.xy.y);
+            nodesOrRoles_.writeSignedVarint(node.id - prevId_);
+            lonsOrTypes_.writeSignedVarint(lon - prevLon_);
+            latsOrMembers_.writeSignedVarint(lat - prevLat_);
+            prevId_ = node.id;
+            prevLon_ = lon;
+            prevLat_ = lat;
+        }
+        size_t lonsSize = lonsOrTypes_.length();
+        size_t latsSize = latsOrMembers_.length();
+        latsAndLonsEncodedSize = lonsSize + varintSize(lonsSize) +
+            latsSize + varintSize(latsSize) + 2;
+    }
+    else
+    {
+        latsAndLonsEncodedSize = 0;
+        const uint8_t* p = way.bodyptr();
+        uint32_t nodeCount = readVarint32(p);
+        skipVarints(p, nodeCount * 2);
+        pNodeIds = p;
+        if (isArea)
+        {
+            int64_t firstNodeId = readSignedVarint32(p);
+            int64_t prevNodeId = firstNodeId;
+            for (int i=1; i<nodeCount; i++)
+            {
+                prevNodeId += readSignedVarint64(p);
+            }
+            lastNodeIdDelta = firstNodeId - prevNodeId;
+            totalNodeIdsSize = varintSize(lastNodeIdDelta);
+        }
+        else
+        {
+            skipVarints(p, nodeCount);
+        }
+        storedNodeIdsSize = p - pNodeIds;
+        totalNodeIdsSize += storedNodeIdsSize;
+    }
+
+    uint64_t id = way.id();
+
+    size_t keysSize = keys_.length();
+    size_t valuesSize = values_.length();
+    size_t totalSize = varintSize(id) +
+        keysSize + varintSize(keysSize) +
+        valuesSize + varintSize(valuesSize) +
+        totalNodeIdsSize + varintSize(totalNodeIdsSize) + 4 +
+        latsAndLonsEncodedSize;
+
+    if (p_ + totalSize > pEnd_)   [[unlikely]]
+    {
+        // we have 16 bytes of safe space after pEnd
+        pStrings_ = pPrevStrings;
+        return false;
+    }
+
+    *p_++ = OsmPbf::GROUP_WAY;
+    writeVarint(p_, totalSize);
+    const uint8_t* pBody = p_;
+    *p_++ = OsmPbf::ELEMENT_ID;
+    writeVarint(p_, id);
+    writeBuffer(OsmPbf::ELEMENT_KEYS, keys_);
+    writeBuffer(OsmPbf::ELEMENT_VALUES, values_);
+    if (latsAndLonsEncodedSize)
+    {
+        writeBuffer(OsmPbf::WAY_NODES, nodesOrRoles_);
+        writeBuffer(OsmPbf::WAY_LATS, latsOrMembers_);
+        writeBuffer(OsmPbf::WAY_LONS, lonsOrTypes_);
+    }
+    else
+    {
+        *p_++ = OsmPbf::WAY_NODES;
+        writeVarint(p_, totalSize);
+        memcpy(p_, pNodeIds, storedNodeIdsSize);
+        p_ += storedNodeIdsSize;
+        if (isArea) writeSignedVarint(p_, lastNodeIdDelta);
+    }
+    assert(p_ - pBody == totalSize);
+
     return true;
+
 }
 
 bool OsmPbfEncoder::addRelation(RelationPtr rel)
@@ -316,8 +427,9 @@ bool OsmPbfEncoder::addRelation(RelationPtr rel)
         membersSize + varintSize(membersSize) +
         typesSize + varintSize(typesSize) + 6;
 
-    if (p_ + totalSize + 10 >= pEnd_)   [[unlikely]]
+    if (p_ + totalSize > pEnd_)   [[unlikely]]
     {
+        // we have 16 bytes of safe space after pEnd
         pStrings_ = pPrevStrings;
         return false;
     }
@@ -332,7 +444,7 @@ bool OsmPbfEncoder::addRelation(RelationPtr rel)
     writeBuffer(OsmPbf::RELATION_MEMBER_ROLES, nodesOrRoles_);
     writeBuffer(OsmPbf::RELATION_MEMBER_IDS, latsOrMembers_);
     writeBuffer(OsmPbf::RELATION_MEMBER_TYPES, lonsOrTypes_);
-    assert(p_ - Body_ == totalSize);
+    assert(p_ - pBody == totalSize);
 
     return true;
 }

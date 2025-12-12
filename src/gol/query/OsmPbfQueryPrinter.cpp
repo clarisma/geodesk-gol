@@ -10,7 +10,7 @@
 OsmPbfQueryPrinter::OsmPbfQueryPrinter(QuerySpec* spec) :
     OsmQueryPrinter(spec),
     encoder_(spec->store(), spec->keys()),
-    out_(Console::get()->handle(Console::Stream::STDOUT)),
+    out_(Console::handle(Console::Stream::STDOUT)),
     outputQueue_(4), // TODO
     deflater_(OsmPbfEncoder::BLOCK_SIZE),    // TODO: accounts for overhead?
     outputThread_(&OsmPbfQueryPrinter::processOutput, this)
@@ -85,12 +85,12 @@ void OsmPbfQueryPrinter::endFeatures()
 
 void OsmPbfQueryPrinter::processOutput()
 {
-    // TODO: write OSMHeader
+    writeOsmHeaderBlock();
     outputQueue_.process(this);
 }
 
 
-void OsmPbfQueryPrinter::processTask(std::unique_ptr<const uint8_t[]> block)
+void OsmPbfQueryPrinter::processTask(const std::unique_ptr<const uint8_t[]>& block)
 {
     const OsmPbfEncoder::Manifest* manifest =
         reinterpret_cast<const OsmPbfEncoder::Manifest*>(block.get());
@@ -134,11 +134,7 @@ void OsmPbfQueryPrinter::processTask(std::unique_ptr<const uint8_t[]> block)
 
     std::span<uint8_t> compressed = deflater_.deflated();
     uint32_t rawSize = static_cast<uint32_t>(deflater_.uncompressedSize());
-    uint32_t compressedSize = static_cast<uint32_t>(compressed.size());
-    uint32_t blobSize =
-        rawSize + varintSize(rawSize) + 1 +
-        compressedSize + varintSize(compressedSize) + 1;
-
+    writeOsmDataBlock(compressed, rawSize);
 
     // TODO: allow reset of Deflater
 
@@ -167,6 +163,49 @@ void OsmPbfQueryPrinter::deflateMessageStart(int typeByte, uint32_t size)
     deflater_.deflate(&buf, p - buf);               // NOLINT no escape
 }
 
+
+// Header has the following format:
+// 4   length of the BlobHeader message in network byte order
+// 1   STRING #1
+// 1   9 (length of string)
+// 9   "OSMHeader"
+// 1   VARINT #3
+// n   size of data that follows
+// 1   VARINT #1
+// n   raw data
+// One or more:
+//    1   STRING #4  (required feature)
+//    n   stringLen
+//    n   stringData
+// Zero or more:
+//    1   STRING #5  (optional feature)
+//    n   stringLen
+//    n   stringData
+
+void OsmPbfQueryPrinter::writeOsmHeaderBlock()
+{
+    uint8_t headerData[1024];
+    uint8_t* p = headerData;
+    // TODO: bbox
+    encodeTinyString(p, HEADER_REQUIRED_FEATURES, "OsmSchema-V0.6");
+    encodeTinyString(p, HEADER_REQUIRED_FEATURES, "DenseNodes");
+    encodeTinyString(p, HEADER_OPTIONAL_FEATURES, "Sort.Type_then_ID");
+    // encodeTinyString(p, HEADER_OPTIONAL_FEATURES, "LocationsOnWays");
+    // TODO
+    encodeTinyString(p, HEADER_WRITINGPROGRAM, "gol/" GEODESK_GOL_VERSION);
+
+    size_t headerDataSize = p - headerData;
+    assert(headerDataSize <= sizeof(headerData));
+
+    uint8_t buf[1024];
+    p = buf;
+    encodeBlobHeader(p, headerDataSize, true);
+    memcpy(p, headerData, headerDataSize);
+    p += headerDataSize;
+    assert(p - buf <= sizeof(buf));
+    out_.writeAll(buf, p - buf);
+}
+
 // Each blob has the following format:
 // 4   length of the BlobHeader message in network byte order
 // 1   STRING #1
@@ -177,21 +216,46 @@ void OsmPbfQueryPrinter::deflateMessageStart(int typeByte, uint32_t size)
 // 1   VARINT #2
 // n   uncompressed block size
 // 1   BYTES #3
+// n   length of zlib-compressed data
+// ---------- zlib-compressed data -------------
 
-// TODO
-
-void OsmPbfQueryPrinter::writeOsmDataHeader(uint32_t compressedSize, uint32_t uncompressedSize)
+void OsmPbfQueryPrinter::writeOsmDataBlock(std::span<uint8_t> compressed, uint32_t uncompressedSize)
 {
     uint8_t buf[64];
-
+    size_t compressedSize = compressed.size();
     size_t dataSize = varintSize(compressedSize) + varintSize(uncompressedSize) +
         compressedSize + 2;
-    uint32_t blobHeaderSize = Bytes::reverseByteOrder32(varintSize(dataSize) + 10);
-    memcpy(&buf, &blobHeaderSize, 4);
-    memcpy(&buf[4], "\x0A\x07OSMData\x18", 10);
-    uint8_t* p = &buf[14];
-    writeVarint(p, dataSize);
-    assert(p == &buf[4] + blobHeaderSize);
-    out_.writeAll(buf, blobHeaderSize + 4);
+    uint8_t* p = buf;
+    encodeBlobHeader(p, dataSize, false);
+    *p++ = OsmPbf::BLOB_RAW_SIZE;
+    writeVarint(p, uncompressedSize);
+    *p++ = OsmPbf::BLOB_ZLIB_DATA;
+    writeVarint(p, compressedSize);
+    out_.writeAll(buf, p - buf);
+    out_.writeAll(compressed.data(), compressedSize);
 }
 
+
+void OsmPbfQueryPrinter::encodeTinyString(uint8_t*& p, int tagByte, const std::string_view& s)
+{
+    assert(s.size() < 128);
+    *p++ = tagByte;
+    *p++ = s.size();
+    memcpy(p, s.data(), s.size());
+}
+
+
+void OsmPbfQueryPrinter::encodeBlobHeader(uint8_t*& p, uint32_t dataSize, bool forHeader)
+{
+    uint8_t* buf = p;
+    uint32_t headerPreludeSize = forHeader ? 12 : 10;
+    uint32_t blobHeaderSize = varintSize(dataSize) + headerPreludeSize;
+    uint32_t blobHeaderSizeBigEndian = Bytes::reverseByteOrder32(blobHeaderSize);
+    memcpy(p, &blobHeaderSizeBigEndian, 4);
+    p += 4;
+    memcpy(p, forHeader ? "\x0A\x07OSMHeader\x18" : "\x0A\x07OSMData\x18",
+        headerPreludeSize);
+    p += headerPreludeSize;
+    writeVarint(p, dataSize);
+    assert(p == &buf[4] + blobHeaderSize);
+}

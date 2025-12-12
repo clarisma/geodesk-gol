@@ -116,6 +116,8 @@ private:
     int64_t prevId_ = 0;
     int32_t prevLon_ = 0;
     int32_t prevLat_ = 0;
+    bool wayNodeIds_;
+    bool locationsOnWays_ = false;
     bool anyNodesHaveTags_ = false;
 };
 
