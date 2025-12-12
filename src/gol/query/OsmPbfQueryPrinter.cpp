@@ -21,7 +21,8 @@ OsmPbfQueryPrinter::OsmPbfQueryPrinter(QuerySpec* spec) :
 
 void OsmPbfQueryPrinter::beginFeatures(int typeCode)
 {
-    encoder_.start(OsmPbfEncoder::GroupCode::fromTypeCode(typeCode));
+    auto prevBlock = encoder_.start(OsmPbfEncoder::GroupCode::fromTypeCode(typeCode));
+    if (prevBlock) outputQueue_.post(std::move(prevBlock));
 }
 
 void OsmPbfQueryPrinter::printNodes(std::span<SortedFeature> nodes)
@@ -79,8 +80,11 @@ void OsmPbfQueryPrinter::flush()
 void OsmPbfQueryPrinter::endFeatures()
 {
     if (!encoder_.isEmpty()) flush();
+    LOGS << "Waiting for writer output thread to finish...";
     outputQueue_.awaitCompletion();
+    LOGS << "Shutting down output";
     outputQueue_.shutdown();
+    if (outputThread_.joinable()) outputThread_.join();
 }
 
 void OsmPbfQueryPrinter::processOutput()

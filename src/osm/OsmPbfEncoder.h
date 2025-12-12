@@ -58,13 +58,13 @@ public:
 
     static constexpr int BLOCK_SIZE = 16 * 1024 * 1024;
 
-    std::unique_ptr<uint8_t[]> start(int groupCode);
+    [[nodiscard]] std::unique_ptr<uint8_t[]> start(int groupCode);
     bool addNode(NodePtr node);
     bool addNode(int64_t id, Coordinate xy);
     bool addNode(int64_t id, int32_t lon, int32_t lat);
     bool addWay(WayPtr way);
     bool addRelation(RelationPtr rel);
-    bool isEmpty() const { return block_.get() == nullptr; }
+    bool isEmpty() const { return block_ == nullptr; }
     std::unique_ptr<uint8_t[]> takeBlock()
     {
         assert(block_);
