@@ -246,6 +246,7 @@ void OsmPbfQueryPrinter::encodeTinyString(uint8_t*& p, int tagByte, const std::s
     *p++ = tagByte;
     *p++ = s.size();
     memcpy(p, s.data(), s.size());
+    p += s.size();
 }
 
 
