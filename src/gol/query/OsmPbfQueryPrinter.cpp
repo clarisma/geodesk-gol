@@ -9,7 +9,7 @@
 
 OsmPbfQueryPrinter::OsmPbfQueryPrinter(QuerySpec* spec) :
     OsmQueryPrinter(spec),
-    encoder_(spec->store(), spec->keys()),
+    encoder_(spec->store(), spec->keys(), false),   // TODO: flag for locationOnWays
     out_(Console::handle(Console::Stream::STDOUT)),
     outputQueue_(4), // TODO
     deflater_(OsmPbfEncoder::BLOCK_SIZE),    // TODO: accounts for overhead?
@@ -32,13 +32,13 @@ void OsmPbfQueryPrinter::printNodes(std::span<SortedFeature> nodes)
         {
             for (;;)
             {
-                if(encoder_.addNode(node.id, node.data.lon(), node.data.lat())) [[likely]] return;
+                if(encoder_.addNode(node.id, node.data.lon(), node.data.lat())) [[likely]] break;
                 flush();
             }
         }
         for (;;)
         {
-            if(encoder_.addNode(node.data.node())) [[likely]] return;
+            if(encoder_.addNode(node.data.node())) [[likely]] break;
             flush();
         }
     }
@@ -51,7 +51,7 @@ void OsmPbfQueryPrinter::printWays(std::span<SortedFeature> ways)
     {
         for (;;)
         {
-            if(encoder_.addWay(way.data.way())) [[likely]] return;
+            if(encoder_.addWay(way.data.way())) [[likely]] break;
             flush();
         }
     }
@@ -64,7 +64,7 @@ void OsmPbfQueryPrinter::printRelations(std::span<SortedFeature> rels)
     {
         for (;;)
         {
-            if(encoder_.addRelation(rel.data.relation())) [[likely]] return;
+            if(encoder_.addRelation(rel.data.relation())) [[likely]] break;
             flush();
         }
     }
@@ -95,6 +95,7 @@ void OsmPbfQueryPrinter::processTask(const std::unique_ptr<const uint8_t[]>& blo
     const OsmPbfEncoder::Manifest* manifest =
         reinterpret_cast<const OsmPbfEncoder::Manifest*>(block.get());
 
+    deflater_.begin();
     uint32_t stringTableSize = manifest->stringsSize;
     // uint32_t primitiveBlockSize = stringTableSize + varintSize(stringTableSize) + 1;
     if (manifest->groupCode == OsmPbfEncoder::GroupCode::NODES)
@@ -134,10 +135,9 @@ void OsmPbfQueryPrinter::processTask(const std::unique_ptr<const uint8_t[]>& blo
 
     std::span<uint8_t> compressed = deflater_.deflated();
     uint32_t rawSize = static_cast<uint32_t>(deflater_.uncompressedSize());
+    LOGS << "Writing " << compressed.size() << " compressed bytes ("
+        << rawSize << " bytes raw)";
     writeOsmDataBlock(compressed, rawSize);
-
-    // TODO: allow reset of Deflater
-
 }
 
 void OsmPbfQueryPrinter::deflatePrimitiveBlockStart(const uint8_t* pStringTable,

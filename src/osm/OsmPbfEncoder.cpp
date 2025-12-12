@@ -12,11 +12,12 @@
 #include "geodesk/geom/FixedLonLat.h"
 
 
-OsmPbfEncoder::OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema) :
+OsmPbfEncoder::OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema, bool locationsOnWays) :
     store_(store),
     strings_(store->strings()),
     keySchema_(keySchema),
-    wayNodeIds_(store->hasWaynodeIds())
+    wayNodeIds_(store->hasWaynodeIds()),
+    locationsOnWays_(locationsOnWays | !store->hasWaynodeIds())
 {
     int stringCount = strings_.stringCount();
     globalStringIndex_.reset(new int[stringCount]);
@@ -33,7 +34,7 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
     block_.reset(new uint8_t[BLOCK_SIZE]);
     Manifest *manifest = reinterpret_cast<Manifest*>(block_.get());
     manifest->pStrings = pStrings_ = block_.get() + sizeof(Manifest);
-    constexpr int FEATURES_SIZE = BLOCK_SIZE * 3 / 4;
+    static constexpr int FEATURES_SIZE = BLOCK_SIZE * 3 / 4;
     manifest->pFeatures = p_ = block_.get() + (BLOCK_SIZE - FEATURES_SIZE);
     pStringsEnd_ = p_;
     groupCode_ = groupCode;
@@ -86,27 +87,28 @@ void OsmPbfEncoder::finishBlock()
     manifest->nodeTagsSize = Pointers::offset32(pTags_, manifest->pNodeTags);
 }
 
-int OsmPbfEncoder::addString(const ShortVarString* s)
+std::pair<const ShortVarString*,int> OsmPbfEncoder::addString(const ShortVarString* s)
 {
     int n = stringCount_;
     uint32_t totalStringSize = s->totalSize();
-    if (pStrings_ + totalStringSize >= pStringsEnd_) [[unlikely]] return -1;
+    if (pStrings_ + totalStringSize >= pStringsEnd_) [[unlikely]] return { nullptr, -1 };
         // we use >= instead of > because we need to account for the
         // 1-byte string-entry tag (i.e. a 12-byte string needs 14 bytes)
     *pStrings_++ = OsmPbf::STRINGTABLE_ENTRY;
     memcpy(pStrings_, s, totalStringSize);
+    const ShortVarString* copy = reinterpret_cast<const ShortVarString*>(pStrings_);
     pStrings_ += totalStringSize;
     stringCount_++;
-    return n;
+    return {copy, n};
 }
 
 int OsmPbfEncoder::getGlobalString(int code, const ShortVarString* s)
 {
     int n = globalStringIndex_[code];
     if (n >= 0) return n;
-    n = addString(s);
-    globalStringIndex_[code] = n;
-    return n;
+    auto [copy,n2] = addString(s);
+    globalStringIndex_[code] = n2;
+    return n2;
 }
 
 
@@ -117,8 +119,8 @@ int OsmPbfEncoder::getLocalString(const ShortVarString* s)
     {
         return it->second;
     }
-    int n = addString(s);
-    localStringIndex_.emplace(s, n);
+    auto [copy, n] = addString(s);
+    localStringIndex_.emplace(copy, n);
         // This is harmless, because if n < 0, the buffers
         // are full and we won't be encoding any more features
     return n;
@@ -238,7 +240,7 @@ bool OsmPbfEncoder::addNode(int64_t id, int32_t lon, int32_t lat)
     prevLon_ = lon;
     writeSignedVarint(pLats_, lat - prevLat_);
     prevLat_ = lat;
-    *pTagsEnd_++ = 0;
+    *pTags_++ = 0;
     return true;
 }
 
@@ -292,6 +294,7 @@ bool OsmPbfEncoder::addWay(WayPtr way)
             prevLon_ = lon;
             prevLat_ = lat;
         }
+        totalNodeIdsSize = nodesOrRoles_.length();
         size_t lonsSize = lonsOrTypes_.length();
         size_t latsSize = latsOrMembers_.length();
         latsAndLonsEncodedSize = lonsSize + varintSize(lonsSize) +

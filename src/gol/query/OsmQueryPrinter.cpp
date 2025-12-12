@@ -108,7 +108,7 @@ void OsmQueryPrinter::printFooter()
         prepareFeatures(2);
         printRelations(sorted_);
     }
-
+    endFeatures();
     Console::get()->setProgress(100);   // TODO
 }
 

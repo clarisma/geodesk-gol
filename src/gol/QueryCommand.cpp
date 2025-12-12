@@ -93,12 +93,14 @@ int QueryCommand::run(char* argv[])
             outputFileName_
         }
         */
-
-        if(format_ == OutputFormat::CSV && keys_.empty())
-        {
-            keys_ = "id,lon,lat,tags";
-        }
     }
+
+    if (keys_.empty())
+    {
+        keys_ = (format_ == OutputFormat::CSV) ?
+            "id,lon,lat,tags" : "*";
+    }
+
     // TODO: What should the output be if OutputFormat::UNKNOWN?
 
     Console::get()->start("Querying...");

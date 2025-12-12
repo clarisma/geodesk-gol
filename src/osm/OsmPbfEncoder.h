@@ -22,7 +22,7 @@ using namespace geodesk;
 class OsmPbfEncoder
 {
 public:
-    OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema);
+    OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema, bool locationsOnWays);
 
     struct Manifest
     {
@@ -81,7 +81,7 @@ private:
 
     int getGlobalString(int code, const ShortVarString* s);
     int getLocalString(const ShortVarString* s);
-    int addString(const ShortVarString* s);
+    std::pair<const ShortVarString*,int> addString(const ShortVarString* s);
     Tag getTag(FilteredTagWalker& tw);
     bool addTags(TagTablePtr tags);
     void writeBuffer(int tag, const Buffer& buf);

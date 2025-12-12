@@ -41,35 +41,14 @@ public:
     /// @brief Create a deflater.
     /// @param uncompressedSize Total input size in bytes (expected).
     /// @param level zlib compression level (Z_DEFAULT_COMPRESSION, etc.).
-    explicit Deflater(std::size_t uncompressedSize,
-        int level = Z_DEFAULT_COMPRESSION) :
-         compressionLevel_(level)
+    explicit Deflater(std::size_t uncompressedSize)
     {
-        std::memset(&stream_, 0, sizeof(stream_));
-
-        int windowBits = 15;   // 32K window, zlib header
-        int memLevel = 8;      // default
-
-        int ret = deflateInit2(
-            &stream_,
-            level,
-            Z_DEFLATED,
-            windowBits,
-            memLevel,
-            Z_DEFAULT_STRATEGY);
-        if (ret != Z_OK)
-        {
-            throw ZipException(ret);
-        }
-        initialized_ = true;
-
         // Ask zlib for an upper bound for this total size, using the
         // exact stream settings (windowBits, etc.).
         uLong sourceLen = static_cast<uLong>(uncompressedSize);
         uLong bound = deflateBound(&stream_, sourceLen);
-
         buf_.reset(new uint8_t[bound]);
-        stream_.next_out = reinterpret_cast<Bytef*>(buf_.get());
+        bufferSize_ = bound;
     }
 
     /// @brief Destructor, releases zlib resources if needed.
@@ -82,6 +61,29 @@ public:
     Deflater& operator=(const Deflater&) = delete;
     Deflater(Deflater&&) = delete;
     Deflater& operator=(Deflater&&) = delete;
+
+    void begin (int compressionLevel = Z_DEFAULT_COMPRESSION)
+    {
+        std::memset(&stream_, 0, sizeof(stream_));
+
+        int windowBits = 15;   // 32K window, zlib header
+        int memLevel = 8;      // default
+
+        int ret = deflateInit2(
+            &stream_,
+            compressionLevel,
+            Z_DEFLATED,
+            windowBits,
+            memLevel,
+            Z_DEFAULT_STRATEGY);
+        if (ret != Z_OK)
+        {
+            throw ZipException(ret);
+        }
+        initialized_ = true;
+        stream_.next_out = buf_.get();
+        stream_.avail_out = bufferSize_;
+    }
 
     /// @brief Add an input chunk to be compressed.
     /// @param data Pointer to input bytes.
@@ -105,7 +107,7 @@ public:
     void finish()
     {
         assert (initialized_);
-        int ret = inflate(&stream_, Z_FINISH);
+        int ret = ::deflate(&stream_, Z_FINISH);
         if (ret != Z_STREAM_END) throw ZipException(ret);
         deflateEnd(&stream_);
         initialized_ = false;
@@ -124,8 +126,8 @@ public:
 private:
     z_stream stream_;
     std::unique_ptr<std::uint8_t[]> buf_;
+    uint32_t bufferSize_ = 0;
     bool initialized_ = false;
-    int compressionLevel_;
 };
 
 } // namespace clarisma
