@@ -46,7 +46,7 @@ public:
         // Ask zlib for an upper bound for this total size, using the
         // exact stream settings (windowBits, etc.).
         uLong sourceLen = static_cast<uLong>(uncompressedSize);
-        uLong bound = deflateBound(&stream_, sourceLen);
+        uLong bound = compressBound(sourceLen);
         buf_.reset(new uint8_t[bound]);
         bufferSize_ = bound;
     }

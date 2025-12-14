@@ -24,7 +24,7 @@ protected:
     void endFeatures() override;
 
 private:
-    void flush();
+    void flush(int typeCode);
     void processOutput();
     void deflateMessageStart(int tagByte, uint32_t size);
     void deflateMessage(int tagByte, const uint8_t* p, uint32_t size);

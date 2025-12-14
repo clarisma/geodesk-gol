@@ -34,13 +34,16 @@ void OsmPbfQueryPrinter::printNodes(std::span<SortedFeature> nodes)
             for (;;)
             {
                 if(encoder_.addNode(node.id, node.data.lon(), node.data.lat())) [[likely]] break;
-                flush();
+                flush(0);
             }
         }
-        for (;;)
+        else
         {
-            if(encoder_.addNode(node.data.node())) [[likely]] break;
-            flush();
+            for (;;)
+            {
+                if(encoder_.addNode(node.data.node())) [[likely]] break;
+                flush(0);
+            }
         }
     }
 }
@@ -53,7 +56,7 @@ void OsmPbfQueryPrinter::printWays(std::span<SortedFeature> ways)
         for (;;)
         {
             if(encoder_.addWay(way.data.way())) [[likely]] break;
-            flush();
+            flush(1);
         }
     }
 }
@@ -66,20 +69,22 @@ void OsmPbfQueryPrinter::printRelations(std::span<SortedFeature> rels)
         for (;;)
         {
             if(encoder_.addRelation(rel.data.relation())) [[likely]] break;
-            flush();
+            flush(2);
         }
     }
 }
 
 
-void OsmPbfQueryPrinter::flush()
+void OsmPbfQueryPrinter::flush(int typeCode)
 {
-    outputQueue_.post(encoder_.takeBlock());
+    auto prevBlock = encoder_.start(OsmPbfEncoder::GroupCode::fromTypeCode(typeCode));
+    assert (prevBlock);
+    outputQueue_.post(std::move(prevBlock));
 }
 
 void OsmPbfQueryPrinter::endFeatures()
 {
-    if (!encoder_.isEmpty()) flush();
+    if (!encoder_.isEmpty()) outputQueue_.post(encoder_.takeBlock());
     LOGS << "Waiting for writer output thread to finish...";
     outputQueue_.awaitCompletion();
     LOGS << "Shutting down output";
@@ -203,7 +208,9 @@ void OsmPbfQueryPrinter::writeOsmHeaderBlock()
 
     uint8_t buf[1024];
     p = buf;
-    encodeBlobHeader(p, headerDataSize, true);
+    encodeBlobHeader(p, headerDataSize + varintSize(headerDataSize) + 1, true);
+    *p++ = OsmPbf::BLOB_RAW_DATA;
+    writeVarint(p, headerDataSize);
     memcpy(p, headerData, headerDataSize);
     p += headerDataSize;
     assert(p - buf <= sizeof(buf));
@@ -240,10 +247,10 @@ void OsmPbfQueryPrinter::writeOsmDataBlock(std::span<uint8_t> compressed, uint32
 }
 
 
-void OsmPbfQueryPrinter::encodeTinyString(uint8_t*& p, int tagByte, const std::string_view& s)
+void OsmPbfQueryPrinter::encodeTinyString(uint8_t*& p, int tag, const std::string_view& s)
 {
+    writeVarint14(p, tag);
     assert(s.size() < 128);
-    *p++ = tagByte;
     *p++ = s.size();
     memcpy(p, s.data(), s.size());
     p += s.size();
@@ -258,7 +265,7 @@ void OsmPbfQueryPrinter::encodeBlobHeader(uint8_t*& p, uint32_t dataSize, bool f
     uint32_t blobHeaderSizeBigEndian = Bytes::reverseByteOrder32(blobHeaderSize);
     memcpy(p, &blobHeaderSizeBigEndian, 4);
     p += 4;
-    memcpy(p, forHeader ? "\x0A\x07OSMHeader\x18" : "\x0A\x07OSMData\x18",
+    memcpy(p, forHeader ? "\x0A\x09OSMHeader\x18" : "\x0A\x07OSMData\x18",
         headerPreludeSize);
     p += headerPreludeSize;
     writeVarint(p, dataSize);

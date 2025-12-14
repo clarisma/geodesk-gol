@@ -9,6 +9,8 @@
 #include "geodesk/feature/MemberIterator.h"
 #include "geodesk/feature/WayNodeCursor.h"
 #include <geodesk/feature/WayNodeIterator.h>
+
+#include "clarisma/util/log.h"
 #include "geodesk/geom/FixedLonLat.h"
 
 
@@ -73,6 +75,7 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
     std::fill_n(globalStringIndex_.get(), strings_.stringCount(), -1);
     localStringIndex_.clear();
 
+    LOGS << "Started features; group code = " << groupCode_;
     return prevBlock;
 }
 
@@ -187,6 +190,7 @@ bool OsmPbfEncoder::addTags(TagTablePtr tags)
 
 bool OsmPbfEncoder::addNode(NodePtr node)
 {
+    assert(block_);
     assert(groupCode_ == GroupCode::NODES);
     uint8_t* pPrevStrings = pStrings_;
     uint8_t* pPrevTags = pTags_;
@@ -224,6 +228,7 @@ bool OsmPbfEncoder::addNode(int64_t id, Coordinate xy)
 
 bool OsmPbfEncoder::addNode(int64_t id, int32_t lon, int32_t lat)
 {
+    assert(block_);
     assert(groupCode_ == GroupCode::NODES);
 
     // Sections have a 16-byte safety margin,
@@ -251,11 +256,12 @@ void OsmPbfEncoder::writeBuffer(int tag, const Buffer& buf)
     writeVarint(p_, size);
     memcpy(p_,buf.data(), size);
     p_ += size;
-    assert(p_ <= pEnd_);
+    // assert(p_ <= pEnd_);     // does not account for 16 bytes of safe space
 }
 
 bool OsmPbfEncoder::addWay(WayPtr way)
 {
+    assert(block_);
     assert(groupCode_ == GroupCode::WAYS);
     uint8_t* pPrevStrings = pStrings_;
     latsOrMembers_.clear();
@@ -316,7 +322,7 @@ bool OsmPbfEncoder::addWay(WayPtr way)
                 prevNodeId += readSignedVarint64(p);
             }
             lastNodeIdDelta = firstNodeId - prevNodeId;
-            totalNodeIdsSize = varintSize(lastNodeIdDelta);
+            totalNodeIdsSize = varintSize(toZigzag(lastNodeIdDelta));
         }
         else
         {
@@ -359,7 +365,7 @@ bool OsmPbfEncoder::addWay(WayPtr way)
     else
     {
         *p_++ = OsmPbf::WAY_NODES;
-        writeVarint(p_, totalSize);
+        writeVarint(p_, totalNodeIdsSize);
         memcpy(p_, pNodeIds, storedNodeIdsSize);
         p_ += storedNodeIdsSize;
         if (isArea) writeSignedVarint(p_, lastNodeIdDelta);
@@ -372,6 +378,7 @@ bool OsmPbfEncoder::addWay(WayPtr way)
 
 bool OsmPbfEncoder::addRelation(RelationPtr rel)
 {
+    assert(block_);
     assert(groupCode_ == GroupCode::RELATIONS);
     uint8_t* pPrevStrings = pStrings_;
     nodesOrRoles_.clear();
