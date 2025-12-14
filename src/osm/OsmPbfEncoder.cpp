@@ -13,6 +13,8 @@
 #include "clarisma/util/log.h"
 #include "geodesk/geom/FixedLonLat.h"
 
+// TODO: if anyNodeHasTags_ is false, rewind the tags section so empty buffer
+//  is written (nodes only)
 
 OsmPbfEncoder::OsmPbfEncoder(FeatureStore* store, const KeySchema& keySchema, bool locationsOnWays) :
     store_(store),
@@ -42,6 +44,15 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
     groupCode_ = groupCode;
     manifest->groupCode = groupCode;
 
+    // Clear the string indexes and add empty string to string table
+    // (but don't index it yet, because entry 0 is a end-of-tags marker
+    // for dense nodes)
+    stringCount_ = 1;
+    std::fill_n(globalStringIndex_.get(), strings_.stringCount(), -1);
+    localStringIndex_.clear();
+    *pStrings_++ = OsmPbf::STRINGTABLE_ENTRY;
+    *pStrings_++ = 0;
+
     if (groupCode == GroupCode::NODES)
     {
         // We need to carve up the features section into IDs, lats, lons, tags
@@ -66,14 +77,15 @@ std::unique_ptr<uint8_t[]> OsmPbfEncoder::start(int groupCode)
         pLats_ = pLatsEnd_ = nullptr;
         pLons_ = pLonsEnd_ = nullptr;
         pTags_ = pTagsEnd_ = nullptr;
+        globalStringIndex_[0] = 0;
+            // for ways and relations, we can safely use tabel entry 0
+            // to represent an empty string
+            // (only role strings should be empty; empty tags/values
+            //  are pathological)
     }
     manifest->pNodeLats = pLats_;
     manifest->pNodeLons = pLons_;
     manifest->pNodeTags = pTags_;
-    stringCount_ = 0;
-
-    std::fill_n(globalStringIndex_.get(), strings_.stringCount(), -1);
-    localStringIndex_.clear();
 
     LOGS << "Started features; group code = " << groupCode_;
     return prevBlock;
