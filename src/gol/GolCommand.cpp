@@ -13,10 +13,10 @@ GolCommand::Option GolCommand::COMMON_GOL_OPTIONS[] =
 {
 	{ "area",	OPTION_METHOD(&GolCommand::setAreaOption) },
 	{ "a",		OPTION_METHOD(&GolCommand::setAreaOption) },
-	{ "box",	OPTION_METHOD(&GolCommand::setBox) },
+	{ "bbox",	OPTION_METHOD(&GolCommand::setBox) },
 	{ "b",		OPTION_METHOD(&GolCommand::setBox) },
-	{ "circle",	OPTION_METHOD(&GolCommand::setCircle) },
-	{ "c",		OPTION_METHOD(&GolCommand::setCircle) },
+	// { "circle",	OPTION_METHOD(&GolCommand::setCircle) },
+	// { "c",		OPTION_METHOD(&GolCommand::setCircle) },
 	{ "output",	OPTION_METHOD(&GolCommand::setOutput) },
 	{ "o",		OPTION_METHOD(&GolCommand::setOutput) },
 };
@@ -105,11 +105,13 @@ int GolCommand::setBox(std::string_view value)
 	return 1;
 }
 
+/*
 int GolCommand::setCircle(std::string_view value)
 {
 	// TODO
 	return 1;
 }
+*/
 
 
 int GolCommand::setOutput(std::string_view value)
