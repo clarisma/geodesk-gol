@@ -174,7 +174,3 @@ if(GEODESK_SOURCE_DIR)
     )
 endif()
 
-list(REMOVE_ITEM SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/gol/main.cpp")
-add_executable(test ${SOURCE_FILES} src/test.cxx)
-target_include_directories(test PRIVATE src lib/libgeodesk/include ${zlib_SOURCE_DIR})
-target_link_libraries(test PRIVATE geodesk)
