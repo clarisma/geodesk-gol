@@ -137,7 +137,7 @@ void OsmPbfQueryPrinter::processTask(const std::unique_ptr<const uint8_t[]>& blo
     {
         uint32_t featuresSize = manifest->featuresSize;
         deflatePrimitiveBlockStart(manifest->pStrings, stringTableSize,
-            featuresSize + varintSize(featuresSize) + 1);
+            featuresSize);
         deflater_.deflate(manifest->pFeatures, featuresSize);
     }
     deflater_.finish();
