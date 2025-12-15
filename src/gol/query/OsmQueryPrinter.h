@@ -88,6 +88,7 @@ private:
     void addNode(NodePtr node);
     void addWay(WayPtr way);
     void addRelation(RelationPtr rel);
+    void printFeatures(int typeCode, double startPercentage, double workPerFeature);
     void prepareFeatures(int typeCode);
 
     static constexpr double FORMATTING_WORK = 20;
@@ -96,4 +97,5 @@ private:
     clarisma::HashMap<int64_t, FeatureData> features_[3];
     std::vector<SortedFeature> sorted_;
     bool wayNodeIds_;
+    int formattingWork_;
 };
