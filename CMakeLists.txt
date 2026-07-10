@@ -60,7 +60,6 @@ endif()
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -U NDEBUG")
 
 set(BUILD_SHARED_LIBS OFF)
-set(GEODESK_LIBERO ON)
 
 # Try to get version from CI override, otherwise from git tag.
 set(GEODESK_GOL_VERSION "" CACHE STRING "GOL Version (Major.Minor.Patch)")

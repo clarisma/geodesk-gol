@@ -399,78 +399,85 @@ public:
 
 	void read(const char* fileName)
 	{
-		this->start();
-		
-		File file;
-		file.open(fileName, File::OpenMode::READ);
-		uint64_t fileSize = file.size();
-		self()->startFile(fileSize);
-
-		size_t totalBytesRead = 0;
-		while (totalBytesRead < fileSize)
+		try
 		{
-			// The header length (uint32) is in network byte order
-			// TODO: Code below assumes native byte order is Little-Endian
-			uint32_t rawHeaderLen;
-			file.read(&rawHeaderLen, 4);
-			uint32_t headerLen = Bytes::reverseByteOrder32(rawHeaderLen);
+			this->start();
 
-			if (headerLen > 256)
+			File file;
+			file.open(fileName, File::OpenMode::READ);
+			uint64_t fileSize = file.size();
+			self()->startFile(fileSize);
+
+			size_t totalBytesRead = 0;
+			while (totalBytesRead < fileSize)
 			{
-				throw OsmPbfException("Excessive header length (%d)", headerLen);
-			}
+				// The header length (uint32) is in network byte order
+				// TODO: Code below assumes native byte order is Little-Endian
+				uint32_t rawHeaderLen;
+				file.read(&rawHeaderLen, 4);
+				uint32_t headerLen = Bytes::reverseByteOrder32(rawHeaderLen);
 
-			uint8_t buf[256];
-			file.read(buf, headerLen);
-			const uint8_t* p = buf;
-			const uint8_t* pEnd = p + headerLen;
-
-			std::string_view blockType;
-			uint32_t dataLen = 0;
-			while (p < pEnd)
-			{
-				uint32_t field = readVarint32(p);
-				switch (field)
+				if (headerLen > 256)
 				{
-				case BLOBHEADER_TYPE:
-					blockType = readStringView(p);
-					break;
-				case BLOBHEADER_DATASIZE:
-					dataLen = readVarint32(p);
-					break;
+					throw OsmPbfException("Excessive header length (%d)", headerLen);
 				}
-			}
 
-			if (blockType.empty() || dataLen == 0)
-			{
-				throw OsmPbfException("Invalid blob header at offset %016llX", totalBytesRead);
-			}
+				uint8_t buf[256];
+				file.read(buf, headerLen);
+				const uint8_t* p = buf;
+				const uint8_t* pEnd = p + headerLen;
 
-			OsmPbfBlock block;
-			uint8_t* data = new uint8_t[dataLen];
-			block.data = data;
-			block.dataSize = dataLen;
-			block.blockSize = dataLen + headerLen + 4;
-			file.read(data, dataLen);
-			if (blockType == "OSMData")
-			{
-				// LOG("Block with %d bytes", block.blockSize);
-				this->postWork(std::move(block));
+				std::string_view blockType;
+				uint32_t dataLen = 0;
+				while (p < pEnd)
+				{
+					uint32_t field = readVarint32(p);
+					switch (field)
+					{
+					case BLOBHEADER_TYPE:
+						blockType = readStringView(p);
+						break;
+					case BLOBHEADER_DATASIZE:
+						dataLen = readVarint32(p);
+						break;
+					}
+				}
+
+				if (blockType.empty() || dataLen == 0)
+				{
+					throw OsmPbfException("Invalid blob header at offset %016llX", totalBytesRead);
+				}
+
+				OsmPbfBlock block;
+				uint8_t* data = new uint8_t[dataLen];
+				block.data = data;
+				block.dataSize = dataLen;
+				block.blockSize = dataLen + headerLen + 4;
+				file.read(data, dataLen);
+				if (blockType == "OSMData")
+				{
+					// LOG("Block with %d bytes", block.blockSize);
+					this->postWork(std::move(block));
+				}
+				else if (blockType == "OSMHeader")
+				{
+					decodeHeaderBlock(block);
+				}
+				else
+				{
+					throw OsmPbfException("Unknown header type: %s", std::string(blockType).c_str());
+				}
+				totalBytesRead += block.blockSize;
 			}
-			else if (blockType == "OSMHeader")
-			{
-				decodeHeaderBlock(block);
-			}
-			else
-			{
-				throw OsmPbfException("Unknown header type: %s", std::string(blockType).c_str());
-			}
-			totalBytesRead += block.blockSize;
+			LOG("Waiting for threads to complete...");
+
+			this->end();
+			LOG("Done.");
 		}
-		LOG("Waiting for threads to complete...");
-
-		this->end();
-		LOG("Done.");
+		catch (std::exception& ex)
+		{
+			self()->fail(ex.what());
+		}
 	}
 
 	void processTask(OsmPbfOutputTask& task)
