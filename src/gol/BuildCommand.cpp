@@ -80,6 +80,11 @@ int BuildCommand::run(char* argv[])
 		File::remove(golPath_.c_str());
 	}
 
+	if (sourcePath_.empty())
+	{
+		sourcePath_ = FilePath::withExtension(FilePath::withoutExtension(
+			golPath_), ".osm.pbf");
+	}
 
 	ConsoleWriter() << "Building "
 		<< Console::FAINT_LIGHT_BLUE << FilePath::name(golPath_)

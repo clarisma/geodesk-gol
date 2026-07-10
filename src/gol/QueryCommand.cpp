@@ -16,6 +16,7 @@
 #include "gol/query/CsvQueryPrinter.h"
 #include "gol/query/GeoJsonQueryPrinter.h"
 #include "gol/query/ListQueryPrinter.h"
+#include "gol/query/OsmPbfQueryPrinter.h"
 #include "gol/query/WktQueryPrinter.h"
 //#include "gol/query/TableQueryPrinter.h"
 #include "gol/query/XmlQueryPrinter.h"
@@ -92,12 +93,14 @@ int QueryCommand::run(char* argv[])
             outputFileName_
         }
         */
-
-        if(format_ == OutputFormat::CSV && keys_.empty())
-        {
-            keys_ = "id,lon,lat,tags";
-        }
     }
+
+    if (keys_.empty())
+    {
+        keys_ = (format_ == OutputFormat::CSV) ?
+            "id,lon,lat,tags" : "*";
+    }
+
     // TODO: What should the output be if OutputFormat::UNKNOWN?
 
     Console::get()->start("Querying...");
@@ -140,6 +143,14 @@ int QueryCommand::run(char* argv[])
     case OutputFormat::WKT:
         count = WktQueryPrinter(&spec).run();
         break;
+    case OutputFormat::PBF:
+        if (Console::get()->isTerminal(Console::Stream::STDOUT))
+        {
+            Console::end().failed() << "Binary format -- cannot print to console";
+            return 1; // TODO: error code
+        }
+        count = OsmPbfQueryPrinter(&spec).run();
+        break;
     case OutputFormat::XML:
         count = XmlQueryPrinter(&spec).run();
         break;
@@ -170,6 +181,8 @@ void QueryCommand::help()
     help.optionValue("geojson", "GeoJSON");
     help.optionValue("list", "List of IDs");
     help.optionValue("wkt", "Well-Known Text");
+    help.optionValue("pbf", "OpenStreetMap PBF");
+    help.optionValue("xml", "OpenStreetMap XML");
     help.option("-k, --keys <list>", "Restrict tags to the given keys (csv and geojson only)");
     help.option("-p, --precision <n>", "Precision of coordinate values (Default: 7)");
     help.endSection();
@@ -191,6 +204,7 @@ OutputFormat QueryCommand::format(std::string_view s)
         {"list", OutputFormat::LIST},
         {"list", OutputFormat::TABLE},
         {"wkt", OutputFormat::WKT},
+        {"pbf", OutputFormat::PBF},
         {"xml", OutputFormat::XML},
     };
     auto it = map.find(s);
