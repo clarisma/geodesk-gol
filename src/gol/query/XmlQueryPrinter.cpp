@@ -99,8 +99,8 @@ void XmlQueryPrinter::printFooter()
     ConsoleWriter out;
     out.blank();
     out << "<?xml version='1.0' encoding='UTF-8'?>\n"
-        "<osm version=\"0.6\" generator=\"geodesk gol/2.0.0\" upload=\"never\">\n";
-        // TODO: version
+        "<osm version=\"0.6\" generator=\"geodesk gol/" GEODESK_GOL_VERSION
+        "\" upload=\"never\">\n";
 
     size_t nodeCount = features_[0].size();
     size_t wayCount = features_[1].size();
