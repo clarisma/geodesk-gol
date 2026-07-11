@@ -9,7 +9,7 @@
 
 OsmPbfQueryPrinter::OsmPbfQueryPrinter(QuerySpec* spec) :
     OsmQueryPrinter(spec),
-    encoder_(spec->store(), spec->keys(), false),   // TODO: flag for locationOnWays
+    encoder_(spec->store(), spec->keys(), !spec->store()->hasWaynodeIds()),
     out_(Console::handle(Console::Stream::STDOUT)),
     outputQueue_(4), // TODO
     deflater_(OsmPbfEncoder::BLOCK_SIZE),    // TODO: accounts for overhead?
@@ -199,8 +199,10 @@ void OsmPbfQueryPrinter::writeOsmHeaderBlock()
     encodeTinyString(p, HEADER_REQUIRED_FEATURES, "OsmSchema-V0.6");
     encodeTinyString(p, HEADER_REQUIRED_FEATURES, "DenseNodes");
     encodeTinyString(p, HEADER_OPTIONAL_FEATURES, "Sort.Type_then_ID");
-    // encodeTinyString(p, HEADER_OPTIONAL_FEATURES, "LocationsOnWays");
-    // TODO
+    if (encoder_.locationsOnWays()) [[unlikely]]
+    {
+        encodeTinyString(p, HEADER_OPTIONAL_FEATURES, "LocationsOnWays");
+    }
     encodeTinyString(p, HEADER_WRITINGPROGRAM, "gol/" GEODESK_GOL_VERSION);
 
     size_t headerDataSize = p - headerData;

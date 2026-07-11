@@ -58,6 +58,8 @@ public:
 
     static constexpr int BLOCK_SIZE = 16 * 1024 * 1024;
 
+    bool locationsOnWays() const { return locationsOnWays_; }
+
     [[nodiscard]] std::unique_ptr<uint8_t[]> start(int groupCode);
     bool addNode(NodePtr node);
     bool addNode(int64_t id, Coordinate xy);

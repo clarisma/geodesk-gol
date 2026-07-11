@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 def get_executable():
-    return Path("c:\\geodesk\\tests\\gol.exe")
+    return Path("d:\\geodesk\\tests\\gol.exe")
 
 def run(args, *, input=None, env=None):
     exe = get_executable()
@@ -20,5 +20,5 @@ def run(args, *, input=None, env=None):
     )
     return result
 
-gol = "c:\\geodesk\\tests\\mcxx"
+gol = "d:\\geodesk\\tests\\monaco"
 mapdata_dir = "e:\\geodesk\\mapdata\\"
