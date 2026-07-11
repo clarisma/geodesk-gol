@@ -13,9 +13,9 @@ public:
     GeoJsonQueryPrinter(const QuerySpec* spec, bool linewise) :
         ParallelQueryPrinter(spec),
         linewise_(linewise),
-        isFirstBatch_(!linewise)
+        isFirstBatch_(!linewise),
+        formatter_(&spec->keys())
     {
-        // TODO: keyschema
         formatter_.precision(spec->precision());
     }
 
