@@ -158,6 +158,14 @@ else()
     target_link_libraries(gol PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
+# Required for cpp-httblib’s automatic Keychain certificate support on macOS
+if(APPLE)
+    target_link_libraries(gol PRIVATE
+            "-framework CoreFoundation"
+            "-framework Security"
+    )
+endif()
+
 # TODO: Use a separate build option
 if(GEODESK_SOURCE_DIR)
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
