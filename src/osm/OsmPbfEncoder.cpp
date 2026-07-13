@@ -106,7 +106,10 @@ std::pair<const ShortVarString*,int> OsmPbfEncoder::addString(const ShortVarStri
 {
     int n = stringCount_;
     uint32_t totalStringSize = s->totalSize();
-    if (pStrings_ + totalStringSize >= pStringsEnd_) [[unlikely]] return { nullptr, -1 };
+    if (pStrings_ + totalStringSize >= pStringsEnd_) [[unlikely]]
+    {
+        return{ s, -1 };    // TODO: check, was nullptr and failed
+    }
         // we use >= instead of > because we need to account for the
         // 1-byte string-entry tag (i.e. a 12-byte string needs 14 bytes)
     *pStrings_++ = OsmPbf::STRINGTABLE_ENTRY;
