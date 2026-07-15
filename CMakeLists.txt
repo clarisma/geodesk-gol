@@ -60,7 +60,6 @@ endif()
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -U NDEBUG")
 
 set(BUILD_SHARED_LIBS OFF)
-set(GEODESK_LIBERO ON)
 
 # Try to get version from CI override, otherwise from git tag.
 set(GEODESK_GOL_VERSION "" CACHE STRING "GOL Version (Major.Minor.Patch)")
@@ -159,6 +158,14 @@ else()
     target_link_libraries(gol PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
+# Required for cpp-httblib’s automatic Keychain certificate support on macOS
+if(APPLE)
+    target_link_libraries(gol PRIVATE
+            "-framework CoreFoundation"
+            "-framework Security"
+    )
+endif()
+
 # TODO: Use a separate build option
 if(GEODESK_SOURCE_DIR)
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -174,7 +181,3 @@ if(GEODESK_SOURCE_DIR)
     )
 endif()
 
-list(REMOVE_ITEM SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/gol/main.cpp")
-add_executable(test ${SOURCE_FILES} src/test.cxx)
-target_include_directories(test PRIVATE src lib/libgeodesk/include ${zlib_SOURCE_DIR})
-target_link_libraries(test PRIVATE geodesk)

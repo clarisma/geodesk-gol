@@ -13,9 +13,10 @@ uint64_t MappedIndex::calculateMappingSize()
 	int64_t fullSegments = totalSlots / slotsPerSegment;
 	int64_t partialSegmentSlots = totalSlots % slotsPerSegment;
 	return SEGMENT_LENGTH_BYTES * fullSegments +
-		((partialSegmentSlots * valueWidth_ / 8 + 4096 - 1) & ~(4096 - 1));
+		((partialSegmentSlots * valueWidth_ / 8 + 7 + 4096 - 1) & ~(4096 - 1));
 	// TODO: check this, will cause segfault if calculation is wrong!
 	// TODO: Ensure SEGMENT_LENGTH_BYTES is a 64-bit type
+	// Rounding up to full 8 bytes, then rounding up to full 4 KB pages
 }
 
 void MappedIndex::create(const char* fileName, int64_t maxId, int valueWidth)

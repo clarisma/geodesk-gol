@@ -13,9 +13,9 @@ public:
     GeoJsonQueryPrinter(const QuerySpec* spec, bool linewise) :
         ParallelQueryPrinter(spec),
         linewise_(linewise),
-        isFirstBatch_(!linewise)
+        isFirstBatch_(!linewise),
+        formatter_(&spec->keys())
     {
-        // TODO: keyschema
         formatter_.precision(spec->precision());
     }
 
@@ -44,8 +44,7 @@ private:
         if (linewise_) return;  // No header for GeoJSONL
         clarisma::ConsoleWriter out;
         out.blank() << "{\"type\":\"FeatureCollection\",\"generator\":\"geodesk-gol/"
-            "2.0.0" << "\",\"features\":[";
-        // TODO: geodesk-gol/version
+            GEODESK_GOL_VERSION "\",\"features\":[";
         // TODO: pretty
     }
 

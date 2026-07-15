@@ -48,10 +48,8 @@ void DefaultCommand::help()
     help.subCommand("query", "Perform a GOQL query");
     help.subCommand("map", "Display features on a map");
     help.subCommand("info", "Obtain metadata and statistics");
-#ifdef GOL_EXPERIMENTAL
     help.subCommand("load", "Load tiles into a GOL");
     help.subCommand("save", "Export tiles from a GOL");
-#endif
     help.subCommand("check", "Verify integrity");
     help << "\nUse " << Console::WHITE << "gol help "
         << Console::FAINT_LIGHT_BLUE << "<command>" << Console::DEFAULT
