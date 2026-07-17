@@ -7,6 +7,8 @@
 #include <clarisma/util/MutableDataPtr.h>
 #include <geodesk/feature/TilePtr.h>
 
+using namespace geodesk;
+
 /**
  * A TElement that has a pointer to data (original or modified)
  */
