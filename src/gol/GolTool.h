@@ -22,13 +22,11 @@ private:
 #endif
 	static int info(char* argv[]);
 	static int install(char* argv[]);
-#ifdef GOL_EXPERIMENTAL
 	static int load(char* argv[]);
-#endif
 	static int map(char* argv[]);
 	static int query(char* argv[]);
-#ifdef GOL_EXPERIMENTAL
 	static int save(char* argv[]);
+#ifdef GOL_EXPERIMENTAL
 	static int update(char* argv[]);
 #endif
 	// void help();

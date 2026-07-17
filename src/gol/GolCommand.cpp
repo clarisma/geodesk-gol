@@ -13,10 +13,10 @@ GolCommand::Option GolCommand::COMMON_GOL_OPTIONS[] =
 {
 	{ "area",	OPTION_METHOD(&GolCommand::setAreaOption) },
 	{ "a",		OPTION_METHOD(&GolCommand::setAreaOption) },
-	{ "box",	OPTION_METHOD(&GolCommand::setBox) },
+	{ "bbox",	OPTION_METHOD(&GolCommand::setBox) },
 	{ "b",		OPTION_METHOD(&GolCommand::setBox) },
-	{ "circle",	OPTION_METHOD(&GolCommand::setCircle) },
-	{ "c",		OPTION_METHOD(&GolCommand::setCircle) },
+	// { "circle",	OPTION_METHOD(&GolCommand::setCircle) },
+	// { "c",		OPTION_METHOD(&GolCommand::setCircle) },
 	{ "output",	OPTION_METHOD(&GolCommand::setOutput) },
 	{ "o",		OPTION_METHOD(&GolCommand::setOutput) },
 };
@@ -64,6 +64,7 @@ void GolCommand::setAreaFromCoords(const char* coords)
 {
 	PolygonParser parser(coords);
 	filter_ = parser.parse();
+	bounds_ = filter_->getBounds();
 }
 
 int GolCommand::setAreaOption(std::string_view value)
@@ -104,11 +105,13 @@ int GolCommand::setBox(std::string_view value)
 	return 1;
 }
 
+/*
 int GolCommand::setCircle(std::string_view value)
 {
 	// TODO
 	return 1;
 }
+*/
 
 
 int GolCommand::setOutput(std::string_view value)
@@ -127,7 +130,7 @@ void GolCommand::areaOptions(CliHelp& help)
 	help.beginSection("Area Options:");
 	help.option("-a, --area <coords> | <file>","Restrict to polygon");
 	help.option("-b, --bbox <W>,<S>,<E>,<N>","Restrict to bounding box");
-	help.option("-c, --circle <m>,<lon>,<lat>","Restrict to <m> meters around a point");
+	// help.option("-c, --circle <m>,<lon>,<lat>","Restrict to <m> meters around a point");
 	help.endSection();
 }
 
@@ -162,7 +165,10 @@ int GolCommand::run(char* argv[])
 		return 2;
 	}
 
-	store_.open(golPath_.c_str(), openMode_);
+	if (openMode_ != DO_NOT_OPEN)	[[likely]]
+	{
+		store_.open(golPath_.c_str(), openMode_);
+	}
 	return 0;
 }
 

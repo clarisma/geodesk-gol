@@ -7,6 +7,7 @@
 #include <clarisma/net/UrlView.h>
 #include <clarisma/util/log.h>
 #include <clarisma/util/Strings.h>
+#include <clarisma/util/Unicode.h>
 
 namespace clarisma {
 
@@ -20,19 +21,10 @@ void HttpClient::closeAndThrow(HINTERNET& handle)
     throw HttpException(error);
 }
 
-std::wstring HttpClient::toWideString(std::string_view s)
-{
-    int size = static_cast<int>(s.size());
-    int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, s.data(), size, NULL, 0);
-    std::wstring wideString(sizeNeeded, 0);
-    MultiByteToWideChar(CP_UTF8, 0, s.data(), size, &wideString[0], sizeNeeded);
-    return wideString;
-}
-
 HttpClient::HttpClient(std::string_view url)
 {
     UrlView uv(url);
-    host_ = toWideString(uv.host());
+    host_ = Unicode::toWideString(uv.host());
     port_ = uv.port();
     if (uv.scheme() == "https")
     {
@@ -66,25 +58,39 @@ void HttpClient::open()
     if (!hConnect_) closeAndThrow(hSession_);
 }
 
-HttpResponse HttpClient::get(const char* url)
+HttpResponse HttpClient::get(const char* url, const HttpRequestHeaders& headers)
 {
     if(!isOpen()) open();
 
     std::wstring urlW;
     if (url[0] == '/')
     {
-        urlW = toWideString(url);
+        urlW = Unicode::toWideString(url);
     }
     else
     {
         // TODO: this is inefficent
-        urlW = toWideString(path_) + L'/' + toWideString(url);
+        urlW = Unicode::toWideString(path_);
+        if (url[0] != 0)
+        {
+            urlW += L'/' + Unicode::toWideString(url);
+        }
     }
     HINTERNET hRequest = WinHttpOpenRequest(hConnect_, L"GET", urlW.c_str(),
         NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
         useSSL_ ? WINHTTP_FLAG_SECURE : 0);
     if (!hRequest) throw HttpException(GetLastError());
 
+    if (!headers.isEmpty())
+    {
+        std::wstring wideHeaders = Unicode::toWideString(
+            headers.asStringView());
+        if (!WinHttpAddRequestHeaders(hRequest, wideHeaders.c_str(),
+            -1L, WINHTTP_ADDREQ_FLAG_ADD))
+        {
+            closeAndThrow(hRequest);
+        }
+    }
     // Send the request
     if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS,
         0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0))

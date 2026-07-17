@@ -8,7 +8,7 @@ namespace clarisma {
 
 namespace UrlUtils
 {
-    bool isUrl(const char *url)
+    inline bool isUrl(const char *url)
     {
         return strstr(url, "://");
     }

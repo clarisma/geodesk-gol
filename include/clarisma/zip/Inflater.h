@@ -1,5 +1,5 @@
 // Copyright (c) 2024 Clarisma / GeoDesk contributors
-// SPDX-License-Identifier: LGPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 #ifdef CLARISMA_WITH_ZLIB
 

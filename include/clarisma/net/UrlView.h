@@ -18,6 +18,7 @@ public:
     std::string_view path() const noexcept { return path_; }
     std::string_view query() const noexcept { return query_; }
     std::string_view fragment() const noexcept { return fragment_; }
+    std::string_view origin() const noexcept;
 
 private:
     std::string_view scheme_;

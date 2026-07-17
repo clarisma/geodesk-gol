@@ -18,12 +18,12 @@ TesArchiveWriter::TesArchiveWriter()
 
 
 void TesArchiveWriter::open(const char* fileName, const clarisma::UUID& guid, uint32_t revision,
-    DateTime timestamp, int entryCount)
+    DateTime timestamp, int tileCount, bool wayNodeIds)
 {
     fileName_ = fileName;
     tempFileName_ = Strings::combine(fileName, ".tmp");
     catalogPayloadSize_ = sizeof(TesArchiveHeader) +
-        sizeof(TesArchiveEntry) * entryCount;
+        sizeof(TesArchiveEntry) * tileCount;
     size_t catalogSize = catalogPayloadSize_ + sizeof(uint32_t);
     catalog_.reset(new byte[catalogSize]);
     out_.open(tempFileName_, File::OpenMode::CREATE |
@@ -33,21 +33,28 @@ void TesArchiveWriter::open(const char* fileName, const clarisma::UUID& guid, ui
     TesArchiveHeader* header = reinterpret_cast<TesArchiveHeader*>(catalog_.get());
     new (header) TesArchiveHeader();
     header->guid = guid;
+    header->flags = wayNodeIds ? TesArchiveHeader::Flags::WAYNODE_IDS : 0;
     header->revision = revision;
     header->revisionTimestamp = timestamp;
-    header->entryCount = entryCount;
+    header->tileCount = tileCount;
     pNextEntry_ = reinterpret_cast<TesArchiveEntry*>(catalog_.get() + sizeof(TesArchiveHeader));
     out_.seek(catalogSize);
         // Skip Header, Entries, checksum
 }
 
-void TesArchiveWriter::write(TileData&& data)
+void TesArchiveWriter::writeMetadata(TileData&& data)
+{
+    auto header = reinterpret_cast<TesArchiveHeader*>(catalog_.get());
+    header->metadataChunkSize = data.size();
+    out_.writeAll(data.data(), data.size());
+}
+
+void TesArchiveWriter::writeTile(TileData&& data)
 {
     assert(reinterpret_cast<byte*>(pNextEntry_) < catalog_.get() + catalogPayloadSize_);
-    *pNextEntry_++ = TesArchiveEntry(data.tip(), data.sizeCompressed(),
-        data.sizeOriginal(), data.checksum());
-    out_.writeAll(data.data(), data.sizeCompressed());
-    LOGS << "Wrote " << data.sizeCompressed() << " bytes";
+    *pNextEntry_++ = TesArchiveEntry(data.tip(), data.size());
+    out_.writeAll(data.data(), data.size());
+    LOGS << "Wrote " << data.size() << " bytes";
 }
 
 void TesArchiveWriter::close()
@@ -66,7 +73,5 @@ TileData TesArchiveWriter::createTes(Tip tip, clarisma::ByteBlock&& block)
 {
     ByteBlock compressed = Zip::deflateRaw(block);
     uint32_t compressedSize = static_cast<uint32_t>(compressed.size());
-    return TileData(tip, compressed.takeData(),
-        static_cast<uint32_t>(block.size()),
-        compressedSize, Zip::calculateChecksum(block));
+    return { tip, compressed.takeData(), compressedSize };
 }

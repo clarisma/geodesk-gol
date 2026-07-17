@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "DefaultCommand.h"
-#include "version.h"
 #include <clarisma/cli/CliHelp.h>
 
 using namespace clarisma;
@@ -43,16 +42,14 @@ void DefaultCommand::help()
 {
     CliHelp help;
     help.command("gol [-V|--version] [-h|--help] <command> [<options>]",
-        "Build, manage and query Geographic Object Libraries.");
+        "Build, manage and query Geo-Object Libraries and Bundles.");
     help.beginSection("Commands:\n");
     help.subCommand("build", "Create a GOL from an OSM data file");
     help.subCommand("query", "Perform a GOQL query");
     help.subCommand("map", "Display features on a map");
     help.subCommand("info", "Obtain metadata and statistics");
-#ifdef GOL_EXPERIMENTAL
     help.subCommand("load", "Load tiles into a GOL");
     help.subCommand("save", "Export tiles from a GOL");
-#endif
     help.subCommand("check", "Verify integrity");
     help << "\nUse " << Console::WHITE << "gol help "
         << Console::FAINT_LIGHT_BLUE << "<command>" << Console::DEFAULT

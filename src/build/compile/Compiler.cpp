@@ -870,20 +870,18 @@ void Compiler::initStore()
 	store_.open(builder_->golPath().string().c_str(), FreeStore::OpenMode::WRITE |
 		FreeStore::OpenMode::CREATE | FreeStore::OpenMode::EXCLUSIVE);
 	transaction_.begin();
-	transaction_.setup(metadata);
 
 	// Take possession of the TileIndex
 	// The first word of the TI contains the number of TIPs
 	// (excluding this first slot); however, in the stored TI,
 	// the first word is the *payload size*
 
-	tileIndex_ = std::move(builder_->takeTileIndex());
-	FeatureStore::Header& header = transaction_.header();
-	uint32_t tipCount = tileIndex_[0];
+	std::unique_ptr<uint32_t[]> tileIndex = builder_->takeTileIndex();
+	uint32_t tipCount = tileIndex[0];
 	uint32_t tileIndexSize = (tipCount + 1) * 4;
-	tileIndex_[0] = tileIndexSize - 4;
-	header.tipCount = tipCount;
-	header.tileIndexChecksum = Crc32C::compute(tileIndex_.get(), tileIndexSize);
+	tileIndex[0] = tileIndexSize - 4;
+
+	transaction_.setup(metadata, std::move(tileIndex));
 }
 
 #ifdef GOL_BUILD_STATS
@@ -923,9 +921,14 @@ void Compiler::compile()
 	// builder_->featurePiles().clear();
 
 	// At this point, the first word is the payload size (tipCount * 4)
+
+	/*
+	 // This is now handled by commit()
+
 	uint32_t tileIndexSize = tileIndex_[0] + 4;
 	header.snapshots[0].tileIndex = transaction_.addBlob(
 		{reinterpret_cast<uint8_t*>(tileIndex_.get()), tileIndexSize});
+	*/
 	header.snapshots[0].tileCount = tileCount;
 
 	transaction_.commit();
@@ -960,8 +963,13 @@ void Compiler::processTask(CompilerOutputTask& task)
 	assert(*reinterpret_cast<const uint32_t*>(task.data().data()) == task.data().size() - 4);
 	assert(FeatureStore::isTileValid(reinterpret_cast<const std::byte*>(
 		task.data().data())));
+
+	/*
 	uint32_t page = transaction_.addBlob(task.data());
 	tileIndex_[task.tip()] = TileIndexEntry(page, TileIndexEntry::CURRENT);
+	*/
+	transaction_.putTile(task.tip(), task.data());
+
 	builder_->progress(workPerTile_);
 	// Console::debug(" Saved tile %d", task.tip());
 	assert(FeatureStore::isTileValid(reinterpret_cast<const std::byte*>(

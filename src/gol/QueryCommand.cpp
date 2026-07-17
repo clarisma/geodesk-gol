@@ -16,6 +16,7 @@
 #include "gol/query/CsvQueryPrinter.h"
 #include "gol/query/GeoJsonQueryPrinter.h"
 #include "gol/query/ListQueryPrinter.h"
+#include "gol/query/OsmPbfQueryPrinter.h"
 #include "gol/query/WktQueryPrinter.h"
 //#include "gol/query/TableQueryPrinter.h"
 #include "gol/query/XmlQueryPrinter.h"
@@ -93,6 +94,13 @@ int QueryCommand::run(char* argv[])
         }
         */
     }
+
+    if (keys_.empty())
+    {
+        keys_ = (format_ == OutputFormat::CSV) ?
+            "id,lon,lat,tags" : "*";
+    }
+
     // TODO: What should the output be if OutputFormat::UNKNOWN?
 
     Console::get()->start("Querying...");
@@ -135,6 +143,14 @@ int QueryCommand::run(char* argv[])
     case OutputFormat::WKT:
         count = WktQueryPrinter(&spec).run();
         break;
+    case OutputFormat::PBF:
+        if (Console::get()->isTerminal(Console::Stream::STDOUT))
+        {
+            Console::end().failed() << "Binary format -- cannot print to console";
+            return 1; // TODO: error code
+        }
+        count = OsmPbfQueryPrinter(&spec).run();
+        break;
     case OutputFormat::XML:
         count = XmlQueryPrinter(&spec).run();
         break;
@@ -165,6 +181,8 @@ void QueryCommand::help()
     help.optionValue("geojson", "GeoJSON");
     help.optionValue("list", "List of IDs");
     help.optionValue("wkt", "Well-Known Text");
+    help.optionValue("pbf", "OpenStreetMap PBF");
+    help.optionValue("xml", "OpenStreetMap XML");
     help.option("-k, --keys <list>", "Restrict tags to the given keys (csv and geojson only)");
     help.option("-p, --precision <n>", "Precision of coordinate values (Default: 7)");
     help.endSection();
@@ -186,6 +204,7 @@ OutputFormat QueryCommand::format(std::string_view s)
         {"list", OutputFormat::LIST},
         {"list", OutputFormat::TABLE},
         {"wkt", OutputFormat::WKT},
+        {"pbf", OutputFormat::PBF},
         {"xml", OutputFormat::XML},
     };
     auto it = map.find(s);
@@ -227,17 +246,17 @@ void QueryCommand::interactive()
 #ifdef _WIN32
     script_ << "python -i -c \""
         "try:\n"
-        "    from geodesk2 import *\n"
+        "    from geodesk import *\n"
         "except ImportError:\n"
         "    r = input('GeoDesk for Python is not installed. Install it now? [Y/n]').strip()\n"
         "    if r not in ('','Y','y'):\n"
         "        quit()\n"
         "    import subprocess, sys\n"
         "    try:\n"
-        "        res = subprocess.check_call([sys.executable,'-m','pip','install','geodesk2'])\n"
+        "        res = subprocess.check_call([sys.executable,'-m','pip','install','geodesk'])\n"
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
-        "    from geodesk2 import *\n";
+        "    from geodesk import *\n";
     if (true)   // TODO: only if golName is a valid Pytohn identifier
     {
         script_ << golName << " = ";
@@ -246,17 +265,17 @@ void QueryCommand::interactive()
 #else
     script_ << "python3 -i -c '"
         "try:\n"
-        "    from geodesk2 import *\n"
+        "    from geodesk import *\n"
         "except ImportError:\n"
         "    r = input(\"GeoDesk for Python is not installed. Install it now? [Y/n]\").strip()\n"
         "    if r not in (\"\",\"Y\",\"y\"):\n"
         "        quit()\n"
         "    import subprocess, sys\n"
         "    try:\n"
-        "        res = subprocess.check_call([sys.executable,\"-m\",\"pip\",\"install\",\"geodesk2\"])\n"
+        "        res = subprocess.check_call([sys.executable,\"-m\",\"pip\",\"install\",\"geodesk\"])\n"
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
-        "    from geodesk2 import *\n";
+        "    from geodesk import *\n";
     if (true)   // TODO: only if golName is a valid Pytohn identifier
     {
         script_ << golName << " = ";

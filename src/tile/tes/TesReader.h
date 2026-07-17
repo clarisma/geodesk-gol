@@ -14,8 +14,7 @@
 class TesReader
 {
 public:
-	explicit TesReader(TileModel& tile, bool readWaynodeIDs = false);
-		// TODO: remove default
+	explicit TesReader(TileModel& tile);
 	void read(const uint8_t* data, size_t size);
 
 private:
@@ -75,5 +74,4 @@ private:
 	uint32_t sharedTagTableCount_;
 	uint32_t sharedRelationTableCount_;
 	Coordinate prevXY_;
-	bool readWaynodeIDs_;
 };

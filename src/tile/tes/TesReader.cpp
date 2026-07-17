@@ -17,7 +17,7 @@
 #include <clarisma/util/varint.h>
 
 
-TesReader::TesReader(TileModel& tile, bool readWaynodeIDs) :
+TesReader::TesReader(TileModel& tile) :
 	tile_(tile),
 	p_(nullptr),
 	strings_(nullptr),
@@ -27,8 +27,7 @@ TesReader::TesReader(TileModel& tile, bool readWaynodeIDs) :
 	stringCount_(0),
 	sharedTagTableCount_(0),
 	sharedRelationTableCount_(0),
-	prevXY_(tile.bounds().bottomLeft()),
-	readWaynodeIDs_(readWaynodeIDs)
+	prevXY_(tile.bounds().bottomLeft())
 {
 }
 
@@ -474,7 +473,7 @@ void TesReader::readWayChange(TWay* way)
 	const uint8_t* pCoords;
 	uint32_t coordsSize;
 	// We start with assumption that node IDs are not included, hence not 
-	// copies from anywhere, so we set pointer and size to null/0
+	// copied from anywhere, so we set pointer and size to null/0
 	const uint8_t* pNodeIds = nullptr;		
 	size_t nodeIdsSize = 0;
 	uint8_t countAndFirst[32];
@@ -501,20 +500,15 @@ void TesReader::readWayChange(TWay* way)
 
 		if (flags & TesFlags::NODE_IDS_CHANGED)
 		{
-			uint64_t waynodeId = 0;
-			for(int i=0; i<coordCount; i++)
-			{
-				waynodeId += readSignedVarint64(p_);
-				// LOGS << "  way/" << way->id() << " #" << i << ": node/" << waynodeId;
-			}
-
-			// skipVarints(p_, coordCount);  // TODO: re-enable
+			pNodeIds = p_;
+			skipVarints(p_, coordCount);
+			coordsSize = (tile_.wayNodeIds() ? p_ : pNodeIds) - pCoords;
 			// We advance the pointer so IDs will be copied along with
 			// the coords (no need to set pNodeIds/nodeIdsSize)
 		}
 		else
 		{
-			if (readWaynodeIDs_)
+			if (tile_.wayNodeIds())		[[unlikely]]
 			{
 				// We'll need to copy the unchanged waynode IDs from the old body
 				const uint8_t* pOldCoords = pOldBody;
@@ -533,8 +527,8 @@ void TesReader::readWayChange(TWay* way)
 				nodeIdsSize = pOldCoords - pNodeIds;
 				// Now pNodeIds/nodeIdsSize are set to the old node IDs
 			}
+			coordsSize = p_ - pCoords;
 		}
-		coordsSize = p_ - pCoords;
 
 		uint8_t* pNew = countAndFirst;
 		writeVarint(pNew, coordCount);

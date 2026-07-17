@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "geodesk/feature/FeatureStore.h"
 #include "tile/model/TileModel.h"
 
 namespace geodesk {
@@ -17,7 +18,10 @@ class TileCompiler
 {
 public:
     explicit TileCompiler(FeatureStore* store) :
-        store_(store) {}
+        store_(store)
+    {
+        tile_.wayNodeIds(store->hasWaynodeIds());
+    }
 
     void createTile(Tile tile, size_t estimatedTileSize)
     {

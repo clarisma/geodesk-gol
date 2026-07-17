@@ -324,8 +324,32 @@ TString* TileModel::getKeyString(TElement::Handle handle) const
 	TString* str = getString(handle);
 	if (str == nullptr)
 	{
+		// TODO:
+		// It is possible that a string that isn't currently used
+		// as a local key becomes a local-key string in a later
+		// revision. Any string that serves as a local-key string
+		// must be 4-byte aligned (because the local-tag entry uses
+		// 3 flag bits, leaving 29 bits for a pointer that must be
+		// able to address +/- 1 GB.
+		// So what happens to an existing string that isn't already
+		// 4-byte aligned? When we try to reference this string via
+		// a tag-table where it is now used as a local key, we're
+		// using a handle whose lower 3 bits are always zero, which
+		// means we missing the actual string. For example, the
+		// string may be stored at offset 75, but the stored handle
+		// refers to offset 72.
+		// To solve this, we probe nearby unaligned locations.
+		// We don't risk picking up the wrong string, because string
+		// structs have a 4-byte minimum (i.e. 3 bytes + len byte)
+		// If string structs shorter than 4 bytes were allowed,
+		// we would risk picking up an unrelated 3-byte struct
+		// stored at 72, packed right before the real string at 75.
+		// (TODO: check if Tile Compiler enforces this constraint)
+		// TODO: Check the probling algo below; we should need to
+		//  only check handle+1 through handle+3
+
 		LOGS << "Can't find string with handle " << handle << ", probing nearby...";
-		for (int ofs = -3; ofs <=3; ofs++)
+		for (int ofs = -3; ofs <=3; ofs++)		// TODO: should be 0 to 3 ?
 		{
 			str = getString(handle + ofs);
 			if (str)

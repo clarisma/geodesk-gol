@@ -12,33 +12,36 @@
 #include "tile/model/TileModel.h"
 #include "tile/tes/TesArchive.h"
 #include "tile/tes/TesParcel.h"
+#include "tile/util/TileData.h"
 
 namespace geodesk {
 class FeatureStore;
 }
 
 class TileLoader;
+class TileDownloadClient;
 
 class TileLoaderTask
 {
 public:
 	TileLoaderTask() {} // TODO: only to satisfy compiler
 	TileLoaderTask(Tip tip, Tile tile) : tip_(tip), tile_(tile) {}
-	TileLoaderTask(Tip tip, Tile tile, TesParcelPtr parcel) : 
+	TileLoaderTask(Tip tip, Tile tile, ByteBlock data) :
 		tip_(tip), 
 		tile_(tile),
-		firstParcel_(std::move(parcel)) 
+		data_(std::move(data))
 	{
 	}
 
 	Tile tile() const { return tile_; }
 	Tip tip() const { return tip_; }
-	TesParcelPtr takeFirstParcel() { return std::move(firstParcel_); }
+	const uint8_t* data() const { return data_.data(); }
+	size_t size() const { return data_.size(); }
 
 private:
 	Tip tip_;
 	Tile tile_;
-	TesParcelPtr firstParcel_;
+	ByteBlock data_;
 };
 
 
@@ -54,51 +57,92 @@ private:
 	TileLoader* loader_;
 };
 
-class TileLoaderOutputTask
-{
-public:
-	TileLoaderOutputTask() {} // TODO: only to satisfy compiler
-	TileLoaderOutputTask(int tip, ByteBlock&& data) :
-		data_(std::move(data)),
-		tip_(tip)
-	{}
 
-	Tip tip() const { return tip_; }
-	const uint8_t* data() const { return data_.data(); }
-	size_t size() const { return data_.size(); }
-	
-private:
-	ByteBlock data_; 
-	Tip tip_;
-};
-
-
-class TileLoader : public TaskEngine<TileLoader, TileLoaderWorker, TileLoaderTask, TileLoaderOutputTask>
+class TileLoader : public TaskEngine<TileLoader, TileLoaderWorker, TileLoaderTask, TileData>
 {
 public:
 	TileLoader(FeatureStore* store, int numberOfThreads);
 
-	int prepareLoad(const char *tesFileName);
-	void load();
-	void processTask(TileLoaderOutputTask& task);
-	int64_t totalBytesWritten() const { return totalBytesWritten_; }
-	void reportSuccess(int tileCount);
+	void load(const char *golFileName, const char *gobFileName, bool wayNodeIds,
+		Box bounds, const Filter* filter);
+	void download(const char *golFileName, const char* url,
+		 bool wayNodeIds, Box bounds, const Filter* filter,
+		 int maxConnections);
+
+	void processTask(TileData& task);
 
 private:
-	void initStore(const TesArchiveHeader& header,
-		ByteBlock&& compressedMetadata, uint32_t sizeUncompressed, uint32_t checksum);
+	struct Range
+	{
+		uint64_t ofs;
+		uint64_t size;
+		uint32_t firstEntry;
+		uint32_t tileCount;
+	};
+
+	int64_t totalBytesWritten() const { return totalBytesWritten_; }
+	void reportSuccess(int tileCount);
+	void initStore(const TesArchiveHeader& header, ByteBlock&& compressedMetadata);
+
+	const TesArchiveHeader& gobHeader() const
+	{
+		return reinterpret_cast<const TesArchiveHeader&>(*catalog_);
+	};
+	static void verifyHeader(const TesArchiveHeader& header);
+	void prepareCatalog(const TesArchiveHeader& header);
+	void verifyCatalog() const;
+	bool openStore();
+	bool beginTiles();
+	int determineTiles();
+	void determineRanges(TileDownloadClient& mainClient, bool loadedMetadata);
+	void dumpRanges();
+	void startDownloadThreads();
+	void downloadRanges();
+	void awaitDownloadThreads();
+
+	const TesArchiveEntry* entry(uint32_t n) const
+	{
+		return reinterpret_cast<const TesArchiveEntry*>(
+			catalog_.get() + sizeof(TesArchiveHeader) +
+			n * sizeof(TesArchiveEntry));
+	}
+
+	Tile tileOfTip(Tip tip) const { return tiles_[tip]; }
 
 	FeatureStore::Transaction transaction_;
-	double workPerTile_;
-	double workCompleted_;
-	size_t totalBytesWritten_;
-	size_t bytesSinceLastCommit_;
-	size_t headerAndCatalogSize_ = 0;
+	double workPerTile_ = 0;
+	double workCompleted_ = 0;
+	uint64_t requestedTileBytesCompressed_ = 0;
+	uint64_t totalBytesWritten_ = 0;
+	uint64_t bytesSinceLastCommit_ = 0;
 	File file_;
-	uint32_t entryCount_ = 0;
-	std::unique_ptr<TesArchiveEntry[]> catalog_;
+	std::unique_ptr<std::byte> catalog_;
 	std::unique_ptr<Tile[]> tiles_;
-	std::unique_ptr<uint32_t[]> tileIndex_;
+	uint32_t catalogSize_ = 0;
+	bool wayNodeIds_ = false;
+	bool transactionStarted_ = false;
+	bool isRemoteGob_ = false;
+	const char* golFileName_ = nullptr;
+	const char* gobFileName_ = nullptr;
+	Box bounds_;
+	const Filter* filter_ = nullptr;
+
+	const char* url_ = nullptr;
+
+	// A buffer used for reading the GOB's header
+	// (only used if downloading)
+	TesArchiveHeader header_;
+	std::vector<Range> ranges_;
+	std::vector<std::thread> downloadThreads_;
+	std::atomic<int> nextRange_ = 0;
+
+	// When downloading, it makes sense to simply read and discard
+	// a range of bytes instead of issuing a separate range request,
+	// which incurs latency. This field specifies the threshold
+	uint32_t maxSkippedBytes_ = 1024 * 1024;   // 1 MB
+	int maxConnections_ = 4;
+
+	friend class TileDownloadClient;
 
 #ifdef _DEBUG
 	ElementCounts totalCounts_;

@@ -37,7 +37,7 @@ Get the names and phone numbers of all restaurants in France:
 gol query france na[amenity=restaurant] -f csv -k name,phone
 ```
 
-📖 [Full documentation](https://docs2.geodesk.com/gol)
+📖 [Full documentation](https://docs.geodesk.com/gol)
 
 ## Toolkits
 

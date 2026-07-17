@@ -50,7 +50,7 @@ class TileSaver : public TaskEngine<TileSaver, TileSaverWorker, TileSaverTask, T
 public:
 	TileSaver(FeatureStore* store, int threadCount);
 
-	void save(const char* fileName, std::vector<std::pair<Tile,Tip>>& tiles);
+	void save(const char* fileName, std::vector<std::pair<Tile,Tip>>& tiles, bool wayNodeIds);
 	void preProcessOutput();     // CRTP override
 	void processTask(TileData& task);
 	int64_t totalBytesWritten() const { return totalBytesWritten_; }
@@ -68,6 +68,7 @@ private:
 	double workCompleted_;
 	int64_t totalBytesWritten_;
 	int entryCount_;
+	bool wayNodeIds_ = false;
 
 	friend class TileSaverWorker;
 };

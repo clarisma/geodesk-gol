@@ -14,6 +14,7 @@
 #include <fstream>
 #include <iostream>
 #include <zlib.h>
+#include "OsmPbf.h"
 #include "OsmPbfMetadata.h"
 
 using namespace clarisma;
@@ -22,58 +23,6 @@ using namespace clarisma;
 template <typename Derived, typename WorkContext, typename OutputTask>
 class OsmPbfReader;
 */
-
-enum OsmPbf
-{
-	BLOBHEADER_TYPE = (1 << 3) | 2,
-	BLOBHEADER_DATASIZE = (3 << 3),
-
-	BLOB_RAW_DATA = (1 << 3) | 2,
-	BLOB_RAW_SIZE = (2 << 3),
-	BLOB_ZLIB_DATA = (3 << 3) | 2,
-
-	HEADER_BBOX = (1 << 3) | 2,
-	HEADER_REQUIRED_FEATURES = (4 << 3) | 2,
-	HEADER_OPTIONAL_FEATURES = (5 << 3) | 2,
-	HEADER_WRITINGPROGRAM = (16 << 3) | 2,
-	HEADER_SOURCE = (17 << 3) | 2,
-	HEADER_REPLICATION_TIMESTAMP = (32 << 3),
-	HEADER_REPLICATION_SEQUENCE = (33 << 3),
-	HEADER_REPLICATION_URL = (34 << 3) | 2,
-
-	BLOCK_STRINGTABLE = (1 << 3) | 2,
-	BLOCK_GROUP = (2 << 3) | 2,
-	BLOCK_GRANULARITY = 17 << 3,
-	BLOCK_DATE_GRANULARITY = 18 << 3,
-	BLOCK_LAT_OFFSET = 19 << 3,
-	BLOCK_LON_OFFSET = 20 << 3,
-
-	STRINGTABLE_ENTRY = (1 << 3) | 2,
-
-	// Structures that appear within a PrimitiveGroup
-	GROUP_NODE = (1 << 3) | 2,
-	GROUP_DENSENODES = (2 << 3) | 2,
-	GROUP_WAY = (3 << 3) | 2,
-	GROUP_RELATION = (4 << 3) | 2,
-	GROUP_CHANGESET = (5 << 3) | 2,
-
-	DENSENODE_IDS = (1 << 3) | 2,
-	DENSENODE_INFO = (5 << 3) | 2,
-	DENSENODE_LATS = (8 << 3) | 2,
-	DENSENODE_LONS = (9 << 3) | 2,
-	DENSENODE_TAGS = (10 << 3) | 2,
-
-	ELEMENT_ID = (1 << 3),
-	ELEMENT_KEYS = (2 << 3) | 2,
-	ELEMENT_VALUES = (3 << 3) | 2,
-	ELEMENT_INFO = (4 << 3) | 2,
-
-	WAY_NODES = (8 << 3) | 2,
-
-	RELATION_MEMBER_ROLES = (8 << 3) | 2,
-	RELATION_MEMBER_IDS = (9 << 3) | 2,
-	RELATION_MEMBER_TYPES = (10 << 3) | 2
-};
 
 class OsmPbfException : public std::runtime_error
 {
@@ -450,78 +399,85 @@ public:
 
 	void read(const char* fileName)
 	{
-		this->start();
-		
-		File file;
-		file.open(fileName, File::OpenMode::READ);
-		uint64_t fileSize = file.size();
-		self()->startFile(fileSize);
-
-		size_t totalBytesRead = 0;
-		while (totalBytesRead < fileSize)
+		try
 		{
-			// The header length (uint32) is in network byte order
-			// TODO: Code below assumes native byte order is Little-Endian
-			uint32_t rawHeaderLen;
-			file.read(&rawHeaderLen, 4);
-			uint32_t headerLen = Bytes::reverseByteOrder32(rawHeaderLen);
+			this->start();
 
-			if (headerLen > 256)
+			File file;
+			file.open(fileName, File::OpenMode::READ);
+			uint64_t fileSize = file.size();
+			self()->startFile(fileSize);
+
+			size_t totalBytesRead = 0;
+			while (totalBytesRead < fileSize)
 			{
-				throw OsmPbfException("Excessive header length (%d)", headerLen);
-			}
+				// The header length (uint32) is in network byte order
+				// TODO: Code below assumes native byte order is Little-Endian
+				uint32_t rawHeaderLen;
+				file.read(&rawHeaderLen, 4);
+				uint32_t headerLen = Bytes::reverseByteOrder32(rawHeaderLen);
 
-			uint8_t buf[256];
-			file.read(buf, headerLen);
-			const uint8_t* p = buf;
-			const uint8_t* pEnd = p + headerLen;
-
-			std::string_view blockType;
-			uint32_t dataLen = 0;
-			while (p < pEnd)
-			{
-				uint32_t field = readVarint32(p);
-				switch (field)
+				if (headerLen > 256)
 				{
-				case BLOBHEADER_TYPE:
-					blockType = readStringView(p);
-					break;
-				case BLOBHEADER_DATASIZE:
-					dataLen = readVarint32(p);
-					break;
+					throw OsmPbfException("Excessive header length (%d)", headerLen);
 				}
-			}
 
-			if (blockType.empty() || dataLen == 0)
-			{
-				throw OsmPbfException("Invalid blob header at offset %016llX", totalBytesRead);
-			}
+				uint8_t buf[256];
+				file.read(buf, headerLen);
+				const uint8_t* p = buf;
+				const uint8_t* pEnd = p + headerLen;
 
-			OsmPbfBlock block;
-			uint8_t* data = new uint8_t[dataLen];
-			block.data = data;
-			block.dataSize = dataLen;
-			block.blockSize = dataLen + headerLen + 4;
-			file.read(data, dataLen);
-			if (blockType == "OSMData")
-			{
-				// LOG("Block with %d bytes", block.blockSize);
-				this->postWork(std::move(block));
+				std::string_view blockType;
+				uint32_t dataLen = 0;
+				while (p < pEnd)
+				{
+					uint32_t field = readVarint32(p);
+					switch (field)
+					{
+					case BLOBHEADER_TYPE:
+						blockType = readStringView(p);
+						break;
+					case BLOBHEADER_DATASIZE:
+						dataLen = readVarint32(p);
+						break;
+					}
+				}
+
+				if (blockType.empty() || dataLen == 0)
+				{
+					throw OsmPbfException("Invalid blob header at offset %016llX", totalBytesRead);
+				}
+
+				OsmPbfBlock block;
+				uint8_t* data = new uint8_t[dataLen];
+				block.data = data;
+				block.dataSize = dataLen;
+				block.blockSize = dataLen + headerLen + 4;
+				file.read(data, dataLen);
+				if (blockType == "OSMData")
+				{
+					// LOG("Block with %d bytes", block.blockSize);
+					this->postWork(std::move(block));
+				}
+				else if (blockType == "OSMHeader")
+				{
+					decodeHeaderBlock(block);
+				}
+				else
+				{
+					throw OsmPbfException("Unknown header type: %s", std::string(blockType).c_str());
+				}
+				totalBytesRead += block.blockSize;
 			}
-			else if (blockType == "OSMHeader")
-			{
-				decodeHeaderBlock(block);
-			}
-			else
-			{
-				throw OsmPbfException("Unknown header type: %s", std::string(blockType).c_str());
-			}
-			totalBytesRead += block.blockSize;
+			LOG("Waiting for threads to complete...");
+
+			this->end();
+			LOG("Done.");
 		}
-		LOG("Waiting for threads to complete...");
-
-		this->end();
-		LOG("Done.");
+		catch (std::exception& ex)
+		{
+			self()->fail(ex.what());
+		}
 	}
 
 	void processTask(OsmPbfOutputTask& task)

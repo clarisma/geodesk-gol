@@ -87,7 +87,10 @@ void TileReader::readWay(WayPtr way)
 
 	const uint8_t* p = pBody;
 	int nodeCount = readVarint32(p);
-	skipVarints(p, nodeCount * 2);		// (coordinate pairs)
+	int valueCount = nodeCount * 2;
+	valueCount += tile_.wayNodeIds() ? nodeCount : 0;
+		// 2 coordinate values, plus optional ID
+	skipVarints(p, valueCount);
 	uint32_t size = static_cast<uint32_t>(p - pBody.ptr() + anchor);
 	if (relTablePtrSize)
 	{

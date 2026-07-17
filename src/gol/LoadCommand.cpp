@@ -6,67 +6,93 @@
 #include <clarisma/cli/CliApplication.h>
 #include <clarisma/cli/CliHelp.h>
 #include <clarisma/io/FilePath.h>
-
+#include <clarisma/net/UrlUtils.h>
+#include <clarisma/validate/Validate.h>
 #include "gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
+
+LoadCommand::Option LoadCommand::OPTIONS[] =
+{
+	{ "C",				OPTION_METHOD(&LoadCommand::setConnections) },
+	{ "connections",	OPTION_METHOD(&LoadCommand::setConnections) },
+	{ "w",				OPTION_METHOD(&LoadCommand::setWaynodeIds) },
+	{ "waynode-ids",	OPTION_METHOD(&LoadCommand::setWaynodeIds) }
+};
+
 LoadCommand::LoadCommand()
 {
-	openMode_ = FeatureStore::OpenMode::WRITE | FeatureStore::OpenMode::CREATE
-		| FeatureStore::OpenMode::EXCLUSIVE;
-		// TODO: concurrent mode
+	addOptions(OPTIONS, sizeof(OPTIONS) / sizeof(Option));
+	openMode_ = DO_NOT_OPEN;
+	// TileLoader open/creates the GOL
 }
 
 bool LoadCommand::setParam(int number, std::string_view value)
 {
-	if(GolCommand::setParam(number, value)) return true;
-	tesFileNames_.emplace_back(FilePath::withDefaultExtension(value, ".tes"));
+	if (number == 0) return true;   // command itself
+	if (number > 1)
+	{
+		if (number > 2 || isRemoteGob_) return false;
+		// more than 2 params (or more than 2 URLs) are not allowed
+	}
+
+	if (UrlUtils::isUrl(value.data()))	// safe, value is 0-terminated
+	{
+		gobFileName_ = value;
+		isRemoteGob_ = true;
+		if (number == 1)
+		{
+			std::string_view baseName = FilePath::withoutExtension(
+				FilePath::name(value));
+			if (std::string_view(FilePath::extension(baseName)) == ".osm")
+			{
+				baseName = FilePath::withoutExtension(baseName);
+			}
+			golPath_ = FilePath::withExtension(baseName, ".gol");
+		}
+	}
+	else
+	{
+		if (number == 1)
+		{
+			golPath_ = FilePath::withDefaultExtension(value, ".gol");
+		}
+		else
+		{
+			gobFileName_ = FilePath::withDefaultExtension(value, ".gob");
+		}
+	}
 	return true;
 }
 
-int LoadCommand::setOption(std::string_view name, std::string_view value)
+int LoadCommand::setConnections(std::string_view s)
 {
-	// TODO
-	return GolCommand::setOption(name, value);
+	connections_ = Validate::intValue(s.data(), MIN_CONNECTIONS, MAX_CONNECTIONS);
+	return 1;
 }
+
 
 int LoadCommand::run(char* argv[])
 {
 	int res = GolCommand::run(argv);
 	if (res != 0) return res;
 
-	if (tesFileNames_.empty())
+	if (gobFileName_.empty())
 	{
-		tesFileNames_.emplace_back(FilePath::withExtension(golPath_, ".tes"));
+		gobFileName_ = FilePath::withExtension(golPath_, ".gob");
 	}
 	
 	TileLoader loader(&store_, threadCount());
-	int tileCount = loader.prepareLoad(tesFileNames_[0].data());
-
-	// TODO: must verify GUID!!!!
-
-	// Caution: prepareLoad walks the tileIndex; if reading multiple TES,
-	// need to commit xaction (or look up tile entries via uncommitted
-	// blocks)
-
-	if (tileCount == 0)
+	if (isRemoteGob_)
 	{
-		Console::end().success() << "All tiles already loaded.\n";
-		return 0;
+		loader.download(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
+			bounds_, filter_.get(), connections_);
 	}
-	// TODO: handle transactions here?
-	//  If we skip a file because all tiles are loaded, xaction
-	//  remains open
-
-	ConsoleWriter().blank() << "Loading "
-		<< Console::FAINT_LIGHT_BLUE << FormattedLong(tileCount)
-		<< Console::DEFAULT << (tileCount == 1 ? " tile into " : " tiles into ")
-		<< Console::FAINT_LIGHT_BLUE << golPath_
-		<< Console::DEFAULT << " from "
-		<< Console::FAINT_LIGHT_BLUE << tesFileNames_[0].data()
-		<< Console::DEFAULT << ":\n";
-	loader.load();
-
+	else
+	{
+		loader.load(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
+			bounds_, filter_.get());
+	}
 	return 0;
 }
 
@@ -74,8 +100,11 @@ int LoadCommand::run(char* argv[])
 void LoadCommand::help()
 {
 	CliHelp help;
-	help.command("gol load <gol-file> [<tes-file>] [<options>]",
-		"Load tiles from a Tile Element Set.");
+	help.command("gol load [<gol-file>] <gob-file-or-url> [<options>]",
+		"Load tiles from a Geo-Object Bundle (local or remote).");
+
+	help.option("-C, --connections", "Max connections when downloading (default: 4)\n");
+	help.option("-w, --waynode-ids", "Include IDs of all nodes\n");
 	areaOptions(help);
 	generalOptions(help);
 }

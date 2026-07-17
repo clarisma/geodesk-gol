@@ -21,27 +21,36 @@ enum class TesMetadataType
 
 struct TesArchiveHeader
 {
-	uint32_t magic = 0xE0F6B060;	//	(60 B0 F6 E0) "gob of geo"
-	uint16_t formatVersionMajor = 1;
-	uint16_t formatVersionMinor = 9000;
+	static constexpr uint32_t MAGIC = 0xE0F6B060;	//	(60 B0 F6 E0) "gob of geo"
+
+	uint32_t magic = MAGIC;
+	uint16_t formatVersionMajor = 2;
+	uint16_t formatVersionMinor = 0;
 	clarisma::UUID guid;
 	uint32_t flags = 0;
-	uint32_t entryCount =0 ;
+	uint32_t tileCount =0 ;
 	uint32_t baseRevision = 0;
 	uint32_t revision = 0;
 	clarisma::DateTime revisionTimestamp;
+	uint32_t metadataChunkSize = 0;
+	uint32_t reserved[3] = {};
+
+	enum Flags
+	{
+		WAYNODE_IDS = 1 << 0,
+	};
 };
+
+static_assert(sizeof(TesArchiveHeader) == 64);
 
 struct TesArchiveEntry
 {
-	TesArchiveEntry() : tip(0), size(0), sizeUncompressed(0), checksum(0) {}
-	TesArchiveEntry(Tip tip, uint32_t size, uint32_t sizeUncompressed, uint32_t checksum)
-		: tip(tip), size(size), sizeUncompressed(sizeUncompressed), checksum(checksum) {}
+	TesArchiveEntry() : tip(0), size(0) {}
+	TesArchiveEntry(Tip tip, uint32_t size)
+		: tip(tip), size(size) {}
 
 	Tip tip;
 	uint32_t size;
-	uint32_t sizeUncompressed;
-	uint32_t checksum;
 };
 
 
@@ -60,14 +69,14 @@ public:
 	const TesArchiveEntry& operator[](int n) const
 	{
 		assert(data_);
-		assert(n >= 0 && n < header().entryCount);
+		assert(n >= 0 && n < header().tileCount);
 		return *reinterpret_cast<const TesArchiveEntry*>(
 			data_ + sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * n);
 	}
 
 	const uint8_t* dataAtOffset(uint64_t ofs) const
 	{
-		assert(ofs >= sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * header().entryCount);
+		assert(ofs >= sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * header().tileCount);
 		return data_ + ofs;
 	}
 
