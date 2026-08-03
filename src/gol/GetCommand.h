@@ -12,9 +12,30 @@ public:
 
 	int run(char* argv[]);
 
-private:
+protected:
 	bool setParam(int number, std::string_view value) override;
-	int setOption(std::string_view name, std::string_view value) override;
+
+private:
+	static Option OPTIONS[];
+
+	int setListAction(std::string_view)
+	{
+		doList_ = true;
+		return 0;
+	}
+	int setMapAction(std::string_view)
+	{
+		doList_ = true;
+		return 0;
+	}
+	int setUpdateList(std::string_view)
+	{
+		updateList_ = true;
+		return 0;
+	}
 
 	std::string_view url_;
+	bool doList_ = false;
+	bool doMap_ = false;
+	bool updateList_ = false;
 };

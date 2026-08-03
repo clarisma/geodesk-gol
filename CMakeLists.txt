@@ -3,6 +3,7 @@ project(geodesk-gol)
 
 option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
 option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
+option(GOL_DEVELOPER_TOOLS "Enable developer tools" OFF)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -130,6 +131,10 @@ endif()
 if(GOL_EXPERIMENTAL)
     message("GOL: Building with experimental features")
     target_compile_definitions(gol PRIVATE GOL_EXPERIMENTAL)
+endif()
+if(GOL_DEVELOPER_TOOLS)
+    message("GOL: Building with developer tools")
+    target_compile_definitions(gol PRIVATE GOL_DEVELOPER_TOOLS)
 endif()
 
 # Enable zlib wrapper classes

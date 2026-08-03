@@ -17,9 +17,7 @@ private:
 	static int dumpTiles(char* argv[]);
 	static int test(char* argv[]);
 #endif
-#ifdef GOL_EXPERIMENTAL
 	static int get(char* argv[]);
-#endif
 	static int info(char* argv[]);
 	static int install(char* argv[]);
 	static int load(char* argv[]);

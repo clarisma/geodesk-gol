@@ -509,6 +509,10 @@ void SorterWorker::relation(int64_t id, ByteSpan keys, ByteSpan values,
 
             if (memberPilePair == 0)
             {
+                // TODO: We need to check if role is "outer" or "inner" --
+                //  if so, the relation does not get classified as an area
+                //  (To solve libgeodesk#43)
+
                 missingMemberCount++;
                 continue;
                 // TODO: Instead of omitting missing members, we should store a 
@@ -533,11 +537,10 @@ void SorterWorker::relation(int64_t id, ByteSpan keys, ByteSpan values,
     
     encodeTags(keys, values);
 
-    // TODO: Add geodesk:missing_members, if needed
-    // TODO: If *all* members are missing, we can't place the relation
 
     if (children_.empty())
     {
+        // If *all* members are missing, we can't place the relation
         // Omit empty relation
         // TODO: differentiate empty rels and rels with all members missing?
         stats_.emptyRelationCount++;

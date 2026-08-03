@@ -103,7 +103,7 @@ void LoadCommand::help()
 	help.command("gol load [<gol-file>] <gob-file-or-url> [<options>]",
 		"Load tiles from a Geo-Object Bundle (local or remote).");
 
-	help.option("-C, --connections", "Max connections when downloading (default: 4)\n");
+	help.option("-C, --connections <n>", "Max connections when downloading (default: 4)\n");
 	help.option("-w, --waynode-ids", "Include IDs of all nodes\n");
 	areaOptions(help);
 	generalOptions(help);

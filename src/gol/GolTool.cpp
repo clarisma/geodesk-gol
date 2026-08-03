@@ -35,9 +35,7 @@ int GolTool::run(char* argv[])
 		{ "dump-tiles", &GolTool::dumpTiles },
 		{ "test", &GolTool::test },
 #endif
-#ifdef GOL_EXPERIMENTAL
 		{ "get", &GolTool::get },
-#endif
 		{ "info", &GolTool::info },
 		{ "install", &GolTool::install },
 		{ "query", &GolTool::query },

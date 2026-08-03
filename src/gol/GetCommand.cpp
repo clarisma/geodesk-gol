@@ -7,10 +7,20 @@
 #include "gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
+GetCommand::Option GetCommand::OPTIONS[] =
+{
+	{ "l",			OPTION_METHOD(&GetCommand::setListAction) },
+	{ "list",	OPTION_METHOD(&GetCommand::setListAction ) },
+	{ "m",			OPTION_METHOD(&GetCommand::setMapAction) },
+	{ "map",	OPTION_METHOD(&GetCommand::setMapAction ) },
+	{ "U",			OPTION_METHOD(&GetCommand::setUpdateList) },
+	{ "update-list",	OPTION_METHOD(&GetCommand::setUpdateList ) },
+};
+
 
 GetCommand::GetCommand()
 {
-
+	addOptions(OPTIONS, sizeof(OPTIONS) / sizeof(Option));
 }
 
 bool GetCommand::setParam(int number, std::string_view value)
@@ -18,12 +28,6 @@ bool GetCommand::setParam(int number, std::string_view value)
 	if(GolCommand::setParam(number, value)) return true;
 	// tesFileNames_.emplace_back(value);
 	return true;
-}
-
-int GetCommand::setOption(std::string_view name, std::string_view value)
-{
-	// TODO
-	return GolCommand::setOption(name, value);
 }
 
 int GetCommand::run(char* argv[])
