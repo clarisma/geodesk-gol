@@ -189,11 +189,12 @@ void SorterWorker::flushPiles()
 const uint8_t* SorterWorker::node(int64_t id, int32_t lon100nd, int32_t lat100nd, ByteSpan tags)
 {
     /*
-    if (id == 319561907)
+    if (id == 5900057357 || id == 394976132 || id == 3462964783)
     {
-        LOG("!!!");
+        Console::msg("*** Found node/%lld", id);
     }
     */
+
     assert(tempWriter_.isEmpty());
     assert(id < 1'000'000'000'000ULL);
     // project lon/lat to Mercator
@@ -249,7 +250,10 @@ void SorterWorker::way(int64_t id, ByteSpan keys, ByteSpan values, ByteSpan node
         assert(nodePile >= 0 && nodePile <= pileCount_);  // pile numbers are 1-based
         if (nodePile == 0) [[unlikely]]
         {
-            Console::msg("node/%lld not found in node index", nodeId);
+            // Console::msg("node/%lld not found in node index", nodeId);
+            Console::msg("Rejected way/%lld (missing node/%lld)", id, nodeId);
+            tempWriter_.clear();
+            return;
         }
         pileDiversity += (nodePile != prevNodePile) ? 1 : 0;
         if (pileDiversity > 1)
@@ -346,8 +350,11 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
         assert(nodePile >= 0 && nodePile <= pileCount_);  // pile numbers are 1-based
         if (nodePile == 0)  [[unlikely]]
         {
-            Console::msg("node/%lld not found in node index", nodeId);
-            continue;
+            // Console::msg("node/%lld not found in node index", nodeId);
+            Console::msg("Rejected way/%lld (missing node/%lld)", id, nodeId);
+            children_.clear();
+            tempWriter_.clear();
+            return;
         }
         if (nodePile != prevNodePile)
         {

@@ -357,6 +357,7 @@ void CompilerWorker::buildWay(TWay* way)
 				if (it == foreignNodes_.end())
 				{
 					// TODO: We have a problem
+					// Console::msg("Compiler: Missing node/%lld", nodeId);
 					assert(false);
 				}
 				wayNodes_.emplace_back(it->second);
