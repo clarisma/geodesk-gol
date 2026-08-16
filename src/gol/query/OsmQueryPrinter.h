@@ -54,7 +54,7 @@ protected:
         int32_t lat() const
         {
             assert(isCoordinate());
-            return static_cast<int32_t>(data_ >> 33);
+            return static_cast<int32_t>(static_cast<int64_t>(data_) >> 33);
         }
 
         bool isFeature() const { return !isCoordinate(); }
