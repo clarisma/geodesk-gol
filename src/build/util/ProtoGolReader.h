@@ -201,8 +201,8 @@ protected:
 				// Console::msg("read node/%lld after node/%lld (ok)",	id, prevId);
 			}
 			prevId = id;
-			xy.x += readSignedVarint32(p);
-			xy.y += readSignedVarint32(p);
+			xy.translateX(readSignedVarint35(p));
+			xy.translateY(readSignedVarint35(p));
 			self().foreignNode(id, xy, ref);
 		}
 	}
@@ -230,8 +230,8 @@ protected:
 				prevY += readSignedVarint32(p);
 				bounds.setMinX(prevX);
 				bounds.setMinY(prevY);
-				bounds.setMaxX(prevX + readVarint32(p));
-				bounds.setMaxY(prevY + readVarint32(p));
+				bounds.setMaxX(static_cast<int32_t>(prevX + readVarint35(p)));
+				bounds.setMaxY(static_cast<int32_t>(prevY + readVarint35(p)));
 			}
 			self().foreignFeature(type, id, bounds, ForeignFeatureRef(tip, tex));
 		}
