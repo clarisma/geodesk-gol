@@ -110,10 +110,14 @@ protected:
 			bool isTagged = (id & 1);
 			id = prevId + (id >> 1);
 			prevId = id;
+			// Coordinate deltas are written as 64-bit signed varints and
+			// need up to 33 bits (two nodes of the same pile can be up to
+			// a full world apart in the root tile), so they must not be
+			// read with the 32-bit variants (#43)
 			x = static_cast<int32_t>(
-				static_cast<int64_t>(x) + readSignedVarint35(p));
+				static_cast<int64_t>(x) + readSignedVarint64(p));
 			y = static_cast<int32_t>(
-				static_cast<int64_t>(y) + readSignedVarint35(p));
+				static_cast<int64_t>(y) + readSignedVarint64(p));
 			uint32_t tagsSize;
 			if (isTagged)
 			{
@@ -201,8 +205,10 @@ protected:
 				// Console::msg("read node/%lld after node/%lld (ok)",	id, prevId);
 			}
 			prevId = id;
-			xy.x += readSignedVarint32(p);
-			xy.y += readSignedVarint32(p);
+			xy.x = static_cast<int32_t>(
+				static_cast<int64_t>(xy.x) + readSignedVarint64(p));	// see #43
+			xy.y = static_cast<int32_t>(
+				static_cast<int64_t>(xy.y) + readSignedVarint64(p));
 			self().foreignNode(id, xy, ref);
 		}
 	}
@@ -226,8 +232,10 @@ protected:
 			Box bounds;
 			if (hasBounds)
 			{
-				prevX += readSignedVarint32(p);
-				prevY += readSignedVarint32(p);
+				prevX = static_cast<int32_t>(
+					static_cast<int64_t>(prevX) + readSignedVarint64(p));	// see #43
+				prevY = static_cast<int32_t>(
+					static_cast<int64_t>(prevY) + readSignedVarint64(p));
 				bounds.setMinX(prevX);
 				bounds.setMinY(prevY);
 				bounds.setMaxX(prevX + readVarint32(p));
