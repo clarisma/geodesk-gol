@@ -54,7 +54,11 @@ protected:
         int32_t lat() const
         {
             assert(isCoordinate());
-            return static_cast<int32_t>(data_ >> 33);
+            // Arithmetic shift: the latitude occupies the top 31 bits (its
+            // sign bit is shifted out by << 33), so it must be sign-extended
+            // from bit 63; a logical shift would drop the sign of every
+            // southern-hemisphere coordinate (#41)
+            return static_cast<int32_t>(static_cast<int64_t>(data_) >> 33);
         }
 
         bool isFeature() const { return !isCoordinate(); }

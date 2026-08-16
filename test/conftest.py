@@ -1,9 +1,11 @@
+import os
 import platform
 import subprocess
 from pathlib import Path
 
 def get_executable():
-    return Path("d:\\geodesk\\tests\\gol.exe")
+    # Set GOL_EXE to point the tests at a freshly built binary
+    return Path(os.environ.get("GOL_EXE", "d:\\geodesk\\tests\\gol.exe"))
 
 def run(args, *, input=None, env=None):
     exe = get_executable()
