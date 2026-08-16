@@ -151,7 +151,7 @@ protected:
 		int64_t prevId = 0;
 		for (;;)
 		{
-			int64_t id = readVarint64(p);
+			int64_t id = static_cast<int64_t>(readVarint64(p));
 			if (id == 0) break;
 			bool isMembership = id & 1;
 			id = prevId + (id >> 1);
@@ -175,7 +175,7 @@ protected:
 
 	void readForeignNodes(const uint8_t*& p)
 	{
-		int sourcePile = readVarint32(p);
+		int sourcePile = static_cast<int>(readVarint32(p));
 			// Don't combine these two lines, compiler may be 
 			// tempted to optimize away (Validator doesn't care about TIPs,
 			// so it does not override pileToTip(), which always returns 0
@@ -184,7 +184,7 @@ protected:
 		Coordinate xy(0,0);
 		for (;;)
 		{
-			int64_t id = readVarint64(p);
+			int64_t id = static_cast<int64_t>(readVarint64(p));
 			if (id == 0)
 			{
 				break;
@@ -209,7 +209,7 @@ protected:
 
 	void readForeignFeatures(FeatureType type, const uint8_t*& p)
 	{
-		int sourcePile = readVarint32(p);
+		int sourcePile = static_cast<int>(readVarint32(p));
 		Tip tip = self().pileToTip(sourcePile);
 
 		int64_t prevId = 0;
@@ -217,7 +217,7 @@ protected:
 		int32_t prevY = 0;
 		for (;;)
 		{
-			int64_t id = readVarint64(p);
+			int64_t id = static_cast<int64_t>(readVarint64(p));
 			if (id == 0) break;
 			bool hasBounds = id & 1;
 			id = prevId + (id >> 1);
@@ -242,7 +242,7 @@ protected:
 		int64_t prevId = 0;
 		for (;;)
 		{
-			int64_t id = readVarint64(p);
+			int64_t id = static_cast<int64_t>(readVarint64(p));
 			if (id == 0) break;
 			int specialNodeFlags = static_cast<int>(id) & 3;
 			id = prevId + (id >> 2);
