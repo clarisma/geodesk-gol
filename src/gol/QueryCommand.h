@@ -22,6 +22,7 @@ private:
     int setFormat(std::string_view s);
     int setKeys(std::string_view s);
     int setPrecision(std::string_view s);
+    int setCompleteRelations(std::string_view s);
     void help() override;
     void interactive();
 
@@ -29,5 +30,6 @@ private:
     OutputFormat format_;
     int precision_;
     std::string_view keys_;
+    std::string_view completeRelations_;
 };
 

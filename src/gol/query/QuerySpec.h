@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
@@ -6,6 +6,7 @@
 #include <geodesk/feature/FeatureTypes.h>
 #include <geodesk/format/KeySchema.h>
 #include <geodesk/geom/Box.h>
+#include "CompleteRelationSet.h"
 
 namespace geodesk {
 class Filter;
@@ -37,6 +38,15 @@ public:
     FeatureTypes types() const noexcept { return types_; }
     int precision() const noexcept { return precision_; }
     const KeySchema& keys() const noexcept { return keys_; }
+    void setCompleteRelations(std::string_view list)
+    {
+        if (list.empty()) list = "multipolygon";
+        completeRelations_.update(list, store_->strings());
+    }
+    bool completeRelation(RelationPtr rel) const noexcept
+    {
+        return completeRelations_.contains(rel);
+    }
 
 private:
     FeatureStore* store_;
@@ -46,5 +56,6 @@ private:
     FeatureTypes types_;
     int precision_;
     const KeySchema keys_;
+    CompleteRelationSet completeRelations_;
 };
 

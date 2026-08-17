@@ -32,7 +32,9 @@ QueryCommand::Option QueryCommand::QUERY_OPTIONS[] =
     { "keys",				OPTION_METHOD(&QueryCommand::setKeys) },
     { "k",	    			OPTION_METHOD(&QueryCommand::setKeys) },
     { "precision",			OPTION_METHOD(&QueryCommand::setPrecision) },
-    { "p",	    			OPTION_METHOD(&QueryCommand::setPrecision) }
+    { "p",	    			OPTION_METHOD(&QueryCommand::setPrecision) },
+    { "complete-relations",	OPTION_METHOD(&QueryCommand::setCompleteRelations) },
+    { "R",	    			OPTION_METHOD(&QueryCommand::setCompleteRelations) }
 };
 
 
@@ -150,9 +152,11 @@ int QueryCommand::run(char* argv[])
             Console::end().failed() << "Binary format -- cannot print to console";
             return 1; // TODO: error code
         }
+        spec.setCompleteRelations(completeRelations_);
         count = OsmPbfQueryPrinter(&spec).run();
         break;
     case OutputFormat::XML:
+        spec.setCompleteRelations(completeRelations_);
         count = XmlQueryPrinter(&spec).run();
         break;
     default:
@@ -186,6 +190,8 @@ void QueryCommand::help()
     help.optionValue("xml", "OpenStreetMap XML");
     help.option("-k, --keys <list>", "Restrict tags to the given keys (csv and geojson only)");
     help.option("-p, --precision <n>", "Precision of coordinate values (Default: 7)");
+    help.option("-R, --complete-relations <list> | all | none",
+            "Complete geometries for relation types (pbf and xml only)");
     help.endSection();
     areaOptions(help);
     generalOptions(help);
@@ -233,6 +239,12 @@ int QueryCommand::setKeys(std::string_view s)
 int QueryCommand::setPrecision(std::string_view s)
 {
     precision_ = Validate::intValue(s.data(), 0, 15);
+    return 1;
+}
+
+int QueryCommand::setCompleteRelations(std::string_view s)
+{
+    completeRelations_ = s;
     return 1;
 }
 

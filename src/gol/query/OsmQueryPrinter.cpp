@@ -86,14 +86,34 @@ void OsmQueryPrinter::addRelation(RelationPtr rel)   // NOLINT recursive
         {static_cast<int64_t>(rel.id()), {rel}});
     if (inserted)
     {
+        bool complete = spec()->completeRelation(rel);
         MemberIterator iter(store_, rel.bodyptr());
         for (;;)
         {
             FeaturePtr member = iter.next();
             if (member.isNull()) break;
-            addFeature(member);
+            if (complete || acceptMember(member))
+            {
+                addFeature(member);
+            }
         }
     }
+}
+
+bool OsmQueryPrinter::acceptMember(FeaturePtr feature) const
+{
+    if (feature.isNode())
+    {
+        NodePtr node(feature);
+        if (!spec()->box().contains(node.xy())) return false;
+    }
+    else
+    {
+        if (!spec()->box().intersects(feature.bounds())) return false;
+    }
+    const Filter* filter = spec()->filter();
+    if (!filter) return true;
+    return filter->accept(spec()->store(), feature, FastFilterHint());
 }
 
 

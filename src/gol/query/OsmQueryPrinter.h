@@ -90,6 +90,7 @@ private:
     void addRelation(RelationPtr rel);
     void printFeatures(int typeCode, double startPercentage, double workPerFeature);
     void prepareFeatures(int typeCode);
+    bool acceptMember(FeaturePtr feature) const;
 
     static constexpr double FORMATTING_WORK = 20;
         // TODO: calculate better
