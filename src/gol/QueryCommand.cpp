@@ -256,12 +256,9 @@ void QueryCommand::interactive()
         "        res = subprocess.check_call([sys.executable,'-m','pip','install','geodesk'])\n"
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
-        "    from geodesk import *\n";
-    if (true)   // TODO: only if golName is a valid Pytohn identifier
-    {
-        script_ << golName << " = ";
-    }
-    script_ << "features = Features(r'" << golPath_ << "')\n\"";
+        "    from geodesk import *\n"
+        "features = Features(r'" << golPath_ << "')\n"
+        "globals()[r'" << golName << "'] = features\n\"";
 #else
     script_ << "python3 -i -c '"
         "try:\n"
@@ -275,12 +272,9 @@ void QueryCommand::interactive()
         "        res = subprocess.check_call([sys.executable,\"-m\",\"pip\",\"install\",\"geodesk\"])\n"
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
-        "    from geodesk import *\n";
-    if (true)   // TODO: only if golName is a valid Pytohn identifier
-    {
-        script_ << golName << " = ";
-    }
-    script_ << "features = Features(r\"" << golPath_ << "\")\n'";
+        "    from geodesk import *\n"
+        "features = Features(r'" << golPath_ << "')\n"
+        "globals()[r'" << golName << "'] = features\n'";
 #endif
     script_.writeByte(0);  // important: must write 0-terminator
 
