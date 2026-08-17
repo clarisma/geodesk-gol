@@ -19,6 +19,7 @@
 #include "gol/query/OsmPbfQueryPrinter.h"
 #include "gol/query/WktQueryPrinter.h"
 //#include "gol/query/TableQueryPrinter.h"
+#include "clarisma/cli/CliApplication.h"
 #include "gol/query/XmlQueryPrinter.h"
 
 using namespace clarisma;
@@ -297,6 +298,7 @@ void QueryCommand::interactive()
     out.flush();
 
     Console::get()->restore();
+    CliApplication::get()->setAllowTermination(false);
     bool notFound = false;
 #ifdef _WIN32
     STARTUPINFOA si = { sizeof(si) };
