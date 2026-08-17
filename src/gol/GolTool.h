@@ -26,6 +26,7 @@ private:
 	static int map(char* argv[]);
 	static int query(char* argv[]);
 	static int save(char* argv[]);
+	static int getId(char* argv[]);
 #ifdef GOL_EXPERIMENTAL
 	static int update(char* argv[]);
 #endif
