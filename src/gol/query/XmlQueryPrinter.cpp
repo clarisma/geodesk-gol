@@ -107,14 +107,17 @@ void XmlQueryPrinter::printFooter()
     size_t relationCount = features_[2].size();
     size_t totalCount = nodeCount + wayCount + relationCount;
 
-    printFeatures(out, sorted, 0, &XmlQueryPrinter::printNode);
-    Console::get()->setProgress(static_cast<int>(
-        100.0 - GENERATE_XML_WORK + GENERATE_XML_WORK * nodeCount / totalCount));
-    printFeatures(out, sorted, 1, &XmlQueryPrinter::printWay);
-    Console::get()->setProgress(static_cast<int>(
-        100.0 - GENERATE_XML_WORK + GENERATE_XML_WORK * (nodeCount + wayCount)
-            / totalCount));
-    printFeatures(out, sorted, 2, &XmlQueryPrinter::printRelation);
+    if (totalCount) [[likely]]
+    {
+        printFeatures(out, sorted, 0, &XmlQueryPrinter::printNode);
+        Console::get()->setProgress(static_cast<int>(
+            100.0 - GENERATE_XML_WORK + GENERATE_XML_WORK * nodeCount / totalCount));
+        printFeatures(out, sorted, 1, &XmlQueryPrinter::printWay);
+        Console::get()->setProgress(static_cast<int>(
+            100.0 - GENERATE_XML_WORK + GENERATE_XML_WORK * (nodeCount + wayCount)
+                / totalCount));
+        printFeatures(out, sorted, 2, &XmlQueryPrinter::printRelation);
+    }
     out << "</osm>\n";
     Console::get()->setProgress(100);
 }
