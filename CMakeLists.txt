@@ -1,5 +1,8 @@
 ﻿cmake_minimum_required(VERSION 3.15)
+
 project(geodesk-gol)
+
+include(GNUInstallDirs)
 
 option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
 option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
@@ -166,7 +169,6 @@ if(APPLE)
     )
 endif()
 
-# TODO: Use a separate build option
 if(GEODESK_SOURCE_DIR)
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(INSTALL_TARGET "D:/geodesk/tests/gol.exe")
@@ -175,9 +177,12 @@ if(GEODESK_SOURCE_DIR)
     endif()
 
     add_custom_command(TARGET gol POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        $<TARGET_FILE:gol>
-        ${INSTALL_TARGET}
+            COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_FILE:gol>
+            ${INSTALL_TARGET}
     )
+else()
+    install(TARGETS gol RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
+
 

@@ -39,6 +39,10 @@ gol query france na[amenity=restaurant] -f csv -k name,phone
 
 📖 [Full documentation](https://docs.geodesk.com/gol)
 
+## Building from source
+
+See [doc/build.md](doc/build.md)
+
 ## Toolkits
 
 Build fast and powerful geospatial applications with the GeoDesk OpenStreetMap Toolkits for [Java](https://github.com/clarisma/geodesk), [Python](https://github.com/clarisma/geodesk-py) and [C++](https://github.com/clarisma/libgeodesk).
