@@ -32,6 +32,10 @@ bool HttpResponseReader<Derived>::get(const char* url, const HttpRequestHeaders&
             {
                 throw HttpException(GetLastError());
             }
+            if (bytesRead == 0)
+            {
+                throw HttpException("Unexpected end of data stream");
+            }
             p += bytesRead;
             remaining -= bytesRead;
         }

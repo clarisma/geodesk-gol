@@ -79,7 +79,10 @@ void HttpResponse::read(std::vector<std::byte>& data)
     if (size)   [[likely]]
     {
         data.resize(size);
-        read(data.data(), size);
+        if (read(data.data(), size) != size)
+        {
+            throw HttpException("Unexpected end of data stream");
+        }
     }
     else
     {
