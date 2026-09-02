@@ -58,7 +58,7 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install ninja
 
-      - name: Set up universal OpenSSL on macOS
+      - name: Install OpenSSL (macOS)
         if: runner.os == 'macOS'
         shell: bash
         env:
@@ -66,71 +66,20 @@ jobs:
           HOMEBREW_NO_ENV_HINTS: 1
         run: |
           set -euxo pipefail
-
-          # 1) Ensure Rosetta exists for x86_64 tools
-          softwareupdate --install-rosetta --agree-to-license || true
-
-          # 2) Install ARM Homebrew OpenSSL (arm64 slice)
           brew update
           brew install openssl@3
-          ARM_PREFIX="$(brew --prefix openssl@3)"
-
-          # 3) Install Intel Homebrew side-by-side in /usr/local (x86_64 slice)
-          #    This installs a *separate* Homebrew tree for x86_64.
-          if [[ ! -x /usr/local/bin/brew ]]; then
-            /usr/bin/arch -x86_64 /bin/bash -lc \
-              '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-          fi
-
-          # 4) Install x86_64 OpenSSL via Intel brew
-          /usr/bin/arch -x86_64 /usr/local/bin/brew update
-          /usr/bin/arch -x86_64 /usr/local/bin/brew install openssl@3
-          X86_PREFIX="$(/usr/bin/arch -x86_64 /usr/local/bin/brew --prefix openssl@3)"
-
-          echo "ARM OpenSSL: $ARM_PREFIX"
-          echo "X86 OpenSSL: $X86_PREFIX"
-
-          # 5) Create a temporary *universal* OpenSSL staging dir
-          UNIVERSAL="$(pwd)/universal-openssl"
-          mkdir -p "$UNIVERSAL/lib" "$UNIVERSAL/include"
-
-          # Headers (identical across slices)
-          rsync -a "$ARM_PREFIX/include/" "$UNIVERSAL/include/"
-
-          # 6) Lipo the dylibs into universal binaries
-          # libssl
-          lipo -create \
-            "$ARM_PREFIX/lib/libssl.3.dylib" \
-            "$X86_PREFIX/lib/libssl.3.dylib" \
-            -output "$UNIVERSAL/lib/libssl.3.dylib"
-          # libcrypto
-          lipo -create \
-            "$ARM_PREFIX/lib/libcrypto.3.dylib" \
-            "$X86_PREFIX/lib/libcrypto.3.dylib" \
-            -output "$UNIVERSAL/lib/libcrypto.3.dylib"
-
-          # Create versionless symlinks expected by linkers
-          ( cd "$UNIVERSAL/lib"
-            ln -sf libssl.3.dylib libssl.dylib
-            ln -sf libcrypto.3.dylib libcrypto.dylib
-          )
-
-          # Optional: ad-hoc codesign to avoid quarantine issues
-          codesign -s - -f "$UNIVERSAL/lib/libssl.3.dylib" || true
-          codesign -s - -f "$UNIVERSAL/lib/libcrypto.3.dylib" || true
-
-          echo "UNIVERSAL_OPENSSL_ROOT=$UNIVERSAL" >> "$GITHUB_ENV"
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
 
       - name: Configure (CMake)
         shell: bash
         run: |
           cmake -S . -B build $([[ "${{ matrix.platform }}" == "macos" ]] && \
-            echo '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64') \
+            echo '-DCMAKE_OSX_ARCHITECTURES=arm64') \
             -DCMAKE_BUILD_TYPE=Release \
             -DGOL_DIAGNOSTICS:BOOL=OFF \
             -DGOL_EXPERIMENTAL:BOOL=OFF \
             -DGEODESK_GOL_VERSION="${{ steps.ver.outputs.version }}" \
-            -DOPENSSL_ROOT_DIR="${UNIVERSAL_OPENSSL_ROOT}" \
+            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
             -DCMAKE_INSTALL_RPATH="@loader_path" \
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 
@@ -138,7 +87,7 @@ jobs:
         shell: bash
         run: |
           cmake --build build --config Release --target gol --parallel -j2
-          
+
       - name: Locate built executable
         id: findexe
         shell: bash
@@ -212,15 +161,15 @@ jobs:
           path: dist/gol-${{ steps.ver.outputs.version }}-win-setup.exe
           if-no-files-found: error
 
-      - name: Verify macOS binary is universal (fat)
+      - name: Verify macOS binary is arm64 only
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          file "${{ steps.findexe.outputs.bin }}"
-          # Expect both arm64 and x86_64; the CMAKE_OSX_ARCHITECTURES setting
-          # should have produced a universal Mach-O
-          if ! file "${{ steps.findexe.outputs.bin }}" | grep -qE 'universal binary|Mach-O.*\(arm64|x86_64\)'; then
-            echo "Binary is not universal (fat)!" >&2
+          BIN="${{ steps.findexe.outputs.bin }}"
+          file "$BIN"
+          ARCHS="$(lipo -archs "$BIN")"
+          if [[ "$ARCHS" != "arm64" ]]; then
+            echo "Expected an arm64-only binary, got: $ARCHS" >&2
             exit 1
           fi
 
