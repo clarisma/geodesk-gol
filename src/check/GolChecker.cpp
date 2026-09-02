@@ -3,6 +3,7 @@
 
 #include "GolChecker.h"
 
+#include <clarisma/io/MappedFile.h>
 #include <clarisma/util/Crc32C.h>
 #include <clarisma/util/DataPtr.h>
 #include <geodesk/feature/FeatureStore.h>
@@ -30,6 +31,8 @@ void GolChecker::processTile(Tip tip, Tile tile)
             checker.check();
         }
 #endif
+        MappedFile::discard(
+            const_cast<uint8_t*>(pTile.ptr()), pTile.totalSize());
     }
     postOutput(tip, ByteBlock());
 }
