@@ -154,6 +154,7 @@ int MapCommand::run(char* argv[])
     LeafletSettings settings;
     settings.attribution = attribution_;
     settings.basemapUrl = basemapUrl_;
+    settings.appId = "geodesk-gol/" GEODESK_GOL_VERSION;
     leaflet.writeHeader(out, settings, hasLayers ?
         ".leaflet-popup-content-wrapper {border-radius: 0; padding: 6px 0px 0px 0px; max-height: 90vh; background-color: #f0f0ff; }\n"
         ".leaflet-popup-content a {text-decoration: none; color: darkblue;}\n"
