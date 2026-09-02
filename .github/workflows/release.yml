@@ -61,6 +61,9 @@ jobs:
       - name: Set up universal OpenSSL on macOS
         if: runner.os == 'macOS'
         shell: bash
+        env:
+          HOMEBREW_NO_PATH_SHADOW_CHECK: 1
+          HOMEBREW_NO_ENV_HINTS: 1
         run: |
           set -euxo pipefail
 
