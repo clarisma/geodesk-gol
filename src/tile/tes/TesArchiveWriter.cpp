@@ -71,7 +71,9 @@ void TesArchiveWriter::close()
 
 TileData TesArchiveWriter::createTes(Tip tip, clarisma::ByteBlock&& block)
 {
-    ByteBlock compressed = Zip::deflateRaw(block);
+    ByteBlock compressed = Zip::compressSealedChunk(block);
     uint32_t compressedSize = static_cast<uint32_t>(compressed.size());
+    LOGS << "Compressed GOB tile of " << block.size() << " bytes into " << compressedSize << " bytes.";
+        // need to obtain size before taking data
     return { tip, compressed.takeData(), compressedSize };
 }

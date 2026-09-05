@@ -12,6 +12,7 @@
 #include <geodesk/geom/LonLat.h>
 
 #include "TesFlags.h"
+#include "clarisma/io/FileBuffer3.h"
 
 using namespace clarisma;
 using namespace geodesk;
@@ -46,13 +47,12 @@ void TesChecker::dump(const std::filesystem::path& root)
     // file.open((folder_ / subFolderName / fileName).toString().c_str(),
     //	File::CREATE | File::REPLACE_EXISTING | File::WRITE);
     std::string filePath = (root / subFolderName / fileName).string();
-    FILE* file = fopen(filePath.c_str(), "wb");
-    FileBuffer buf(file, 64 * 1024);
+    FileBuffer3 buf;
+    buf.open(filePath.c_str());
     out_.setBuffer(&buf);
     read();
     dumpErrors();
     out_.flush();
-    fclose(file);
 }
 
 void TesChecker::read()

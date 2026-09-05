@@ -118,6 +118,7 @@ ByteBlock TileSaver::createBlankTileIndex() const
 	return ByteBlock(std::move(blankTileIndex), tileIndexSize);
 }
 
+// TODO: There's already TesArchiveWriter::createTes()
 TileData TileSaver::compressTile(Tip tip, ByteBlock&& data)
 {
 	ByteBlock compressed = Zip::compressSealedChunk(data);

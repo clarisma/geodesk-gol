@@ -55,11 +55,9 @@ void UpdaterWorker::prepareUpdate(Tip tip)
     writer_.write(updater_->model().getChangedTile(tip), &buf);
 
 #ifndef NDEBUG
-    /*
     TesChecker checker(tip, updater_->tileCatalog().tileOfTip(tip),
         reinterpret_cast<const uint8_t*>(buf.data()), buf.length());
     checker.dump(updater_->dumpPath());
-    */
 #endif
 
     updater_->postOutput(TesArchiveWriter::createTes(tip, buf.takeBytes()));
@@ -326,7 +324,10 @@ void Updater::applyUpdate()
     startPhase(Phase::APPLY_UPDATE, changedTileCount,
         workApplying_ / changedTileCount);
 
-    uint64_t currentOfs = sizeof(TesArchiveHeader) + sizeof(TesArchiveEntry) * changedTileCount;
+    uint64_t currentOfs = sizeof(TesArchiveHeader) +
+        sizeof(TesArchiveEntry) * changedTileCount + sizeof(uint32_t);
+        // Skip header, entries, and checksum over header/entries
+
     for(int i=0; i<changedTileCount; i++)
     {
         const TesArchiveEntry& entry = tesArchive_[i];
