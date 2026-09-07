@@ -8,6 +8,9 @@
 class CFeature;
 class ChangedFeatureBase;
 
+/// A structure that tracks an existing, unchanged feature or
+/// a new/modified/deleted feature.
+///
 class CFeatureStub
 {
 public:

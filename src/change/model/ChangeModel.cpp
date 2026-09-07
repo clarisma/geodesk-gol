@@ -575,6 +575,12 @@ void ChangeModel::prepareNodes()
 {
     // TODO: remove superseded versions here?
 
+    // Populate the hashmap of future node locations, so the
+    // TileChangeAnalyzer can later determine if any existing
+    // nodes become duplicates.
+    // In this step, we also check if an changed/new nodes
+    // will be duplicates, and we mark them accordingly.
+
     ChangedNode* node = changedNodes_.first();
     while(node)
     {
@@ -597,6 +603,10 @@ void ChangeModel::prepareNodes()
     }
 }
 
+// TODO: Is this really needed?
+//  Why are we marking all nodes that will belong to a way in the future?
+//  We may need this to determine if a node becomes an orphan, but
+//  aren't we checking that later, anyway?
 
 void ChangeModel::prepareWays()
 {

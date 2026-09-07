@@ -167,6 +167,7 @@ private:
 };
 
 
+// TODO: Do we really need this action?
 class NodeBecomesWaynode : public ChangeAction
 {
 public:

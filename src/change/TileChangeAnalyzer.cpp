@@ -341,7 +341,20 @@ CRef TileChangeAnalyzer::refOfWayNode(const WayNodeIterator::WayNode& node) cons
     return CRef::ofForeign(node.foreign);
 }
 
-
+/// Retrieves the ref and coordinate of the given WayNode, and checks
+/// if its coordinate changed or if its location is coincident because
+/// a changed node moved to its location.
+///
+/// If an anonymous node is now coincident, we issue NodeBecomesCoincident
+/// actions for both this node and the changed node that moved into
+/// its location (We don't need to do this for feature nodes, because
+/// readNode() already does this).
+///
+/// @return the WayNodeCheckResult, which contains a flag that indicates
+///   whether the node's geometry changed, as well as a CFeature pointer
+///   if the node is tracked in the ChangeModel (or null if node is not
+///   tracked).
+///
 TileChangeAnalyzer::WayNodeCheckResult TileChangeAnalyzer::checkWayNode(
     const WayNodeIterator::WayNode& node)
 {
@@ -354,6 +367,7 @@ TileChangeAnalyzer::WayNodeCheckResult TileChangeAnalyzer::checkWayNode(
     CFeature* f = model_.peekFeature(TypedFeatureId::ofNode(node.id));
     if(f)
     {
+        // The node is in the ChangeModel, so we'll fill in its ref
         f->setRef(refOfWayNode(node));
         if(f->isChanged())
         {
@@ -361,6 +375,8 @@ TileChangeAnalyzer::WayNodeCheckResult TileChangeAnalyzer::checkWayNode(
             {
                 geometryChanged = true;
             }
+            // TODO: Is this true, though? What if the anon node
+            //  later turns into a feature node (e.g. duplicate)
             /*      // we don't care about geometry change of anon node
             else
             {

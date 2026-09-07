@@ -326,6 +326,11 @@ void Updater::processWay(ChangedFeature2D* way)
     bool missingNodes = false;
     for(CFeatureStub* nodeStub : way->members())
     {
+        // TODO: We could deal with potential waynode flag change
+        //  of nodes here, which would alleviate hte need for
+        //  ChangeModel::prepareWays() and the check in the TileChangeAnalyzer
+        //  but still need to deal with nodes that become orphans
+
         CFeature* node = nodeStub->get();
         CRef ref = node->ref();
         if (ref.isUnknownOrMissing())   [[unlikely]]
