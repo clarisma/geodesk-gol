@@ -5,6 +5,7 @@
 #include "TesException.h"
 #include "TesFlags.h"
 #include "tile/model/MutableFeaturePtr.h"
+#include "tile/model/TExportTable.h"
 #include "tile/model/TNode.h"
 #include "tile/model/TWay.h"
 #include "tile/model/TRelation.h"
@@ -935,14 +936,61 @@ void TesReader::readRemovedFeatures()
 void TesReader::readExports()
 {
 	uint32_t taggedCount = readVarint32(p_);
-	uint32_t count = taggedCount >> 1;
+	size_t count = taggedCount >> 1;
 	if(count)
 	{
 		TFeature** features = tile_.arena().allocArray<TFeature*>(count);
-		for(int i=0; i<count; i++)
+		if (taggedCount & 1)
 		{
-			uint32_t ref = readVarint32(p_);
-			features[i] = getFeature(ref);
+			// partial export table update
+			TExportTable* oldExportTable = tile_.exportTable();
+			if (oldExportTable)  [[likely]]
+			{
+				// copy existing entries (new table may be shorter,
+				//  so use the lesser of new and old count)
+				size_t oldCount = oldExportTable->count();
+				memcpy(features, oldExportTable->features(),
+					std::min(count, oldCount) * sizeof(TFeature*));
+			}
+
+			uint32_t taggedSkipCount;
+			uint32_t nextEntryPos = 0;
+			do
+			{
+				// Read number of export-table entries to be
+				// skipped (Bit 0 marks whether more ranges follow)
+				taggedSkipCount = readVarint32(p_);
+				nextEntryPos += taggedSkipCount >> 1;
+				uint32_t taggedFeatureRef;
+				do
+				{
+					taggedFeatureRef = readVarint32(p_);
+					uint32_t featureRef = taggedFeatureRef >> 1;
+					// Remember, for partial export-table updates,
+					//  feature references are 1-based (0 means empty slot)
+					if (featureRef == 0)
+					{
+						features[nextEntryPos] = nullptr;
+					}
+					else
+					{
+						features[nextEntryPos] = getFeature(featureRef - 1);
+					}
+					nextEntryPos++;
+				}
+				while (taggedFeatureRef & 1);
+			}
+			while (taggedSkipCount & 1);
+		}
+		else
+		{
+			// full replacement of export table
+			for(int i=0; i<count; i++)
+			{
+				uint32_t ref = readVarint32(p_);
+				features[i] = getFeature(ref);
+					// for full replacement, feature refs are 0-based
+			}
 		}
 		tile_.createExportTable(features, nullptr, count);
 	}

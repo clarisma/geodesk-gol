@@ -17,8 +17,18 @@ void TExportTable::write(const TileModel& tile) const
 		{
 			ofs += 4;
 			p += 4;
-			assert(features_[i]);
-			p.putInt(features_[i]->target() - ofs);
+
+			int32_t ptr;
+			TFeature* feature = features_[i];
+			if (feature) [[likely]]
+			{
+				ptr = feature->target() - ofs;
+			}
+			else
+			{
+				ptr = 0;
+			}
+			p.putInt(ptr);
 		}
 	}
 	else

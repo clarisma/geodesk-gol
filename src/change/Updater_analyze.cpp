@@ -227,7 +227,7 @@ void Updater::processNode(ChangedNode* node)
         futureTile->changedNodes().push(node);
         if (node->is(ChangeFlags::GEOMETRY_CHANGED))
         {
-            // If node is (and was) a feature node nad has moved,
+            // If node is (and was) a feature node and has moved,
             // its parent relations (if any) may implicitly change
             // (If node is added to a relation for the first time,
             // we won't need to call this method, since its parent
