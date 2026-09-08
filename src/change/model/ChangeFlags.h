@@ -88,6 +88,56 @@ enum class ChangeFlags : uint32_t
     WILL_BE_SUPER_RELATION = 1 << 29
 };
 
+// TODO: do we need the NEW_ flags? can derive from ref?
+
+enum class ChangeFlags_proposed : uint32_t
+{
+    NONE = 0,
+
+    /// The feature has been deleted (always explicit)
+    DELETED = 1 << 2,
+
+    ADDED_TO_WAY = 1 << 22,
+    REMOVED_FROM_WAY = 1 << 22,
+
+    /// The feature was added to at least one relation
+    ADDED_TO_RELATION = 1 << 3,
+
+    /// The feature was removed from at least one relation
+    REMOVED_FROM_RELATION = 1 << 4,
+
+    TAGS_CHANGED = 1 << 7,
+    GEOMETRY_CHANGED = 1 << 8,
+    MEMBERS_CHANGED = 1 << 9,
+    WAYNODE_IDS_CHANGED = 1 << 10,
+    BOUNDS_CHANGED = 1 << 14,
+    TILES_CHANGED = 1 << 15,
+    RELTABLE_CHANGED = 1 << 27,
+    FLAGS_CHANGED = 1 << 15,
+
+
+
+    /// The node will have the same location as another node
+    /// (though it may not necessarily be a duplicate)
+    FLAGGED_SHARED_LOCATION = 1 << 6,
+    FLAGGED_EXCEPTION_NODE = 1 << 6,
+    FLAGGED_AREA = 1 << 11,
+    FLAGGED_WAYNODE = 1 << 18,
+
+    RELTABLE_LOADED = 1 << 5,
+    PROCESSED = 1 << 13,
+        // TODO: rename? WILL_BE_WAYNODE
+        //  but WILL_HAVE_WAYNODE_FLAG implies feature status
+
+    RELATION_DEFERRED = 1 << 23,
+    RELATION_ATTEMPTED = 1 << 24,
+    NEW_TO_NORTHWEST = 1 << 25,
+    NEW_TO_SOUTHEAST = 1 << 26,
+
+    WAY_WILL_HAVE_FEATURE_NODES = 1 << 28,
+    WILL_BE_SUPER_RELATION = 1 << 29
+};
+
 constexpr ChangeFlags operator|(ChangeFlags a, ChangeFlags b) noexcept
 {
     return static_cast<ChangeFlags>(

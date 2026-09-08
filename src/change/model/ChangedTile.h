@@ -46,6 +46,11 @@ public:
         //  flag the tile differently to avoid scanning
         //  its exported features to see if any in mayGainTex_
         //  already have a TEX
+
+        // TODO: Idea: use a flag that indicates *all*
+        //  features in mayGainTex definitely need a tex,
+        //  so we can skip the scan of the export table
+        //  to check which features already have a tex
     }
 
     bool hasTexChanges() const { return hasTexChanges_; }
