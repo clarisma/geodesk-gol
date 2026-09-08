@@ -70,7 +70,7 @@ void ChangeModelDumper::dumpFeatureStub(const ChangedFeatureBase* feature)
     //}
     if(feature->is(ChangeFlags::RELTABLE_LOADED))
     {
-        dumpParentRelations(feature->parentRelations());
+        dumpParentRelations(feature->peekParentRelations());
     }
 
 }

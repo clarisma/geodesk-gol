@@ -195,6 +195,20 @@ const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipCh
     return rels;
 }
 
+const CRelationTable* ChangeModel::getParentRelations(ChangedFeatureBase* feature)
+{
+    if (!feature->is(ChangeFlags::RELTABLE_LOADED))
+    {
+        CRef ref = feature->ref();
+        if (!ref.canGetFeature() && feature->type() != FeatureType::NODE)
+        {
+            ref = feature->refSE();
+        }
+        feature->setParentRelations(getRelationTable(ref
+            , feature->membershipChanges()));
+    }
+    return feature->peekParentRelations();
+}
 
 CFeature::Role ChangeModel::getRole(std::string_view s)
 {
@@ -384,6 +398,7 @@ ChangedFeatureBase* ChangeModel::getChanged(TypedFeatureId typedId)
     if(type == FeatureType::NODE) return getChangedNode(typedId.id());
     return getChangedFeature2D(type, typedId.id());
 }
+
 
 // TODO: "offer" refs instead of setting them, because
 //  the ChangedFeature may already have a "better" ref
@@ -750,6 +765,17 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, DataPtr pTile)
     return f;
 }
 
+void ChangeModel::addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel)
+{
+    assert(rel->type() == FeatureType::RELATION);
+    member->addMembershipChange(
+        arena_.create<MembershipChange::Added>(
+            member->typedId(), rel));
+    member->addFlags(ChangeFlags::ADDED_TO_RELATION |
+        ChangeFlags::RELTABLE_CHANGED);
+}
+
+/*
 void ChangeModel::addNewRelationMemberships()
 {
     HashSet<TypedFeatureId> memberSet;
@@ -795,7 +821,7 @@ void ChangeModel::addNewRelationMemberships()
         rel = rel->next();
     }
 }
-
+*/
 
 void ChangeModel::cascadeMemberChange(NodePtr past, ChangedNode* future)
 {
@@ -826,7 +852,7 @@ void ChangeModel::cascadeMemberChange(FeaturePtr past,
         // RELTABLE_LOADED does not necessarily mean that the feature
         // actually has a reltable, just that it has been processed
 
-        const CRelationTable* rels = future->parentRelations();
+        const CRelationTable* rels = future->peekParentRelations();
         if (rels)
         {
             for (CFeatureStub* rel : rels->relations())
@@ -1027,7 +1053,7 @@ bool ChangeModel::willMemberKeepTex(CFeature* member) const
         auto changed = ChangedFeatureBase::cast(member);
         if (changed->is(ChangeFlags::RELTABLE_LOADED))
         {
-            const CRelationTable* rels = changed->parentRelations();
+            const CRelationTable* rels = changed->peekParentRelations();
             if (!rels) return false;
             for (const CFeatureStub* relStub : rels->relations())
             {
@@ -1080,4 +1106,22 @@ void ChangeModel::clear()
     assert(tags_.isEmpty());
     assert(tempRelations_.empty());
     assert(tempMembers_.empty());
+}
+
+
+void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
+{
+    const CRelationTable* rels = getParentRelations(member);
+    if (rels)
+    {
+        for (CFeatureStub* rel : rels->relations())
+        {
+            ChangedFeatureBase* changedRel = getChangedFeature2D(rel);
+            if (!changedRel->is(ChangeFlags::GEOMETRY_CHANGED))
+            {
+                changedRel->addFlags(ChangeFlags::GEOMETRY_CHANGED);
+                memberGeometryChanged(changedRel);
+            }
+        }
+    }
 }

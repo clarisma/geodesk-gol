@@ -1,0 +1,31 @@
+<!--
+
+Verify that:
+
+- node/2 turns anonymous (It loses its tags; but no orphan, since it's part of way/1)
+- node/3 becomes a feature (It gains tags)
+- way/1 changes tags (loses its name)
+- node/5 loses orphan status (it now has tags)
+- node/6 becomes an orphan status (it loses all its tags)
+
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="2" lon="90" lat="45"/>
+        <node id="3" version="2" lon="90" lat="-45">
+            <tag k="highway" v="crosswalk"/>
+        </node>
+        <node id="5" version="2" lon="-120" lat="-60">
+            <tag k="shop" v="bakery"/>
+        </node>
+        <node id="6" version="2" lon="120" lat="-60"/>
+    </modify>
+    <modify>
+        <way id="1" version="2">
+            <nd ref="1"/>
+            <nd ref="2"/>
+            <tag k="highway" v="residential"/>
+        </way>
+    </modify>
+</osmChange>

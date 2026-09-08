@@ -115,6 +115,7 @@ private:
 	void processChanges();
 	void processNodes();
 	void processWays();
+	void preProcessRelations();
 	void processRelations();
 	void assignToTiles(ChangedFeature2D* feature);
 	void processNode(ChangedNode* node);

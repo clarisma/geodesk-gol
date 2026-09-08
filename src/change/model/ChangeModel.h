@@ -41,6 +41,12 @@ public:
     const CTagTable* getTagTable(CRef ref);
     const CRelationTable* getRelationTable(CRef ref,
         const MembershipChange* changes = nullptr);
+
+    /// Retrieves the relation table of the given feature,
+    /// loading it if needed and processing any membership changes
+    ///
+    const CRelationTable* getParentRelations(ChangedFeatureBase* feature);
+
     CFeatureStub* getFeatureStub(TypedFeatureId typedId);
     ChangedNode* getChangedNode(uint64_t id);
     ChangedFeature2D* getChangedFeature2D(FeatureType type, uint64_t id);
@@ -56,6 +62,14 @@ public:
     ChangedFeatureBase* changeImplicitly(FeaturePtr feature, CRef ref, bool isRefSE);
     void setMembers(ChangedFeature2D* changed, CFeatureStub** members,
         int memberCount, CFeature::Role* roles);
+
+    /// Cascades geometry changes of a member feature to
+    /// any parent relations (and recursively to their
+    /// respective parents).
+    ///
+    void memberGeometryChanged(ChangedFeatureBase* member);
+
+    void addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel);
 
     // TODO: Change signature, simply take CRef?
     std::span<CFeatureStub*> loadWayNodes(Tip tip, DataPtr pTile, WayPtr way);
@@ -113,7 +127,7 @@ public:
 
     void prepareNodes();
     void prepareWays();
-    void addNewRelationMemberships();
+    // void addNewRelationMemberships();
     void cascadeMemberChange(NodePtr past, ChangedNode* future);
     void cascadeMemberChange(FeaturePtr past, ChangedFeature2D* future);
     void mayGainTex(CFeature* f);

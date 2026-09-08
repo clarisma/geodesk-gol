@@ -18,6 +18,9 @@
 #include "tile/compiler/TileCompiler.h"
 
 
+// TODO: When do we process the membership changes of members
+//  of a deleted relation? ==> during scan in TCA
+
 // TODO:
 //  We must process all geometrically changed relations *before*
 //  non-geometrically changed relations, because a geometric change in a child relation
@@ -39,7 +42,7 @@ void Updater::processChanges()
 {
     LOGS << "Processing changes...";
 
-    model_.addNewRelationMemberships();
+    preProcessRelations();
     processNodes();
     processWays();
     processRelations();
@@ -94,6 +97,67 @@ void Updater::processWays()
     }
 }
 
+
+void Updater::preProcessRelations()
+{
+    // Add the memberships of newly-created relations
+    // to their members (We need to do this *before*
+    // we process the members themselves)
+
+    HashSet<TypedFeatureId> memberSet;
+    ChangedFeature2D* rel = model_.changedRelations().first();
+    while (rel)
+    {
+        if(rel->isChangedExplicitly()) [[likely]]
+        {
+            if (rel->ref() == CRef::UNKNOWN)
+            {
+                // If a relation is changed explicitly and
+                // it has not been found, this means it has
+                // been newly created; we need to add memberships
+                // for all its members (for existing relations,
+                // TileChangeAnalyzer will perform this step)
+                bool hasChildRelations = false;
+                for (CFeatureStub* memberStub : rel->members())
+                {
+                    // TODO: We could avoid the lookup by typedId
+                    TypedFeatureId memberId = memberStub->typedId();
+                    auto result = memberSet.insert(memberId);
+                    if (result.second)  // actually inserted
+                    {
+                        // Only add a single membership, even if member
+                        // appears multiple times in same relation
+
+                        ChangedFeatureBase* member = model_.getChanged(memberId);
+                        model_.addMembership(member, rel);
+                    }
+                    hasChildRelations |= memberId.isRelation();
+                }
+                memberSet.clear();
+                rel->addFlags(hasChildRelations ?
+                    ChangeFlags::WILL_BE_SUPER_RELATION : ChangeFlags::NONE);
+                // TODO: Move super-relation detection to ChangeReader?
+                //  Currently duplicated in TileChangeAnalyzer::checkMembers()
+            }
+        }
+        rel = rel->next();
+    }
+
+    // Cascade geometry changes of relations to any of their parent
+    // relations (We can't consolidate this with the previous step,
+    // because we need to have the membership changes, since we're
+    // retrieving relation tables (into which any membership changes
+    // are merged)
+    rel = model_.changedRelations().first();
+    while (rel)
+    {
+        if(rel->is(ChangeFlags::GEOMETRY_CHANGED))
+        {
+            model_.memberGeometryChanged(rel);
+        }
+        rel = rel->next();
+    }
+}
 
 
 void Updater::processRelations()
@@ -180,7 +244,7 @@ void Updater::processNode(ChangedNode* node)
     if(testAny(changeFlags, ChangeFlags::ADDED_TO_RELATION |
         ChangeFlags::REMOVED_FROM_RELATION))
     {
-        willBeRelationMember = node->parentRelations() != nullptr;
+        willBeRelationMember = node->peekParentRelations() != nullptr;
     }
     else
     {
@@ -215,7 +279,7 @@ void Updater::processNode(ChangedNode* node)
                 assert(tags);
                 node->setTagTable(tags);
             }
-            if (!node->parentRelations())
+            if (!node->peekParentRelations())
             {
                 node->setParentRelations(model_.getRelationTable(pastRef));
             }
@@ -239,7 +303,8 @@ void Updater::processNode(ChangedNode* node)
             // (If node is added to a relation for the first time,
             // we won't need to call this method, since its parent
             // relations by definition already explicitly change)
-            model_.cascadeMemberChange(pastNode, node);
+            // model_.cascadeMemberChange(pastNode, node);
+            model_.memberGeometryChanged(node);
         }
     }
     else
@@ -320,6 +385,7 @@ void Updater::processWay(ChangedFeature2D* way)
         if (normalizeRefs(way) < 1) return;
         // TODO: For both unknown and missing, we need to push the way back
         //  onto the stack of changed ways
+        // TODO: but when can that actually happen??
     }
 
     bool defer = false;
@@ -390,6 +456,7 @@ void Updater::processWay(ChangedFeature2D* way)
     if (way->is(ChangeFlags::GEOMETRY_CHANGED))
     {
         updateBounds(way, newBounds);
+        model_.memberGeometryChanged(way);
     }
     assignToTiles(way);
     bool membersChanged = false;
@@ -597,7 +664,10 @@ void Updater::updateBounds(ChangedFeature2D* feature, const Box& bounds)
         // TODO: Need to ensure this works for relations
         //  We need to process all geometrically changed relations
         //  before non-geometrically changed rels!
-        model_.cascadeMemberChange(feature->getFeature(store()), feature);
+        // model_.cascadeMemberChange(feature->getFeature(store()), feature);
+
+        // We don't cascade bounds changes; we let processWay
+        //  cascade geometry changes instead
 
         // If bounds changed, tiles may change
 
@@ -992,10 +1062,10 @@ int Updater::processRelation(ChangedFeature2D* rel) // NOLINT recursive
     processMembershipChanges(rel);
     if (rel->id() == 17721802)
     {
-        if (rel->parentRelations())
+        if (rel->peekParentRelations())
         {
             LOGS << rel->typedId() << " has "
-                << rel->parentRelations()->relations().size()
+                << rel->peekParentRelations()->relations().size()
                 << "parent relations";
         }
         else

@@ -144,7 +144,11 @@ public:
         return membershipChanges_;
     }
 
-    const CRelationTable* parentRelations() const
+    /// Returns the relation table of this changed feature,
+    /// which can be `nullptr` if it has never been loaded
+    /// (i.e. it doe snot process or retrieve it)
+    ///
+    const CRelationTable* peekParentRelations() const
     {
         if (!test(flags_, ChangeFlags::RELTABLE_LOADED) &&
             parentRelations_ != nullptr)

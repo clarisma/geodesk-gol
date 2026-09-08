@@ -1,0 +1,24 @@
+<osm version="0.6" generator="geodesk-gol-test">
+    <node id="1" version="1" lon="-90" lat="45"/>
+    <node id="2" version="1" lon="90" lat="45">
+        <tag k="barrier" v="gate"/>
+    </node>
+    <node id="3" version="1" lon="90" lat="-45"/>
+    <node id="4" version="1" lon="-90" lat="-45"/>
+    <node id="5" version="1" lon="-120" lat="-60"/>
+    <node id="6" version="1" lon="120" lat="-60">
+        <tag k="amenity" v="restaurant"/>
+    </node>
+    <way id="1" version="1">
+        <nd ref="1"/>
+        <nd ref="2"/>
+        <tag k="highway" v="residential"/>
+        <tag k="name" v="Main Street"/>
+    </way>
+    <way id="2" version="1">
+        <nd ref="2"/>
+        <nd ref="3"/>
+        <tag k="highway" v="primary"/>
+        <tag k="name" v="Prospect Street"/>
+    </way>
+</osm>

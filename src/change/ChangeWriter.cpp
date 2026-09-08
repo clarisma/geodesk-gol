@@ -187,7 +187,7 @@ bool ChangeWriter::addChangedFeature(const ChangedFeatureBase* feature)
     // relation moved to a different tile
     if(newToTile || test(flags, ChangeFlags::RELTABLE_CHANGED))
     {
-        const CRelationTable* rels = feature->parentRelations();
+        const CRelationTable* rels = feature->peekParentRelations();
         if(rels) useRelationTable(rels);
     }
     return newToTile;
@@ -540,7 +540,7 @@ int ChangeWriter::writeStub(const ChangedFeatureBase* feature, int flags, int fl
         TesFlags::GEOMETRY_CHANGED : 0;
     flags |= test(changeFlags, ChangeFlags::RELTABLE_CHANGED) ?
         TesFlags::RELATIONS_CHANGED : 0;
-    int relsFlag = feature->parentRelations() ? TesFlags::RELATIONS_CHANGED : 0;
+    int relsFlag = feature->peekParentRelations() ? TesFlags::RELATIONS_CHANGED : 0;
     flags |= isNew ? (flagsIfNew | relsFlag |
         TesFlags::GEOMETRY_CHANGED | TesFlags::TAGS_CHANGED) : 0;
 
@@ -576,7 +576,7 @@ int ChangeWriter::writeStub(const ChangedFeatureBase* feature, int flags, int fl
 
     if (flags & TesFlags::RELATIONS_CHANGED)
     {
-        const CRelationTable* rels = feature->parentRelations();
+        const CRelationTable* rels = feature->peekParentRelations();
         if(rels == nullptr)
         {
             // Feature no longer belongs to any relations
