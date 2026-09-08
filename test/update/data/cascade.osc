@@ -1,0 +1,15 @@
+<!--
+
+Verify that:
+
+- Moving a node updates the geometry of its parent way
+- A geometry change of a member way updates the geometry of its parent relation
+- A geometry change of a member relation updates the geometry of its parent relation
+
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="2" changeset="1" lon="90" lat="-45"/>
+    </modify>
+</osmChange>

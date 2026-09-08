@@ -104,8 +104,9 @@ public:
 		return tesArchive_.dataAtOffset(tesOffsets_[n]);
 	}
 
+#ifdef GOL_DIAGNOSTICS
 	const std::filesystem::path& dumpPath() const { return dumpPath_; };
-
+#endif
 
 private:
 	void startPhase(Phase phase, int taskCount, double workPerUnit);
@@ -169,5 +170,7 @@ private:
 	bool useAltDisplay_ = false;
 	int changeFileCount_ = 0;
 
+#ifdef GOL_DIAGNOSTICS
 	std::filesystem::path dumpPath_;
+#endif
 };

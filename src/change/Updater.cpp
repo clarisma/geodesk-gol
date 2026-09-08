@@ -54,10 +54,13 @@ void UpdaterWorker::prepareUpdate(Tip tip)
     DynamicBuffer buf(64 * 1024);
     writer_.write(updater_->model().getChangedTile(tip), &buf);
 
-#ifndef NDEBUG
-    TesChecker checker(tip, updater_->tileCatalog().tileOfTip(tip),
-        reinterpret_cast<const uint8_t*>(buf.data()), buf.length());
-    checker.dump(updater_->dumpPath());
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::DEBUG)
+    {
+        TesChecker checker(tip, updater_->tileCatalog().tileOfTip(tip),
+            reinterpret_cast<const uint8_t*>(buf.data()), buf.length());
+        checker.dump(updater_->dumpPath());
+    }
 #endif
 
     updater_->postOutput(TesArchiveWriter::createTes(tip, buf.takeBytes()));
@@ -216,8 +219,10 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     calculateWork(24 * 60 * 60);
         // Use 1 day if we don't know the exact timespan (TODO)
 
+#ifdef GOL_DIAGNOSTICS
     dumpPath_ = FilePath::withoutExtension(store->fileName());
     dumpPath_ += "-tes";
+#endif
 
     //assert(_CrtCheckMemory());
     start();
@@ -291,8 +296,13 @@ void Updater::prepareUpdate()
     LOGS << "Preparing update...";
     Console::get()->setTask("Preparing update...");
 
-    TesChecker::createFolders(dumpPath_,
-        model_.changedTiles() | std::views::keys);
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::DEBUG)
+    {
+        TesChecker::createFolders(dumpPath_,
+            model_.changedTiles() | std::views::keys);
+    }
+#endif
 
     FeatureStore* store = model_.store();
     int changedTileCount = static_cast<int>(model_.changedTiles().size());

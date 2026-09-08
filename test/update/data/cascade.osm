@@ -1,0 +1,14 @@
+<osm version="0.6" generator="geodesk-gol-test">
+    <node id="1" version="1" lon="-90" lat="45"/>
+    <node id="2" version="1" lon="90" lat="45"/>
+    <way id="1" version="1">
+        <nd ref="1"/>
+        <nd ref="2"/>
+    </way>
+    <relation id="1" version="1">
+        <member type="way" ref="1"/>
+    </relation>
+    <relation id="2" version="1">
+        <member type="relation" ref="1"/>
+    </relation>
+</osm>    

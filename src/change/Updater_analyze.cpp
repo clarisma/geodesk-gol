@@ -14,6 +14,7 @@
 #include "ChangeReader.h"
 #include "change/model/ChangeModelDumper.h"
 #include "change/model/ChangedTile.h"
+#include "clarisma/io/FilePath.h"
 #include "tile/compiler/TileCompiler.h"
 
 
@@ -57,9 +58,15 @@ void Updater::processChanges()
 
     // TODO: process nodes, ways, relations whose reltables need to be
     //  updated because their parent relations have moved tiles
-#ifndef NDEBUG
-    ChangeModelDumper dumper(model_);
-    dumper.dump("c:\\geodesk\\tests\\dexxu-change-model.txt");
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::DEBUG)
+    {
+        ChangeModelDumper dumper(model_);
+        std::string dumpPath(FilePath::withoutExtension(
+            model_.store()->fileName()));
+        dumpPath += "-change-model.txt";
+        dumper.dump(dumpPath.c_str());
+    }
 #endif
 
     LOGS << "Processed changes.";
