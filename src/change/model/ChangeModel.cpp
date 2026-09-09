@@ -68,6 +68,7 @@ uint32_t ChangeModel::getTagValue(const TagTableModel::Tag& tag)
     return tag.value();
 }
 
+// TODO: Are there cases where tagModel isn't tags_ ???
 const CTagTable* ChangeModel::getTagTable(const TagTableModel& tagModel, bool determineIfArea)
 {
     CTagTable* tags =
@@ -1126,4 +1127,25 @@ void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
             }
         }
     }
+}
+
+
+const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orphan)
+{
+    assert(tags_.isEmpty());
+    if (duplicate)
+    {
+        tags_.addLocalTag("geodesk::duplicate", GlobalStrings::YES);
+    }
+    if (orphan)
+    {
+        tags_.addLocalTag("geodesk::orphan", GlobalStrings::YES);
+    }
+
+    // TODO: should not need to normalize tags_, since we add in alpha order;
+    //  but double-check
+
+    const CTagTable* tags = getTagTable(tags_, false);
+    tags_.clear();
+    return tags;
 }

@@ -147,8 +147,8 @@ private:
 	static void printRevision(ConsoleWriter& out, const char* leader,
 		uint32_t revision, DateTime timestamp, DateTime now);
 
-	ChangeModel model_;
-	TileCatalog tileCatalog_;
+	ChangeModel model_;			// TODO: move to ChangeManager
+	TileCatalog tileCatalog_;   // TODO: move to ChangeManager
 	std::string updateFileName_;
 	TesArchiveWriter archiveWriter_;
 	std::atomic<double> workCompleted_;
@@ -157,6 +157,7 @@ private:
 	std::atomic<int> tasksRemaining_;
 	std::binary_semaphore phaseCompleted_;
 	bool memberSearchCompleted_ = true; // TODO
+		// TODO: move to ChangeManager
 	uint32_t targetRevision_;
 	DateTime targetTimestamp_;
 	TesArchive tesArchive_;

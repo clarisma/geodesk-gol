@@ -94,7 +94,7 @@ void ChangeModelDumper::dumpFlags(ChangeFlags flags)
     if (test(flags, ChangeFlags::FLAGGED_AREA)) tempStrings_.push_back("flagged_area");
     if (test(flags, ChangeFlags::FLAGGED_WAYNODE)) tempStrings_.push_back("flagged_waynode");
     if (test(flags, ChangeFlags::PROCESSED)) tempStrings_.push_back("processed");
-    if (test(flags, ChangeFlags::MAY_BECOME_ORPHAN)) tempStrings_.push_back("may_become_orphan");
+    if (test(flags, ChangeFlags::REMOVED_FROM_WAY)) tempStrings_.push_back("removed_from_way");
     if (test(flags, ChangeFlags::RELATION_DEFERRED)) tempStrings_.push_back("relation_deferred");
     if (test(flags, ChangeFlags::RELATION_ATTEMPTED)) tempStrings_.push_back("relation_attempted");
     if (test(flags, ChangeFlags::NEW_TO_NORTHWEST)) tempStrings_.push_back("new_to_northwest");

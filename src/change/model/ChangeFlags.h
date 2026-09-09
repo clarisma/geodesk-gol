@@ -70,7 +70,7 @@ enum class ChangeFlags : uint32_t
     FLAGGED_WAYNODE = 1 << 17,
 
     PROCESSED = 1 << 18,
-    MAY_BECOME_ORPHAN = 1 << 19,
+    REMOVED_FROM_WAY = 1 << 19,
 
     RELATION_DEFERRED = 1 << 20,
     RELATION_ATTEMPTED = 1 << 21,

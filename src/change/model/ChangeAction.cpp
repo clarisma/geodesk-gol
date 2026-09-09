@@ -97,7 +97,7 @@ void NodeBecomesCoincident::apply(ChangedFeatureBase* changed)
 
 void NodeRemovedFromWay::apply(ChangedFeatureBase* changed)
 {
-    changed->addFlags(ChangeFlags::MAY_BECOME_ORPHAN);
+    changed->addFlags(ChangeFlags::REMOVED_FROM_WAY);
     if (changed->xy().isNull()) changed->setXY(xy_);
 }
 

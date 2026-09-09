@@ -149,6 +149,8 @@ public:
     void determineTexLosers();
     bool willMemberKeepTex(CFeature* member) const;
 
+    const CTagTable* createExceptionNodeTags(bool duplicate, bool orphan);
+
     void dumpChangedRelationCount()
     {
         size_t relCount = 0;
