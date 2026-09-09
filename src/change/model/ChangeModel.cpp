@@ -606,8 +606,10 @@ void ChangeModel::prepareNodes()
             auto it = futureNodeLocations_.find(xy);
             if(it != futureNodeLocations_.end())
             {
-                it->second->addFlags(ChangeFlags::NODE_WILL_SHARE_LOCATION);
-                node->addFlags(ChangeFlags::NODE_WILL_SHARE_LOCATION);
+                it->second->addFlags(ChangeFlags::FLAGGED_SHARED_LOCATION);
+                node->addFlags(ChangeFlags::FLAGGED_SHARED_LOCATION);
+                // We don't set FLAGS_CHANGED here, because the nodes
+                //  may already be flagged as SHARED_LOCATION
             }
             else
             {

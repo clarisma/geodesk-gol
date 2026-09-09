@@ -289,8 +289,8 @@ void TileChangeAnalyzer::compareWayNodes(ChangedFeature2D* changed, WayPtr way)
 void TileChangeAnalyzer::compareAreaStatus(ChangedFeature2D* changed, FeaturePtr feature)
 {
     bool wasArea = feature.isArea();
-    bool willBeArea = (changed->flags() & ChangeFlags::WILL_BE_AREA) != ChangeFlags::NONE;
-    if(wasArea != willBeArea) changed->addFlags(ChangeFlags::AREA_STATUS_CHANGED);
+    bool willBeArea = (changed->flags() & ChangeFlags::FLAGGED_AREA) != ChangeFlags::NONE;
+    if(wasArea != willBeArea) changed->addFlags(ChangeFlags::FLAGS_CHANGED);
 }
 
 /// This method:
@@ -377,6 +377,8 @@ TileChangeAnalyzer::WayNodeCheckResult TileChangeAnalyzer::checkWayNode(
             }
             // TODO: Is this true, though? What if the anon node
             //  later turns into a feature node (e.g. duplicate)
+            //  --> OK. If anon node turns into feature node, we have to
+            //      write all its properties anyway
             /*      // we don't care about geometry change of anon node
             else
             {

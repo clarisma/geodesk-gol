@@ -187,6 +187,7 @@ void Updater::processRelations()
     }
 }
 
+// TODO: Check if shared_location flag changes; if so, set FLAGS_CHANGED
 
 void Updater::processNode(ChangedNode* node)
 {

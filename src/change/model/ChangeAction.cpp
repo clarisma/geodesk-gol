@@ -81,6 +81,7 @@ void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* ch
     WayPtr pastWay(ref_.getFeature(pTile));
     assert(!pastWay.isNull());
     way->setBounds(pastWay.bounds());
+        // TODO: why are setting the old bounds? They may change!
     if (way->memberCount() == 0)
     {
         way->setMembers(model.loadWayNodes(ref_.tip(), pTile, pastWay));
@@ -90,13 +91,13 @@ void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* ch
 
 void NodeBecomesCoincident::apply(ChangedFeatureBase* changed)
 {
-    changed->addFlags(ChangeFlags::NODE_WILL_SHARE_LOCATION);
+    changed->addFlags(ChangeFlags::FLAGGED_SHARED_LOCATION | ChangeFlags::FLAGS_CHANGED);
     if (changed->xy().isNull()) changed->setXY(xy_);
 }
 
 void NodeRemovedFromWay::apply(ChangedFeatureBase* changed)
 {
-    changed->addFlags(ChangeFlags::REMOVED_FROM_WAY);
+    changed->addFlags(ChangeFlags::MAY_BECOME_ORPHAN);
     if (changed->xy().isNull()) changed->setXY(xy_);
 }
 

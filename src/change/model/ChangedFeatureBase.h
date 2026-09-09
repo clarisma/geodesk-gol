@@ -94,13 +94,11 @@ public:
             ChangeFlags::TAGS_CHANGED |
             ChangeFlags::GEOMETRY_CHANGED |
             ChangeFlags::WAYNODE_IDS_CHANGED |
-            ChangeFlags::AREA_STATUS_CHANGED |
             ChangeFlags::BOUNDS_CHANGED |
+            ChangeFlags::FLAGS_CHANGED |
             ChangeFlags::ADDED_TO_RELATION |
-            ChangeFlags::RELTABLE_CHANGED |
             ChangeFlags::REMOVED_FROM_RELATION |
-            ChangeFlags::WAYNODE_STATUS_CHANGED |
-            ChangeFlags::SHARED_LOCATION_STATUS_CHANGED))
+            ChangeFlags::RELTABLE_CHANGED))
             != ChangeFlags::NONE;
     }
 

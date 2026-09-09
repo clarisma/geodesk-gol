@@ -36,6 +36,13 @@ class ChangeModel;
 // TODO: base class should create a changed feature
 //  (This is common to all actions), then call apply with the changed?
 
+// TODO: can consolidate into one 32-byte object, use a union for the extra field
+
+// TODO: Check: Node is dropped from a relation, which
+//  creates a ChangedNode, but is x/y filled in? (Membership change
+//  doesn't carry x/y, we need to pull it via the ref)
+//  But when would we need x/y?
+
 class ChangeAction
 {
 public:
@@ -48,6 +55,7 @@ public:
         NODE_BECOMES_WAYNODE,
         IMPLICIT_WAY_GEOMETRY_CHANGE
     };
+    // Node actions could be consolidated as NODE_STATUS_CHANGED
 
     void apply(ChangeModel& model);
     int action() const { return action_; }

@@ -53,90 +53,34 @@ enum class ChangeFlags : uint32_t
     RELTABLE_LOADED = 1 << 5,
         // rename to RELTABLE_CHANGED
 
+    TAGS_CHANGED = 1 << 6,
+    GEOMETRY_CHANGED = 1 << 7,
+    MEMBERS_CHANGED = 1 << 8,
+    WAYNODE_IDS_CHANGED = 1 << 9,
+    BOUNDS_CHANGED = 1 << 10,
+    TILES_CHANGED = 1 << 11,
+    RELTABLE_CHANGED = 1 << 12,
+    FLAGS_CHANGED = 1 << 13,
+
     /// The node will have the same location as another node
     /// (though it may not necessarily be a duplicate)
-    NODE_WILL_SHARE_LOCATION = 1 << 6,
-    TAGS_CHANGED = 1 << 7,
-    GEOMETRY_CHANGED = 1 << 8,
-    MEMBERS_CHANGED = 1 << 9,
-    WAYNODE_IDS_CHANGED = 1 << 10,
-    WILL_BE_AREA = 1 << 11,
-    AREA_STATUS_CHANGED = 1 << 12,
-    PROCESSED = 1 << 13,
-    BOUNDS_CHANGED = 1 << 14,
-    TILES_CHANGED = 1 << 15,
-    WILL_HAVE_WAYNODE_FLAG = 1 << 18,
-        // TODO: rename? WILL_BE_WAYNODE
-        //  but WILL_HAVE_WAYNODE_FLAG implies feature status
-    WAYNODE_STATUS_CHANGED = 1 << 19,
-    SHARED_LOCATION_STATUS_CHANGED = 1 << 20,
+    FLAGGED_SHARED_LOCATION = 1 << 14,
+    FLAGGED_EXCEPTION_NODE = 1 << 15,
+    FLAGGED_AREA = 1 << 16,
+    FLAGGED_WAYNODE = 1 << 17,
 
-    MEMBER_TILES_CHANGED = 1 << 21,
-    REMOVED_FROM_WAY = 1 << 22,
+    PROCESSED = 1 << 18,
+    MAY_BECOME_ORPHAN = 1 << 19,
 
-    // TODO: WILL_BELONG_TO_WAY = xxx     // needed?
-    //  No, we just need a REMOVED_FROM_WAY flag
-    //   This flag will be cleared for all nodes that are part of a changed way
-    //   If a node still has this flag after way processing, need to do thorough check
-
-    RELATION_DEFERRED = 1 << 23,
-    RELATION_ATTEMPTED = 1 << 24,
-    NEW_TO_NORTHWEST = 1 << 25,
-    NEW_TO_SOUTHEAST = 1 << 26,
-    RELTABLE_CHANGED = 1 << 27,
-    WAY_WILL_HAVE_FEATURE_NODES = 1 << 28,
-    WILL_BE_SUPER_RELATION = 1 << 29
+    RELATION_DEFERRED = 1 << 20,
+    RELATION_ATTEMPTED = 1 << 21,
+    NEW_TO_NORTHWEST = 1 << 22,
+    NEW_TO_SOUTHEAST = 1 << 23,
+    WAY_WILL_HAVE_FEATURE_NODES = 1 << 24,
+    WILL_BE_SUPER_RELATION = 1 << 25
 };
 
 // TODO: do we need the NEW_ flags? can derive from ref?
-
-enum class ChangeFlags_proposed : uint32_t
-{
-    NONE = 0,
-
-    /// The feature has been deleted (always explicit)
-    DELETED = 1 << 2,
-
-    ADDED_TO_WAY = 1 << 22,
-    REMOVED_FROM_WAY = 1 << 22,
-
-    /// The feature was added to at least one relation
-    ADDED_TO_RELATION = 1 << 3,
-
-    /// The feature was removed from at least one relation
-    REMOVED_FROM_RELATION = 1 << 4,
-
-    TAGS_CHANGED = 1 << 7,
-    GEOMETRY_CHANGED = 1 << 8,
-    MEMBERS_CHANGED = 1 << 9,
-    WAYNODE_IDS_CHANGED = 1 << 10,
-    BOUNDS_CHANGED = 1 << 14,
-    TILES_CHANGED = 1 << 15,
-    RELTABLE_CHANGED = 1 << 27,
-    FLAGS_CHANGED = 1 << 15,
-
-
-
-    /// The node will have the same location as another node
-    /// (though it may not necessarily be a duplicate)
-    FLAGGED_SHARED_LOCATION = 1 << 6,
-    FLAGGED_EXCEPTION_NODE = 1 << 6,
-    FLAGGED_AREA = 1 << 11,
-    FLAGGED_WAYNODE = 1 << 18,
-
-    RELTABLE_LOADED = 1 << 5,
-    PROCESSED = 1 << 13,
-        // TODO: rename? WILL_BE_WAYNODE
-        //  but WILL_HAVE_WAYNODE_FLAG implies feature status
-
-    RELATION_DEFERRED = 1 << 23,
-    RELATION_ATTEMPTED = 1 << 24,
-    NEW_TO_NORTHWEST = 1 << 25,
-    NEW_TO_SOUTHEAST = 1 << 26,
-
-    WAY_WILL_HAVE_FEATURE_NODES = 1 << 28,
-    WILL_BE_SUPER_RELATION = 1 << 29
-};
 
 constexpr ChangeFlags operator|(ChangeFlags a, ChangeFlags b) noexcept
 {

@@ -266,7 +266,7 @@ void ChangeReader::readFeature(ChangeFlags flags)
                 // For ways that are areas, we omit the final node
                 // (must be equal to first)
             }
-            flags |= willBeArea ? ChangeFlags::WILL_BE_AREA : ChangeFlags::NONE;
+            flags |= willBeArea ? ChangeFlags::FLAGGED_AREA : ChangeFlags::NONE;
             feature->setFlags(flags);
             // TODO: Treatment of empty member list?
             model_.setMembers(feature, members_.data(), adjustedMemberCount, roles);

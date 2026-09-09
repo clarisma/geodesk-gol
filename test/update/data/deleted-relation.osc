@@ -3,7 +3,7 @@
 Verify that:
 
 - way/1 is no longer a relation member
-- way/2 is only member of A geometry change of a member way updates the geometry of its parent relation
+- way/2 is only member of relation/2
 - node/3 loses feature status (deleted from tile), since it is no longer a relation member
   (but does not become an orphan, since it is part of way 2)
 - node/4 becomes an orphan

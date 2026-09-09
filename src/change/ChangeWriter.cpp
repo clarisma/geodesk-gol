@@ -343,9 +343,9 @@ void ChangeWriter::writeNode(const ChangedNode* node)
     assert(tileCatalog_.tileOfTip(tile_->tip()).bounds().contains(node->xy()));
 
     ChangeFlags changeFlags = node->flags();
-    int flags = test(changeFlags, ChangeFlags::WILL_HAVE_WAYNODE_FLAG) ?
+    int flags = test(changeFlags, ChangeFlags::FLAGGED_WAYNODE) ?
         TesFlags::NODE_BELONGS_TO_WAY : 0;
-    flags |= test(changeFlags, ChangeFlags::NODE_WILL_SHARE_LOCATION) ?
+    flags |= test(changeFlags, ChangeFlags::FLAGGED_SHARED_LOCATION) ?
         TesFlags::HAS_SHARED_LOCATION : 0;
 
     flags = writeStub(node, flags, 0);  // TODO: is_exception_node
@@ -395,7 +395,7 @@ void ChangeWriter::writeWay(const ChangedFeature2D* way)
         // If waynode IDs have changed, geometry is always assumed to have changed
         // See https://github.com/clarisma/gol-spec/blob/main/tes.md#changeflags
         // TODO: Does ChangeFlags have this rule as well?
-    flags |= test(changeFlags, ChangeFlags::WILL_BE_AREA) ?
+    flags |= test(changeFlags, ChangeFlags::FLAGGED_AREA) ?
         TesFlags::IS_AREA : 0;
 
     int flagsIfNew = test(changeFlags,
@@ -468,7 +468,7 @@ void ChangeWriter::writeRelation(const ChangedFeature2D* relation)
         TesFlags::MEMBERS_CHANGED : 0;
     flags |= test(changeFlags, ChangeFlags::BOUNDS_CHANGED) ?
         TesFlags::BBOX_CHANGED : 0;
-    flags |= test(changeFlags, ChangeFlags::WILL_BE_AREA) ?
+    flags |= test(changeFlags, ChangeFlags::FLAGGED_AREA) ?
         TesFlags::IS_AREA : 0;
     flags = writeStub(relation, flags, TesFlags::MEMBERS_CHANGED |
         TesFlags::BBOX_CHANGED);
