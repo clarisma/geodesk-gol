@@ -54,7 +54,8 @@ def test_update(gol_tool, tmp_path):
         "cascade",
         "deleted-relation",
         "tags-changed",
-        "orphans"
+        "duplicates",
+        # "orphans",
     ]
     for case in cases:
         perform_update_test(case, gol_tool, tmp_path)

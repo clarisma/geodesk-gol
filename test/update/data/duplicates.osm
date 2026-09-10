@@ -1,0 +1,23 @@
+<!--
+    node/1 should be tagged as duplicate orphan
+    node/2 should be tagged as duplicate orphan
+    node/3 should be flagged shared_location (but is not a duplicate)
+    node/4 should be flagged shared_location (but is not a duplicate)
+    node/5 should be anonymous
+-->
+<osm version="0.6" generator="geodesk-gol-test">
+    <node id="1" version="1" lon="-90" lat="45"/>
+    <node id="2" version="1" lon="-90" lat="45"/>
+
+    <!-- A lamp post with a surveillance camera attached to it -->
+    <node id="3" version="1" lon="90" lat="45">
+        <tag k="highway" v="street_lamp"/>
+    </node>
+    <node id="4" version="1" lon="90" lat="45">
+        <tag k="man_made" v="surveillance"/>
+    </node>
+
+    <node id="5" version="1" lon="90" lat="-45">
+        <tag k="natural" v="tree"/>
+    </node>
+</osm>

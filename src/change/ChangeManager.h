@@ -55,15 +55,13 @@ private:
 	void cascadeBoundsChange(FeaturePtr feature, const Box& futureBounds);
 	int normalizeRefs(ChangedFeature2D* changed);
 	CRef deduceTwinRef(CRef ref) const;
-	FeaturePtr getFeature(CFeature* feature) const
-	{
-		return feature->getFeature(store());
-	}
+	ChangedNode* findUniqueLocationNode(Tip tip, Coordinate xy);
 
 	const CTagTable* getExceptionNodeTags(bool duplicate, bool orphan);
 
 	ChangeModel model_;
 	TileCatalog tileCatalog_;
+	HashMap<Coordinate,ChangedNode*> uniqueLocationNodes_;
 	bool memberSearchCompleted_ = true; // TODO
 	const CTagTable* duplicateNodeTags_ = nullptr;
 	const CTagTable* orphanNodeTags_ = nullptr;

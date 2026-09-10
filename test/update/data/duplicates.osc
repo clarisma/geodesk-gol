@@ -1,0 +1,24 @@
+<!--
+
+Verify that:
+    - node/1 should lose duplicate status (but remain orphan)
+    - node/2 should lose duplicate status (but remain orphan)
+    - node/3 should lose shared_node status
+    - node/4 should remain in shared_node status
+      (moved from one coincident location to another)
+    - node/5 should become a duplicate orphan
+      (it loses its tags and becomes coincident with node/4)
+
+Passed 9/10/26
+
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="1" lon="-120" lat="45"/>
+        <node id="4" version="1" lon="90" lat="-45">
+            <tag k="man_made" v="surveillance"/>
+        </node>
+        <node id="5" version="1" lon="90" lat="-45"/>
+    </modify>
+</osmChange>

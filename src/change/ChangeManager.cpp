@@ -3,6 +3,7 @@
 
 #include "ChangeManager.h"
 #include <clarisma/io/FilePath.h>
+#include <clarisma/util/Pointers.h>
 #include <geodesk/feature/ParentRelationIterator.h>
 #include <geodesk/query/ParentWaysQuery.h>
 #include "change/model/ChangeModelDumper.h"
@@ -200,6 +201,11 @@ void ChangeManager::processRelations()
 //   This differs from gol build, which currently discards all ways
 //   with *any* missing nodes
 
+// TODO: when/how do we determine if a node's geometry changed?
+
+// TODO: If feature status change, need to implicitly change ways
+//  (their node table must be updated)
+
 void ChangeManager::processNode(ChangedNode* node)
 {
     if(node->id() == 3)
@@ -263,7 +269,17 @@ void ChangeManager::processNode(ChangedNode* node)
     }
     else
     {
-        willHaveTags = pastNode.isNull() ? false : !pastNode.tags().isEmpty();
+        if (pastNode.isNull())
+        {
+            willHaveTags = false;
+        }
+        else
+        {
+            willHaveTags = !pastNode.tags().isEmpty() &&
+                (pastFeatureFlags & FeatureFlags::EXCEPTION_NODE) == 0;
+            // An exception node (orphan or duplicate) has synthetic tags;
+            // these don't count as "having tags"
+        }
     }
 
     bool willBeRelationMember;
@@ -327,19 +343,70 @@ void ChangeManager::processNode(ChangedNode* node)
 
     // TODO: duplicate
 
-    bool willBeDuplicate = false; // TODO
+    bool wasCoincident = pastFeatureFlags & FeatureFlags::SHARED_LOCATION;
+    bool wasDuplicate = (pastFeatureFlags &
+        (FeatureFlags::SHARED_LOCATION | FeatureFlags::EXCEPTION_NODE)) ==
+        (FeatureFlags::SHARED_LOCATION | FeatureFlags::EXCEPTION_NODE);
+    bool willBeCoincident = test(changeFlags, ChangeFlags::FLAGGED_SHARED_LOCATION);
+
+    if (wasCoincident) [[unlikely]]
+    {
+        // If a coincident node moved, we need to check if only
+        // one node remains at its past location -- if so, that
+        // node loses its SHARED_LOCATION flag (and may lose its
+        // feature status if it is untagged, does not belong to
+        // a relation, and is not an orphan).
+
+        // If a coincident node has not moved, we need to still
+        // check if all other nodes have moved from its location,
+        // causing it to be the sole node that location
+
+        assert(!pastTip.isNull());
+        ChangedNode* uniqueNode = findUniqueLocationNode(pastTip, pastNode.xy());
+        if (!willBeCoincident)
+        {
+            if (test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
+            {
+                // If the formerly coincident node moved, and it is
+                // not coincident at its new location, it loses its
+                // SHARED_LOCATION flag (already cleared, but we
+                // need to mark the flag change so the node will be
+                // updated)
+                changeFlags |= ChangeFlags::FLAGS_CHANGED;
+            }
+            else
+            {
+                // If the node is not explicitly marked as being coincident
+                // in the future, it will stay coincident if it is not
+                // the unique node at its location
+                if (uniqueNode != node)
+                {
+                    willBeCoincident = true;
+                }
+                else
+                {
+                    // SHARED_LOCATION already cleared, mark the flag change
+                    changeFlags |= ChangeFlags::FLAGS_CHANGED;
+                }
+            }
+        }
+    }
+
+    bool willBeDuplicate = willBeCoincident && !willHaveTags;
 
     // Determine orphan status
 
     bool willBeOrphan = !willHaveTags && !willBeRelationMember && !willBelongToWay;
-    changeFlags |= willBeOrphan ? ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
     bool wasOrphan = (pastFeatureFlags & (FeatureFlags::EXCEPTION_NODE |
         FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == FeatureFlags::EXCEPTION_NODE;
 
-    if (wasOrphan != willBeOrphan) [[unlikely]]
+    changeFlags |= (willBeDuplicate || willBeOrphan) ?
+        ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
+
+    if (wasDuplicate != willBeDuplicate || wasOrphan != willBeOrphan) [[unlikely]]
     {
         changeFlags |= ChangeFlags::FLAGS_CHANGED;
-        if (willBeOrphan)
+        if (willBeOrphan || willBeDuplicate)
         {
             node->setTagTable(getExceptionNodeTags(willBeDuplicate, willBeOrphan));
             changeFlags |= ChangeFlags::TAGS_CHANGED;
@@ -1367,6 +1434,54 @@ const CTagTable* ChangeManager::getExceptionNodeTags(bool duplicate, bool orphan
         *pTable = model_.createExceptionNodeTags(duplicate, orphan);
     }
     return *pTable;
+}
+
+// We need the TIP where this coordinate is located, so we can
+//  build a ref for the remaining unique node, in case we have to
+//  add it to the change model
+ChangedNode* ChangeManager::findUniqueLocationNode(Tip tip, Coordinate xy)
+{
+    auto it = uniqueLocationNodes_.find(xy);
+    if (it != uniqueLocationNodes_.end()) return it->second;
+    ChangedNode* node = model_.nodeAtFutureLocation(xy);
+    if (node && node->is(ChangeFlags::FLAGGED_SHARED_LOCATION))
+    {
+        uniqueLocationNodes_[xy] = nullptr;
+        return nullptr;
+    }
+
+    NodePtr  soleRemainingNode;
+    Query query(model_.store(), Box(xy), FeatureTypes::NODES);
+    for (;;)
+    {
+        FeaturePtr otherNode = query.next();
+        if (otherNode.isNull()) break;
+        assert(otherNode.isNode());
+        CFeature* f = model_.peekFeature(TypedFeatureId::ofNode(otherNode.id()));
+        if (f && f->isChanged())
+        {
+            ChangedNode* changed = ChangedNode::cast(f);
+            if (changed->is(ChangeFlags::GEOMETRY_CHANGED))
+            {
+                continue;
+            }
+        }
+        if (!soleRemainingNode.isNull())
+        {
+            // There are more than one node remaining at this location
+            uniqueLocationNodes_[xy] = nullptr;
+            return nullptr;
+        }
+        soleRemainingNode = NodePtr(otherNode);
+    }
+    node = model_.getChangedNode(soleRemainingNode.id());
+    node->setXY(xy);
+    TilePtr tile = model_.store()->fetchTile(tip);
+    node->offerRef(CRef::ofMaybeExported(
+        tip, tile.handleOf(soleRemainingNode)));
+    uniqueLocationNodes_[xy] = node;
+    return node;
+
 }
 
 // TODO: possible replacement for checkExport()

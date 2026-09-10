@@ -10,6 +10,14 @@
 #include "change/model/ChangeModel.h"
 #include "change/model/ChangedNode.h"
 
+
+// TODO: We perform checks for multi-tile features only
+//  on their NW twin. If we move to ID indexing, we need to be
+//  careful what we store in the index -- ideally, the NW tile
+//  of the feature. But the index is also used for lookup by ID,
+//  and we may only have the SE twin in a given tileset. In that
+//  case, we can't find the feature if we only store its NW tile
+
 /// - If relation is in the ChangeModel:
 ///   - Store its ref
 ///   - If it is explicitly changed:
@@ -37,6 +45,9 @@ void TileChangeAnalyzer::readNode(NodePtr node)
             ChangedNode* changed = ChangedNode::cast(f);
             if(f->xy() == node.xy())
             {
+                // TODO: This is not safe, need to use an atomic op!
+                //  But there's only one copy of this node, multiple
+                //  threads should never touch these flags
                 changed->clearFlags(ChangeFlags::GEOMETRY_CHANGED);
             }
             compareTags(changed, node);
@@ -211,6 +222,9 @@ void TileChangeAnalyzer::compareTags(ChangedFeatureBase* f, FeaturePtr p)
     }
     f->clearFlags(ChangeFlags::TAGS_CHANGED);
     // TODO: concurrent access?
+    //  Not safe for multi-tile features
+    //  But we are only performing compareTags() for the NW twin
+    //  of multi-tile features
 
     unchangedTags_++;
 }

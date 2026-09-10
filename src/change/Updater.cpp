@@ -279,7 +279,11 @@ void Updater::update(std::string_view url, std::span<const char*> files)
 #endif
     changes_.preProcess();
     changes_.process();
-    // TODO: perform secondary search, then process again
+    // TODO: perform secondary search
+    // Process again, so we pick up nodes that lose shared_location status
+    // and subsequently implicitly-changed ways, as well as ways and relations
+    // that could not be resolved in first pass due to missing members
+    changes_.process();
     changes_.postProcess();
 
     prepareUpdate();
@@ -288,7 +292,11 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     end();
     //assert(_CrtCheckMemory());
 
-    Console::end().success() << "Updated " << changes_.changedTileCount() << " tiles.\n";
+    // TODO: Different display if nothing updated?
+
+    int count = changes_.changedTileCount();
+    Console::end().success() << "Updated " << count <<
+        (count==1 ? " tile.\n" : " tiles.\n");
 }
 
 
