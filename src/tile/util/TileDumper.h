@@ -32,6 +32,7 @@ private:
     void dumpString(TString* str);
     void dumpRelationTable(TRelationTable* rels);
     void dumpFeature(TFeature* feature);
+	void dumpFeatureFlags(TFeature* feature);
     void dumpWayBody(TWayBody* wayBody);
     void dumpRelationBody(TRelationBody* relationBody);
     void dumpIndex(TIndex* index);

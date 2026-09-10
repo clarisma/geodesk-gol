@@ -80,8 +80,45 @@ void TileDumper::dumpRelationTable(TRelationTable* rels)
 void TileDumper::dumpFeature(TFeature* f)
 {
     Feature feature(store_, f->feature());
-    startElement(f, "FEATURE ")
-        << feature.toString() << "  " << feature.label() << '\n';
+    startElement(f, "FEATURE ");
+    out_ << feature.toString() << "  " << feature.label();
+    dumpFeatureFlags(f);
+    out_ << '\n';
+}
+
+
+void TileDumper::dumpFeatureFlags(TFeature* feature)
+{
+    bool anyFlags = false;
+    int flags = feature->feature().flags();
+    static const int FLAGS[4] =
+    {
+        FeatureFlags::AREA,
+        FeatureFlags::WAYNODE,
+        FeatureFlags::SHARED_LOCATION,
+        FeatureFlags::EXCEPTION_NODE
+    };
+    static const char* FLAG_NAMES[4] =
+    {
+        "area", "waynode", "shared_location", "exception_node"
+    };
+    for (int i=0; i<4; i++)
+    {
+        if (flags & FLAGS[i])
+        {
+            if (!anyFlags)
+            {
+                out_ << "  [";
+                anyFlags = true;
+            }
+            else
+            {
+                out_ << ',';
+            }
+            out_ << FLAG_NAMES[i];
+        }
+    }
+    if (anyFlags) out_ << ']';
 }
 
 void TileDumper::dumpWayBody(TWayBody* body)

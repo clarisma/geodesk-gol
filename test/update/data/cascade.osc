@@ -6,6 +6,10 @@ Verify that:
 - A geometry change of a member way updates the geometry of its parent relation
 - A geometry change of a member relation updates the geometry of its parent relation
 
+- node/2 changes position
+- way/1 changes geometry and bbox (contains node/2)
+- relation/1 changes geometry and bbox (contains way/1)
+- relation/2 changes geometry and bbox (contains relation/1)
 -->
 
 <osmChange version="0.6" generator="geodesk-gol-test">

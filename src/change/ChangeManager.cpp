@@ -202,7 +202,7 @@ void ChangeManager::processRelations()
 
 void ChangeManager::processNode(ChangedNode* node)
 {
-    if(node->id() == 10711194568)
+    if(node->id() == 3)
     {
         LOGS << "Processing node/" << node->id()
             << ", version: " << node->version()
@@ -237,11 +237,18 @@ void ChangeManager::processNode(ChangedNode* node)
 
     if (node->xy().isNull())    [[unlikely]]
     {
-        // TODO: Do we need to pull x/y from the feature ref (if any)?
-        //  Are there cases where we aren't setting x/y?
+        // TODO: Can we just avoid this scenario that CRef is
+        //  set but x/y is not, so we don't have to fix it here?
 
-        node->setRef(CRef::MISSING);
-        return;
+        if (!pastNode.isNull())
+        {
+            node->setXY(pastNode.xy());
+        }
+        if (node->xy().isNull())
+        {
+            node->setRef(CRef::MISSING);
+            return;
+        }
     }
 
     processMembershipChanges(node);
@@ -270,76 +277,65 @@ void ChangeManager::processNode(ChangedNode* node)
         willBeRelationMember = pastNode.isNull() ? false : pastNode.isRelationMember();
     }
 
-    bool willBeFeature = willHaveTags | willBeRelationMember;
-
-    ChangeFlags futureWaynodeFlag = node->isFutureWaynode() ?
-        ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
-    ChangeFlags pastWaynodeFlag = (pastFeatureFlags & FeatureFlags::WAYNODE) ?
-        ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
-    changeFlags |= futureWaynodeFlag | (futureWaynodeFlag == pastWaynodeFlag ?
-        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE);
-
-    // TODO: duplicate, orphan
-
-    bool willBeDuplicate = false; // TODO
-
-    bool willBeOrphan = false;
-    if (!willHaveTags && !willBeRelationMember)
+    bool hasBelongedToWay = pastRef == CRef::ANONYMOUS_NODE ||
+        (pastFeatureFlags & FeatureFlags::WAYNODE);
+    bool willBelongToWay = node->isFutureWaynode();
+    if (!willBelongToWay)
     {
-        // Node won't have tags and won't be a relation member
-        if (!test(changeFlags, ChangeFlags::FLAGGED_WAYNODE))
+        if (test(changeFlags, ChangeFlags::REMOVED_FROM_WAY))
         {
-            // Node hasn't been added to any ways, and if node
-            //  was a feature node, didn't belong to any ways
-
-            if (!pastNode.isNull())
+            // If the node has been removed from a way, we now need
+            // to check if it still belongs to at least one way
+            // We assume the answer is "no"
+            willBelongToWay = false;
+            ParentWaysQuery query(store(), node->xy(), pastNode);
+            for (;;)
             {
-                // If the node was a feature node, it will now
-                // definitely be an orphan, since it wasn't part
-                // of any ways and hasn't been added to any
-                willBeOrphan = true;
-
-            }
-            else if (test(changeFlags, ChangeFlags::REMOVED_FROM_WAY))
-            {
-                // If the node was anonymous, and it has been removed
-                // from a way, we now need to check if it still belongs
-                // to at least one way
-                // We assume the answer is "no" --> orphan
-                willBeOrphan = true;
-                ParentWaysQuery query(store(), node->xy(), pastNode);
-                for (;;)
+                WayPtr way = query.next();
+                if (way.isNull()) break;
+                CFeature* feature = model_.peekFeature(TypedFeatureId::ofWay(way.id()));
+                if (feature == nullptr || !feature->isChanged())
                 {
-                    WayPtr way = query.next();
-                    if (way.isNull()) break;
-                    CFeature* feature = model_.peekFeature(TypedFeatureId::ofWay(way.id()));
-                    if (feature == nullptr || !feature->isChanged())
-                    {
-                        // If the anon node belonged to a way that is not
-                        // tracked by the model or hasn't changed, we know
-                        // it still belongs to that way --> not an orphan
-                        willBeOrphan = false;
-                        break;
-                    }
-                    ChangedFeatureBase* changed = ChangedFeatureBase::cast(feature);
-                    if (!changed->isChangedExplicitly() && !changed->isDeleted())
-                    {
-                        // The way was changed, but not explicitly (hence no
-                        // change in waynodes), and it hasn't been deleted
-                        // (remember, deletions can also be implicit!);
-                        // i.e. the way only changed geometry, which means
-                        // it will continue to include the node --> not orphan
-                        willBeOrphan = false;
-                        break;
-                    }
+                    // If the anon node belonged to a way that is not
+                    // tracked by the model or hasn't changed, we know
+                    // it still belongs to that way
+                    willBelongToWay = true;
+                    break;
+                }
+                ChangedFeatureBase* changed = ChangedFeatureBase::cast(feature);
+                if (!changed->isChangedExplicitly() && !changed->isDeleted())
+                {
+                    // The way was changed, but not explicitly (hence no
+                    // change in waynodes), and it hasn't been deleted
+                    // (remember, deletions can also be implicit!);
+                    // i.e. the way only changed geometry, which means
+                    // it will continue to include the node --> not orphan
+                    willBelongToWay = true;
+                    break;
                 }
             }
         }
+        else
+        {
+            willBelongToWay = hasBelongedToWay;
+        }
     }
-    changeFlags |= willBeOrphan ? ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
 
+    changeFlags |= willBelongToWay ? ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
+    changeFlags |= (hasBelongedToWay != willBelongToWay) ?
+        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE;
+
+    // TODO: duplicate
+
+    bool willBeDuplicate = false; // TODO
+
+    // Determine orphan status
+
+    bool willBeOrphan = !willHaveTags && !willBeRelationMember && !willBelongToWay;
+    changeFlags |= willBeOrphan ? ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
     bool wasOrphan = (pastFeatureFlags & (FeatureFlags::EXCEPTION_NODE |
         FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == FeatureFlags::EXCEPTION_NODE;
+
     if (wasOrphan != willBeOrphan) [[unlikely]]
     {
         changeFlags |= ChangeFlags::FLAGS_CHANGED;
@@ -349,6 +345,9 @@ void ChangeManager::processNode(ChangedNode* node)
             changeFlags |= ChangeFlags::TAGS_CHANGED;
         }
     }
+
+    bool willBeFeature = willHaveTags | willBeRelationMember |
+        willBeOrphan | willBeDuplicate;
 
     Tip futureTip = tileCatalog_.tipOfCoordinateSlow(node->xy());
     futureTip = willBeFeature ? futureTip : Tip();

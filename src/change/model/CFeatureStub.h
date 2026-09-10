@@ -23,7 +23,7 @@ public:
     public:
         Role() : data_(1) {}
         Role(bool global, uint32_t value) :
-            data_((value << 1) | global) {}
+            data_((value << 1) | static_cast<uint32_t>(global)) {}
 
         bool isGlobal() const { return data_ & 1; }
         bool isGlobal(int code) const

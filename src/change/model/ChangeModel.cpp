@@ -1133,6 +1133,9 @@ void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
 
 const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orphan)
 {
+    // TODO: Can we assume that "geodesk:duplicate" and "geodesk:orphan"
+    //  are always local tags?
+
     assert(duplicate || orphan);
     assert(tags_.isEmpty());
     if (duplicate)
@@ -1144,8 +1147,9 @@ const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orpha
         tags_.addLocalTag("geodesk::orphan", GlobalStrings::YES);
     }
 
-    // TODO: should not need to normalize tags_, since we add in alpha order;
-    //  but double-check
+    // TODO: We wouldn't need to call normalize() since the local tags
+    //  are already ordered, if we explicitly add the "no-globals" marker
+    tags_.normalize();
 
     const CTagTable* tags = getTagTable(tags_, false);
     tags_.clear();
