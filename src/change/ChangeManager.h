@@ -20,11 +20,18 @@ public:
 	{
 	}
 
+	void preProcess();
 	void process();
 	void postProcess();
 
+	ChangeModel& model() { return model_; }
 	const TileCatalog& tileCatalog() const { return tileCatalog_; }
 	FeatureStore* store() const { return model_.store(); }
+
+	int changedTileCount() const
+	{
+		return static_cast<int>(model_.changedTiles().size());
+	}
 
 private:
 	void processNodes();
@@ -52,6 +59,8 @@ private:
 	{
 		return feature->getFeature(store());
 	}
+
+	const CTagTable* getExceptionNodeTags(bool duplicate, bool orphan);
 
 	ChangeModel model_;
 	TileCatalog tileCatalog_;

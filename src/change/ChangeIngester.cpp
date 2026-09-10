@@ -68,7 +68,7 @@ void ChangeIngester::performDownload()
     {
         ReplicationClient client(url_);
         ReplicationClient::State target = client.fetchState();
-        FeatureStore* store = updater_.store();
+        FeatureStore* store = updater_.model().store();
 
         LOGS << "Latest revision on server: " << target.revision;
 

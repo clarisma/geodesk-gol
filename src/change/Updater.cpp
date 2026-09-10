@@ -85,8 +85,7 @@ void UpdaterWorker::applyUpdate(int entryNumber)
 
 Updater::Updater(FeatureStore* store, UpdateSettings& settings) :
     TaskEngine(settings.threadCount()),
-    model_(store, settings),
-    tileCatalog_(store),
+    changes_(store, settings),
     workCompleted_(0),
     updateFileName_(Strings::combine(
         FilePath::withoutExtension(store->fileName()), "-update.tes")),
@@ -176,7 +175,7 @@ void Updater::readChangeFiles(std::span<const char*> files)
         completed(halfWorkPerFile);
         osc.data()[osc.size()-1] = '\0';
         // force null-terminator, possibly overwriting > of final closing tag
-        ChangeReader reader(model_, reinterpret_cast<char*>(osc.data()));
+        ChangeReader reader(model(), reinterpret_cast<char*>(osc.data()));
         //assert(_CrtCheckMemory());
         reader.read();
         completed(halfWorkPerFile);
@@ -188,7 +187,7 @@ void Updater::readChangeFiles(std::span<const char*> files)
 // void Updater::update(const char* changeFileName)
 void Updater::update(std::string_view url, std::span<const char*> files)
 {
-    FeatureStore* store = model_.store();
+    FeatureStore* store = model().store();
     std::string shortName(FilePath::name(store->fileName()));
     if(!store->hasWaynodeIds())
     {
@@ -249,13 +248,13 @@ void Updater::update(std::string_view url, std::span<const char*> files)
         readChangeFiles(files);
     }
 #ifndef NDEBUG
-    model_.dumpChangedRelationCount();
+    model().dumpChangedRelationCount();   // TODO: move to ChangeManager
 #endif
 
     Console::get()->setTask("Analyzing...");
     LOGS << "Preparing for analysis...";
-    model_.prepareNodes();
-    model_.prepareWays();
+    model().prepareNodes();     // TODO: move to ChangeManager
+    model().prepareWays();
     //assert(_CrtCheckMemory());
 
     LOGS << "Starting analysis...";
@@ -275,11 +274,13 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     }
 
 #ifndef NDEBUG
-    model_.dump();
-    model_.checkMissing();
+    model().dump();
+    model().checkMissing();
 #endif
-    processChanges();
-    LOGS << model_.changedTiles().size() << " tiles changed.";
+    changes_.preProcess();
+    changes_.process();
+    // TODO: perform secondary search, then process again
+    changes_.postProcess();
 
     prepareUpdate();
     applyUpdate();
@@ -287,7 +288,7 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     end();
     //assert(_CrtCheckMemory());
 
-    Console::end().success() << "Updated " << model_.changedTiles().size() << " tiles.\n";
+    Console::end().success() << "Updated " << changes_.changedTileCount() << " tiles.\n";
 }
 
 
@@ -300,18 +301,18 @@ void Updater::prepareUpdate()
     if (Console::verbosity() >= Console::Verbosity::DEBUG)
     {
         TesChecker::createFolders(dumpPath_,
-            model_.changedTiles() | std::views::keys);
+            model().changedTiles() | std::views::keys);
     }
 #endif
 
-    FeatureStore* store = model_.store();
-    int changedTileCount = static_cast<int>(model_.changedTiles().size());
+    FeatureStore* store = model().store();
+    int changedTileCount = changes_.changedTileCount();
     startPhase(Phase::PREPARE_UPDATE, changedTileCount, 0);
         // TODO: workPerUnit
     archiveWriter_.open(updateFileName_.c_str(), store->guid(),
         targetRevision_, targetTimestamp_, changedTileCount, true);
         // (always uses way-node IDs)
-    for(const auto& [tip,changedTile] : model_.changedTiles())
+    for(const auto& [tip,changedTile] : model().changedTiles())
     {
         postWork(UpdaterTask(tip));
     }
@@ -325,12 +326,12 @@ void Updater::applyUpdate()
 {
     LOGS << "Updating tiles...";
     Console::get()->setTask("Updating tiles...");
-    FeatureStore* store = model_.store();
+    FeatureStore* store = model().store();
 
     tesArchive_.open(updateFileName_.c_str());
     int changedTileCount = static_cast<int>(tesArchive_.header().tileCount);
     tesOffsets_.reset(new uint64_t[changedTileCount]);
-    assert(changedTileCount == model_.changedTiles().size());
+    assert(changedTileCount == changes_.changedTileCount());
     startPhase(Phase::APPLY_UPDATE, changedTileCount,
         workApplying_ / changedTileCount);
 

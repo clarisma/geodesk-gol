@@ -8,7 +8,7 @@
 #include <geodesk/feature/Tip.h>
 #include "tile/tes/TesArchiveWriter.h"
 
-#include "change/model/ChangeModel.h"
+#include "ChangeManager.h"
 #include "ChangeWriter.h"
 #include "TileChangeAnalyzer.h"
 
@@ -84,9 +84,8 @@ public:
 	void setReadingTask(uint32_t revision);
 	void reportFileRead(size_t uncompressedSize);
 
-	ChangeModel& model() { return model_; }
-	const TileCatalog& tileCatalog() const { return tileCatalog_; }
-	FeatureStore* store() const { return model_.store(); }
+	ChangeModel& model() { return changes_.model(); }
+	const TileCatalog& tileCatalog() const { return changes_.tileCatalog(); }
 	Phase phase() const { return phase_; }
 	void taskCompleted();
 	void processTask(TileData& task);	// CRTP override
@@ -112,31 +111,6 @@ private:
 	void startPhase(Phase phase, int taskCount, double workPerUnit);
 	void awaitPhaseCompletion() { phaseCompleted_.acquire(); }
 	void completed(double work);
-	void processChanges();
-	void processNodes();
-	void processWays();
-	void preProcessRelations();
-	void processRelations();
-	void assignToTiles(ChangedFeature2D* feature);
-	void processNode(ChangedNode* node);
-	void processWay(ChangedFeature2D* way);
-	int processRelation(ChangedFeature2D* rel);
-	void processDeletedFeature(ChangedFeature2D* deleted);
-	void processMembershipChanges(ChangedFeatureBase* feature);
-	void addDeleted(Tip tip, ChangedFeatureStub* feature);
-	void updateBounds(ChangedFeature2D* future, const Box& bounds);
-	void updateTiles(ChangedFeature2D* feature, TilePair futureTiles);
-	void checkMemberExports(ChangedFeature2D* rel);
-	void checkExport(CFeature* feature, bool willBeForeign);
-	void mayGainOrLoseTex(CFeature* member, ChangedFeature2D* parent);
-	void cascadeNodeCoordinateChange(NodePtr node, Coordinate futureXY);
-	void cascadeBoundsChange(FeaturePtr feature, const Box& futureBounds);
-	int normalizeRefs(ChangedFeature2D* changed);
-	CRef deduceTwinRef(CRef ref) const;
-	FeaturePtr getFeature(CFeature* feature) const
-	{
-		return feature->getFeature(store());
-	}
 
 	void readChangeFiles(std::span<const char*> files);
 	void prepareUpdate();
@@ -147,8 +121,7 @@ private:
 	static void printRevision(ConsoleWriter& out, const char* leader,
 		uint32_t revision, DateTime timestamp, DateTime now);
 
-	ChangeModel model_;			// TODO: move to ChangeManager
-	TileCatalog tileCatalog_;   // TODO: move to ChangeManager
+	ChangeManager changes_;
 	std::string updateFileName_;
 	TesArchiveWriter archiveWriter_;
 	std::atomic<double> workCompleted_;
@@ -156,8 +129,7 @@ private:
 	Phase phase_;
 	std::atomic<int> tasksRemaining_;
 	std::binary_semaphore phaseCompleted_;
-	bool memberSearchCompleted_ = true; // TODO
-		// TODO: move to ChangeManager
+
 	uint32_t targetRevision_;
 	DateTime targetTimestamp_;
 	TesArchive tesArchive_;

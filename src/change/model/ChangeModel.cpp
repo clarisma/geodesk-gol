@@ -9,6 +9,7 @@
 #include <geodesk/feature/MemberTableIterator.h>
 #include <geodesk/feature/ParentRelationIterator.h>
 #include <geodesk/feature/WayNodeIterator.h>
+#include <geodesk/query/ParentWaysQuery.h>
 
 #include "build/compile/Role.h"
 #include "ChangedNode.h"
@@ -1132,6 +1133,7 @@ void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
 
 const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orphan)
 {
+    assert(duplicate || orphan);
     assert(tags_.isEmpty());
     if (duplicate)
     {
@@ -1149,3 +1151,5 @@ const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orpha
     tags_.clear();
     return tags;
 }
+
+

@@ -4,9 +4,9 @@
 #include "ChangeManager.h"
 #include <clarisma/io/FilePath.h>
 #include <geodesk/feature/ParentRelationIterator.h>
+#include <geodesk/query/ParentWaysQuery.h>
 #include "change/model/ChangeModelDumper.h"
 #include "change/model/ChangedTile.h"
-#include "geodesk/query/Query.h"
 
 // TODO: When do we process the membership changes of members
 //  of a deleted relation? ==> during scan in TCA
@@ -90,12 +90,19 @@ void ChangeManager::preProcessRelations()
     }
 }
 
+void ChangeManager::preProcess()
+{
+    LOGS << "Pre-processing changes...";
+    preProcessRelations();
+}
 
 void ChangeManager::process()
 {
     LOGS << "Processing changes...";
 
-    preProcessRelations();
+    // Nodes will need to be processed in a potential second turn,
+    // because there may be implicitly changed nodes (added to a
+    // relation) that haven't been found during the initial search
     processNodes();
     processWays();
     processRelations();
@@ -105,13 +112,7 @@ void ChangeManager::process()
 
 void ChangeManager::postProcess()
 {
-    // ways deferred due to unknown nodes
-    processWays();
-
-    while (!model_.changedRelations().isEmpty())
-    {
-        processRelations();
-    }
+    LOGS << "Processing changes...";
 
     model_.determineTexLosers();
 
@@ -128,7 +129,8 @@ void ChangeManager::postProcess()
     }
 #endif
 
-    LOGS << "Processed changes.";
+    LOGS << "Post-processed changes.";
+    LOGS << changedTileCount() << " tiles changed.";
 }
 
 
@@ -182,6 +184,21 @@ void ChangeManager::processRelations()
 }
 
 // TODO: Check if shared_location flag changes; if so, set FLAGS_CHANGED
+
+// TODO: if an anon node becomes a feature (get tags, added to relation,
+//  becomes a duplicate), its parent ways will need to be updated
+//  (node-table changed = technical change);
+//  likewise, feature node to anon (loses tags and removed from all rels,
+//  or duplicate becomes unique), need to update parent ways
+
+// TODO: Now we have chicken/egg problem: ways need all processed nodes,
+//  but an implicit delete of a way (invalid, or missing nodes) may
+//  turn its nodes into orphans
+//  Solution: never implicitly delete a way, try to fix it instead
+//   by removing missing nodes, or interpolating
+//   Only discard a way if *all* of its nodes are missing
+//   This differs from gol build, which currently discards all ways
+//   with *any* missing nodes
 
 void ChangeManager::processNode(ChangedNode* node)
 {
@@ -259,24 +276,78 @@ void ChangeManager::processNode(ChangedNode* node)
         ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
     ChangeFlags pastWaynodeFlag = (pastFeatureFlags & FeatureFlags::WAYNODE) ?
         ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
-    node->addFlags(futureWaynodeFlag | (futureWaynodeFlag == pastWaynodeFlag ?
-        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE));
+    changeFlags |= futureWaynodeFlag | (futureWaynodeFlag == pastWaynodeFlag ?
+        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE);
 
     // TODO: duplicate, orphan
 
-    /*
+    bool willBeDuplicate = false; // TODO
+
     bool willBeOrphan = false;
     if (!willHaveTags && !willBeRelationMember)
     {
+        // Node won't have tags and won't be a relation member
+        if (!test(changeFlags, ChangeFlags::FLAGGED_WAYNODE))
+        {
+            // Node hasn't been added to any ways, and if node
+            //  was a feature node, didn't belong to any ways
 
+            if (!pastNode.isNull())
+            {
+                // If the node was a feature node, it will now
+                // definitely be an orphan, since it wasn't part
+                // of any ways and hasn't been added to any
+                willBeOrphan = true;
+
+            }
+            else if (test(changeFlags, ChangeFlags::REMOVED_FROM_WAY))
+            {
+                // If the node was anonymous, and it has been removed
+                // from a way, we now need to check if it still belongs
+                // to at least one way
+                // We assume the answer is "no" --> orphan
+                willBeOrphan = true;
+                ParentWaysQuery query(store(), node->xy(), pastNode);
+                for (;;)
+                {
+                    WayPtr way = query.next();
+                    if (way.isNull()) break;
+                    CFeature* feature = model_.peekFeature(TypedFeatureId::ofWay(way.id()));
+                    if (feature == nullptr || !feature->isChanged())
+                    {
+                        // If the anon node belonged to a way that is not
+                        // tracked by the model or hasn't changed, we know
+                        // it still belongs to that way --> not an orphan
+                        willBeOrphan = false;
+                        break;
+                    }
+                    ChangedFeatureBase* changed = ChangedFeatureBase::cast(feature);
+                    if (!changed->isChangedExplicitly() && !changed->isDeleted())
+                    {
+                        // The way was changed, but not explicitly (hence no
+                        // change in waynodes), and it hasn't been deleted
+                        // (remember, deletions can also be implicit!);
+                        // i.e. the way only changed geometry, which means
+                        // it will continue to include the node --> not orphan
+                        willBeOrphan = false;
+                        break;
+                    }
+                }
+            }
+        }
     }
-    */
+    changeFlags |= willBeOrphan ? ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
 
     bool wasOrphan = (pastFeatureFlags & (FeatureFlags::EXCEPTION_NODE |
         FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == FeatureFlags::EXCEPTION_NODE;
-    if (wasOrphan) [[unlikely]]
+    if (wasOrphan != willBeOrphan) [[unlikely]]
     {
-
+        changeFlags |= ChangeFlags::FLAGS_CHANGED;
+        if (willBeOrphan)
+        {
+            node->setTagTable(getExceptionNodeTags(willBeDuplicate, willBeOrphan));
+            changeFlags |= ChangeFlags::TAGS_CHANGED;
+        }
     }
 
     Tip futureTip = tileCatalog_.tipOfCoordinateSlow(node->xy());
@@ -294,7 +365,7 @@ void ChangeManager::processNode(ChangedNode* node)
         if(!futureTip.isNull())
         {
             node->setRef(CRef::ofNew(futureTip));
-            node->addFlags(ChangeFlags::NEW_TO_NORTHWEST | ChangeFlags::TILES_CHANGED);
+            changeFlags |= ChangeFlags::NEW_TO_NORTHWEST | ChangeFlags::TILES_CHANGED;
             // If node moves to another tile, we will need to write its tags
             //  and rels
             if (!node->tagTable())
@@ -321,7 +392,7 @@ void ChangeManager::processNode(ChangedNode* node)
     {
         ChangedTile* futureTile = model_.getChangedTile(futureTip);
         futureTile->changedNodes().push(node);
-        if (node->is(ChangeFlags::GEOMETRY_CHANGED))
+        if (test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
         {
             // If node is (and was) a feature node and has moved,
             // its parent relations (if any) may implicitly change
@@ -340,13 +411,13 @@ void ChangeManager::processNode(ChangedNode* node)
         //  --> If we don't push it to the changedNodes stack,
         //      why would ChangeWriter write it to the TES??
         //      (because it is referenced by a way -- but check)
-        node->clearFlags(ChangeFlags::TAGS_CHANGED | ChangeFlags::GEOMETRY_CHANGED);
+        changeFlags &= ~(ChangeFlags::TAGS_CHANGED | ChangeFlags::GEOMETRY_CHANGED);
         node->setRef(node->ref() == CRef::MISSING ?
             CRef::MISSING : CRef::ANONYMOUS_NODE);
     }
 
-    // TODO
-    node->addFlags(ChangeFlags::PROCESSED);
+    changeFlags |= ChangeFlags::PROCESSED;
+    node->setFlags(changeFlags);
 }
 
 /*
@@ -1283,6 +1354,20 @@ void ChangeManager::checkExport(CFeature* feature, bool willBeForeign)
         // TODO: use a flag so we can use a vector instead of hashset
         model_.mayLoseTex(feature);
     }
+}
+
+
+const CTagTable* ChangeManager::getExceptionNodeTags(bool duplicate, bool orphan)
+{
+    assert(duplicate || orphan);
+    const CTagTable** pTable = orphan ?
+        (duplicate ? &duplicateOrphanNodeTags_ : &orphanNodeTags_) :
+            &duplicateNodeTags_;
+    if (*pTable == nullptr)
+    {
+        *pTable = model_.createExceptionNodeTags(duplicate, orphan);
+    }
+    return *pTable;
 }
 
 // TODO: possible replacement for checkExport()
