@@ -14,9 +14,10 @@ using namespace geodesk;
 class ChangedTile 
 {
 public:
-    explicit ChangedTile(Arena& arena, Tip tip) :
+    explicit ChangedTile(Tip tip, Tile tile) :
         tip_(tip),
-        mayGainTex_(arena) {}
+        tile_(tile) {}
+        // mayGainTex_(arena) {}
 
     Tip tip() const { return tip_; }
     LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
@@ -41,8 +42,10 @@ public:
 
     void mayGainTex(CFeatureStub* feature)
     {
+        // TODO
+
         assert(feature);
-        mayGainTex_.add(feature);
+        // mayGainTex_.add(feature);
         hasTexChanges_ = true;
 
         // TODO: Unless the feature is marked may_have_tex,
@@ -59,10 +62,12 @@ public:
 
     bool hasTexChanges() const { return hasTexChanges_; }
 
+    /*
     const ArenaBag<CFeatureStub*,16>& mayGainTex() const
     {
         return mayGainTex_;
     }
+    */
 
 private:
     LinkedStack<ChangedNode> changedNodes_;
@@ -71,7 +76,8 @@ private:
     LinkedStack<ChangedFeatureStub> deletedNodes_;
     LinkedStack<ChangedFeatureStub> deletedWays_;
     LinkedStack<ChangedFeatureStub> deletedRelations_;
-    ArenaBag<CFeatureStub*,16> mayGainTex_;
+    // ArenaBag<CFeatureStub*,16> mayGainTex_;
     Tip tip_;
+    Tile tile_;
     bool hasTexChanges_ = false;
 };

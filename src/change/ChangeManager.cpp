@@ -1556,6 +1556,18 @@ CRef ChangeManager::getRef(FeaturePtr feature) const
         store()->fetchTile(tip).handleOf(feature));
 }
 
+
+ChangedTile* ChangeManager::getChangedTile(Tip tip)
+{
+    assert(!tip.isNull());
+    auto it = changedTiles_.find(tip);
+    if(it != changedTiles_.end()) return it->second;
+    Arena& arena = model_.arena();
+    ChangedTile* changedTile = arena.create<ChangedTile>(arena, tip);
+    changedTiles_[tip] = changedTile;
+    return changedTile;
+}
+
 // TODO: possible replacement for checkExport()
 /*
 void Updater::mayGainOrLoseTex(CFeature* member, ChangedFeature2D* parent)

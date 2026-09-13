@@ -506,15 +506,6 @@ ChangedFeature2D* ChangeModel::createChangedFeature2D(
 }
 */
 
-ChangedTile* ChangeModel::getChangedTile(Tip tip)
-{
-    assert(!tip.isNull());
-    auto it = changedTiles_.find(tip);
-    if(it != changedTiles_.end()) return it->second;
-    ChangedTile* changedTile = arena_.create<ChangedTile>(arena_, tip);
-    changedTiles_[tip] = changedTile;
-    return changedTile;
-}
 
 void ChangeModel::dump()
 {

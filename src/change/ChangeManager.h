@@ -30,7 +30,7 @@ public:
 
 	int changedTileCount() const
 	{
-		return static_cast<int>(model_.changedTiles().size());
+		return static_cast<int>(changedTiles_.size());
 	}
 
 private:
@@ -38,6 +38,7 @@ private:
 	void processWays();
 	void preProcessRelations();
 	void processRelations();
+	ChangedTile* getChangedTile(Tip tip);
 	void assignToTiles(ChangedFeature2D* feature);
 	void processNode(ChangedNode* node);
 	void processPastCoincidentNode(ChangedNode* node, NodePtr pastNode);
@@ -63,6 +64,7 @@ private:
 
 	ChangeModel model_;
 	TileCatalog tileCatalog_;
+	HashMap<Tip,ChangedTile*> changedTiles_;
 	HashMap<Coordinate,ChangedNode*> uniqueLocationNodes_;
 	bool memberSearchCompleted_ = true; // TODO
 	const CTagTable* duplicateNodeTags_ = nullptr;

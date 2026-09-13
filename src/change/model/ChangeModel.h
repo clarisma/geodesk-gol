@@ -36,6 +36,7 @@ public:
     void clear();
 
     FeatureStore* store() const { return store_; }
+    Arena& arena() { return arena_; }
     uint32_t getLocalString(std::string_view s);
     const CTagTable* getTagTable(const TagTableModel& tags, bool determineIfArea);
     const CTagTable* getTagTable(CRef ref);
@@ -96,7 +97,6 @@ public:
     CFeature::Role getRole(std::string_view s);
     std::string_view getRoleString(CFeature::Role role) const;
     CFeature* peekFeature(TypedFeatureId typedId) const;
-    ChangedTile* getChangedTile(Tip tip);
 
     const ShortVarString* getString(uint32_t code) const
     {
@@ -114,11 +114,6 @@ public:
     const HashMap<TypedFeatureId,CFeatureStub*>& features() const
     {
         return features_;
-    }
-
-    const HashMap<Tip,ChangedTile*>& changedTiles() const
-    {
-        return changedTiles_;
     }
 
     LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
@@ -186,7 +181,6 @@ private:
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeature2D> changedWays_;
     LinkedStack<ChangedFeature2D> changedRelations_;
-    HashMap<Tip,ChangedTile*> changedTiles_;    // TODO: move to ChangeManager
     HashSet<CFeatureStub*> mayLoseTex_;
         // TODO: make vector, use MAY_LOSE_TEX flag
         // TODO: move to ChangeManager
