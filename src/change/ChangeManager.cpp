@@ -1563,7 +1563,8 @@ ChangedTile* ChangeManager::getChangedTile(Tip tip)
     auto it = changedTiles_.find(tip);
     if(it != changedTiles_.end()) return it->second;
     Arena& arena = model_.arena();
-    ChangedTile* changedTile = arena.create<ChangedTile>(arena, tip);
+    ChangedTile* changedTile = arena.create<ChangedTile>(tip,
+        tileCatalog_.tileOfTip(tip));
     changedTiles_[tip] = changedTile;
     return changedTile;
 }
