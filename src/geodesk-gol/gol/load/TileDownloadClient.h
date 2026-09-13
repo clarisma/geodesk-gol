@@ -5,7 +5,7 @@
 #include <clarisma/alloc/Block.h>
 #include <clarisma/net/HttpClient.h>
 #include <clarisma/net/HttpResponseReader.h>
-#include "tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
 
 using namespace clarisma;
 

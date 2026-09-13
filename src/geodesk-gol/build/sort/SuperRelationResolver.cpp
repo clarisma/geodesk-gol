@@ -7,9 +7,9 @@
 #include <clarisma/cli/Console.h>
 #include <clarisma/math/Math.h>
 #include <clarisma/util/varint.h>
-#include "build/util/ProtoGol.h"
-#include "build/util/StringCatalog.h"
-#include "build/util/TileCatalog.h"
+#include "geodesk-gol/build/util/ProtoGol.h"
+#include "geodesk-gol/build/util/StringCatalog.h"
+#include "geodesk-gol/build/util/TileCatalog.h"
 #include "FastFeatureIndex.h"
 
 const std::vector<SuperRelation*>* SuperRelationResolver::resolve()

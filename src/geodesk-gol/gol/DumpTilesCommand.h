@@ -5,7 +5,7 @@
 #include "GolCommand.h"
 #include <filesystem>
 #include <unordered_set>
-#include "tile/util/TileTaskEngine.h"
+#include "geodesk-gol/tile/util/TileTaskEngine.h"
 
 class DumpTilesCommand : public GolCommand
 {

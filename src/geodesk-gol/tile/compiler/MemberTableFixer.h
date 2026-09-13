@@ -4,8 +4,8 @@
 #pragma once
 
 #include <geodesk/feature/MemberTableIterator.h>
-#include "tile/model/TRelation.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TRelation.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 // TODO: Check if this class can handle negative offsets
 //  The handle for a way's body could be 4 (first assigned handle),

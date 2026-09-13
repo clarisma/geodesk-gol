@@ -6,8 +6,8 @@
 #include <memory>
 #include <clarisma/util/BitIterator.h>
 #include <clarisma/util/varint.h>
-#include "build/GolBuilder.h"
-#include "build/util/ProtoGol.h"
+#include "geodesk-gol/build/GolBuilder.h"
+#include "geodesk-gol/build/util/ProtoGol.h"
 #include <geodesk/feature/types.h>
 #include <geodesk/feature/TypedFeatureId.h>
 #include <geodesk/geom/Box.h>

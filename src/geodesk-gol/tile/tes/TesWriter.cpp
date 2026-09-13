@@ -8,11 +8,11 @@
 #include <geodesk/feature/MemberTableIterator.h>
 #include <geodesk/feature/NodeTableIterator.h>
 #include <geodesk/feature/RelationTableIterator.h>
-#include "tile/model/TNode.h"
-#include "tile/model/TWay.h"
-#include "tile/model/TRelation.h"
+#include "geodesk-gol/tile/model/TNode.h"
+#include "geodesk-gol/tile/model/TWay.h"
+#include "geodesk-gol/tile/model/TRelation.h"
 #include <clarisma/util/log.h>
-#include <tile/model/TExportTable.h>
+#include <geodesk-gol/tile/model/TExportTable.h>
 
 
 // TODO: 

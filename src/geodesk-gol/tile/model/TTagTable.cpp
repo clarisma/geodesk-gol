@@ -6,9 +6,9 @@
 #include <clarisma/util/StringBuilder.h>
 #include "Layout.h"
 #include "TileModel.h"
-#include "tile/compiler/IndexSettings.h"
-#include "tile/compiler/GlobalTagFixer.h"
-#include "tile/compiler/LocalTagFixer.h"
+#include "geodesk-gol/tile/compiler/IndexSettings.h"
+#include "geodesk-gol/tile/compiler/GlobalTagFixer.h"
+#include "geodesk-gol/tile/compiler/LocalTagFixer.h"
 
 void TTagTable::write(const TileModel& tile) const
 {

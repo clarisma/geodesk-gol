@@ -4,7 +4,7 @@
 #pragma once
 
 #include <geodesk/feature/ForeignFeatureRef.h>
-#include "tile/model/TRelation.h"
+#include "geodesk-gol/tile/model/TRelation.h"
 
 
 class Membership : public Linked<Membership>

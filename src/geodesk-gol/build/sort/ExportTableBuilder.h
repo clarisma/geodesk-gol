@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include <vector>
-#include "build/util/ForeignRelationLookup.h"
+#include "geodesk-gol/build/util/ForeignRelationLookup.h"
 #include <geodesk/geom/Tile.h>
 #include <geodesk/geom/index/hilbert.h>
 #include "VFeature.h"

@@ -6,7 +6,7 @@
 #include <clarisma/io/File.h>
 #include <clarisma/thread/TaskQueue.h>
 #include <clarisma/zip/Deflater.h>
-#include "osm/OsmPbfEncoder.h"
+#include "geodesk-gol/osm/OsmPbfEncoder.h"
 
 using namespace geodesk;
 

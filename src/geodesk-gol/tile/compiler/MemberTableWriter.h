@@ -4,7 +4,7 @@
 #pragma once
 
 #include "AbstractMemberTableWriter.h"
-#include "tile/model/TString.h"
+#include "geodesk-gol/tile/model/TString.h"
 
 class MemberTableWriter : public AbstractMemberTableWriter<1, 2>
 {

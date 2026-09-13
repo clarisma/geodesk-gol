@@ -7,9 +7,9 @@
 #include <clarisma/thread/TaskEngine.h>
 #include <geodesk/feature/Tip.h>
 #include <geodesk/geom/Tile.h>
-#include "tile/tes/TesArchive.h"
-#include "tile/tes/TesArchiveWriter.h"
-#include "tile/tes/TesWriter.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/tes/TesArchiveWriter.h"
+#include "geodesk-gol/tile/tes/TesWriter.h"
 
 namespace geodesk {
 class FeatureStore;

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "build/util/ForeignRelationLookup.h"
+#include "geodesk-gol/build/util/ForeignRelationLookup.h"
 #include <clarisma/io/File.h>
 
 class ExportFileWriter

@@ -11,12 +11,12 @@
 #include <geodesk/feature/WayPtr.h>
 #include <geodesk/feature/RelationPtr.h>
 
-#include "tag/AreaClassifier.h"
+#include "geodesk-gol/tag/AreaClassifier.h"
 #include "ChangedFeature2D.h"
 #include "ChangedNode.h"
 #include "CRelationTable.h"
 #include "CTagTable.h"
-#include "change/UpdateSettings.h"
+#include "geodesk-gol/change/UpdateSettings.h"
 
 using namespace clarisma;
 

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
-#include "build/util/TileCatalog.h"
-#include "change/model/ChangeModel.h"
+#include "geodesk-gol/build/util/TileCatalog.h"
+#include "geodesk-gol/change/model/ChangeModel.h"
 #include "ChangeWriter.h"
 #include "TileChangeAnalyzer.h"
 

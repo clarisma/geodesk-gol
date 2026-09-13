@@ -4,7 +4,7 @@
 #pragma once
 
 #include <clarisma/alloc/Arena.h>
-#include "build/util/BuildSettings.h"
+#include "geodesk-gol/build/util/BuildSettings.h"
 #include <geodesk/feature/Tip.h>
 #include <geodesk/geom/Tile.h>
 #include "NodeCountTable.h"

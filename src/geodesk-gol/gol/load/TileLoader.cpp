@@ -9,14 +9,14 @@
 #include <clarisma/util/FileVersion.h>
 #include <clarisma/zip/Zip.h>
 #include <geodesk/query/TileIndexWalker.h>
-#include "tile/compiler/IndexSettings.h"
-#include "tile/model/Layout.h"
-#include "tile/model/THeader.h"
-#include "tile/model/TileModel.h"
-#include "tile/model/TileReader.h"
-#include "tile/tes/TesArchive.h"
-#include "tile/tes/TesParcel.h"
-#include "tile/tes/TesReader.h"
+#include "geodesk-gol/tile/compiler/IndexSettings.h"
+#include "geodesk-gol/tile/model/Layout.h"
+#include "geodesk-gol/tile/model/THeader.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TileReader.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/tes/TesParcel.h"
+#include "geodesk-gol/tile/tes/TesReader.h"
 
 // TODO: Set waynode_ids flag in store
 

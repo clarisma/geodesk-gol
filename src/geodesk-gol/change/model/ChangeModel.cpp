@@ -11,7 +11,7 @@
 #include <geodesk/feature/WayNodeIterator.h>
 #include <geodesk/query/ParentWaysQuery.h>
 
-#include "build/compile/Role.h"
+#include "geodesk-gol/build/compile/Role.h"
 #include "ChangedNode.h"
 #include "ChangedTile.h"
 #include "CRelationTable.h"

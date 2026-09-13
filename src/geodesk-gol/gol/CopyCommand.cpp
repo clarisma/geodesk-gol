@@ -6,7 +6,7 @@
 #include <clarisma/cli/CliHelp.h>
 #include <clarisma/io/FilePath.h>
 
-#include "gol/load/TileLoader.h"
+#include "geodesk-gol/gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
 CopyCommand::CopyCommand()

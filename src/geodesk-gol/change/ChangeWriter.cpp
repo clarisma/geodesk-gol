@@ -3,14 +3,14 @@
 
 #include "ChangeWriter.h"
 
-#include <build/util/TileCatalog.h>
+#include <geodesk-gol/build/util/TileCatalog.h>
 #include <clarisma/cli/Console.h>
 #include <clarisma/util/log.h>
 
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangedNode.h"
-#include "change/model/ChangedTile.h"
-#include "tile/tes/TesFlags.h"
+#include "geodesk-gol/change/model/ChangeModel.h"
+#include "geodesk-gol/change/model/ChangedNode.h"
+#include "geodesk-gol/change/model/ChangedTile.h"
+#include "geodesk-gol/tile/tes/TesFlags.h"
 
 
 void ChangeWriter::write(ChangedTile* tile, Buffer* buf)

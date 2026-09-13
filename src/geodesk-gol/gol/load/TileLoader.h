@@ -9,10 +9,10 @@
 #include <geodesk/feature/FeatureStore_Transaction.h>
 #include <geodesk/feature/Tip.h>
 #include <geodesk/geom/Tile.h>
-#include "tile/model/TileModel.h"
-#include "tile/tes/TesArchive.h"
-#include "tile/tes/TesParcel.h"
-#include "tile/util/TileData.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/tes/TesParcel.h"
+#include "geodesk-gol/tile/util/TileData.h"
 
 namespace geodesk {
 class FeatureStore;

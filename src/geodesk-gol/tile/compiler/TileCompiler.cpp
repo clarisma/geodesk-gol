@@ -4,12 +4,12 @@
 #include "TileCompiler.h"
 #include <clarisma/zip/Zip.h>
 #include <geodesk/feature/FeatureStore.h>
-#include <tile/model/THeader.h>
+#include <geodesk-gol/tile/model/THeader.h>
 #include "IndexSettings.h"
-#include "tile/model/Layout.h"
-#include "tile/model/TileReader.h"
-#include "tile/tes/TesArchive.h"
-#include "tile/tes/TesReader.h"
+#include "geodesk-gol/tile/model/Layout.h"
+#include "geodesk-gol/tile/model/TileReader.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/tes/TesReader.h"
 
 
 void TileCompiler::modifyTile(Tip tip, Tile tile)

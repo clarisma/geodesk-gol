@@ -4,8 +4,8 @@
 #include "Sorter.h"
 #include <cassert>
 #include <clarisma/thread/Threads.h>
-#include "build/GolBuilder.h"
-#include "gol/debug.h"
+#include "geodesk-gol/build/GolBuilder.h"
+#include "geodesk-gol/gol/debug.h"
 #include <geodesk/geom/Mercator.h>
 #include <geodesk/geom/TilePair.h>
 #include "SuperRelationResolver.h"

@@ -6,11 +6,11 @@
 #include <clarisma/io/FilePath.h>
 #include <clarisma/io/FileSystem.h>
 #include <clarisma/sys/SystemInfo.h>
-#include "build/analyze/Analyzer.h"
-#include "build/analyze/TileIndexBuilder.h"
-#include "build/sort/Sorter.h"
-#include "build/sort/Validator.h"
-#include "build/compile/Compiler.h"
+#include "geodesk-gol/build/analyze/Analyzer.h"
+#include "geodesk-gol/build/analyze/TileIndexBuilder.h"
+#include "geodesk-gol/build/sort/Sorter.h"
+#include "geodesk-gol/build/sort/Validator.h"
+#include "geodesk-gol/build/compile/Compiler.h"
 #ifdef GEODESK_PYTHON
 #include "python/util/util.h"
 #endif

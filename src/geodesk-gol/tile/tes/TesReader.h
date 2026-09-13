@@ -7,8 +7,8 @@
 #include <clarisma/util/MutableDataPtr.h>
 #include <clarisma/util/TaggedPtr.h>
 #include "TesException.h"
-#include "tile/model/MutableFeaturePtr.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/MutableFeaturePtr.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 
 class TesReader

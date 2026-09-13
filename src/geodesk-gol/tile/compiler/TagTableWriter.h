@@ -6,7 +6,7 @@
 #include <cassert>
 #include <clarisma/util/log.h>
 #include <clarisma/util/MutableDataPtr.h>
-#include "tile/model/TTagTable.h"
+#include "geodesk-gol/tile/model/TTagTable.h"
 #include "TagTableHasher.h"
 
 // Caution: Offsets can be negative, since we place local keys

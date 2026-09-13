@@ -9,8 +9,8 @@
 #include <clarisma/thread/Phaser.h>
 #include <clarisma/util/BufferWriter.h>
 #include <geodesk/geom/Coordinate.h>
-#include "osm/OsmPbfReader.h"
-#include "build/util/StringCatalog.h"
+#include "geodesk-gol/osm/OsmPbfReader.h"
+#include "geodesk-gol/build/util/StringCatalog.h"
 #include "FastFeatureIndex.h"
 #include "SortedChildFeature.h"
 #include "SorterPileWriter.h"

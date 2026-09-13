@@ -4,7 +4,7 @@
 #pragma once
 
 #include <clarisma/alloc/Block.h>
-#include "build/util/ForeignRelationLookup.h"
+#include "geodesk-gol/build/util/ForeignRelationLookup.h"
 #include <geodesk/feature/TypedFeatureId.h>
 
 class ExportTable : public ByteBlock

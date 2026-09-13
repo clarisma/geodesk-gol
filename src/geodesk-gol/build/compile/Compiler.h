@@ -6,11 +6,11 @@
 #include <clarisma/thread/TaskEngine.h>
 #include <geodesk/feature/FeatureStore_Transaction.h>
 #include <geodesk/geom/Coordinate.h>
-#include "build/util/ProtoGolReader.h"
-#include "build/util/TileCatalog.h"
-#include "tag/AreaClassifier.h"
-#include "tile/model/TileModel.h"
-#include "tile/model/TNode.h"
+#include "geodesk-gol/build/util/ProtoGolReader.h"
+#include "geodesk-gol/build/util/TileCatalog.h"
+#include "geodesk-gol/tag/AreaClassifier.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TNode.h"
 #include "ExportFile.h"
 #include "FeatureRef.h"
 #include "TagTableBuilder.h"

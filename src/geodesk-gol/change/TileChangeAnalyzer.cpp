@@ -6,9 +6,9 @@
 #include <geodesk/feature/MemberIterator.h>
 #include <geodesk/feature/WayNodeIdIterator.h>
 
-#include "change/model/ChangeAction.h"
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangedNode.h"
+#include "geodesk-gol/change/model/ChangeAction.h"
+#include "geodesk-gol/change/model/ChangeModel.h"
+#include "geodesk-gol/change/model/ChangedNode.h"
 
 
 // TODO: We perform checks for multi-tile features only

@@ -6,7 +6,7 @@
 #include "TExportTable.h"
 #include "TFeature.h"
 #include "TileModel.h"
-#include "tile/compiler/IndexSettings.h"
+#include "geodesk-gol/tile/compiler/IndexSettings.h"
 
 void THeader::write(const TileModel& tile) const
 {

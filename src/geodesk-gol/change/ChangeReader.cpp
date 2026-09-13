@@ -4,9 +4,9 @@
 #include "ChangeReader.h"
 #include <geodesk/feature/FeatureStore.h>
 #include <clarisma/util/log.h>
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangedNode.h"
-#include "tag/TagTableModel.h"
+#include "geodesk-gol/change/model/ChangeModel.h"
+#include "geodesk-gol/change/model/ChangedNode.h"
+#include "geodesk-gol/tag/TagTableModel.h"
 
 // TODO: If version is missing from a change, set it to 1,
 //  so we can distinguish explicit vs. implciit changes

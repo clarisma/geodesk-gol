@@ -6,7 +6,7 @@
 #include <clarisma/io/FilePath.h>
 #include <geodesk/format/LeafletFormatter.h>
 #include <geodesk/query/Query.h>
-#include "gol/query/MapQueryPrinter.h"
+#include "geodesk-gol/gol/query/MapQueryPrinter.h"
 
 using namespace clarisma;
 using namespace geodesk;

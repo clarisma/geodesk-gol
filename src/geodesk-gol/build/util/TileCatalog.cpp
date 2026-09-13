@@ -5,7 +5,7 @@
 #include <clarisma/cli/Console.h>
 #include <geodesk/feature/FeatureStore.h>
 #include <geodesk/query/TileIndexWalker.h>
-#include "build/analyze/TileIndexBuilder.h"
+#include "geodesk-gol/build/analyze/TileIndexBuilder.h"
 #include "clarisma/io/FileBuffer3.h"
 
 TileCatalog::TileCatalog(FeatureStore* store) :

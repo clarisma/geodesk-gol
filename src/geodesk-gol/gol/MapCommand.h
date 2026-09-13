@@ -3,7 +3,7 @@
 
 #pragma once
 #include "AbstractQueryCommand.h"
-#include "gol/map/MapFeatureOptions.h"
+#include "geodesk-gol/gol/map/MapFeatureOptions.h"
 #include <clarisma/io/FileBuffer2.h>
 #include <clarisma/text/TextTemplate.h>
 #include <clarisma/util/Parser.h>

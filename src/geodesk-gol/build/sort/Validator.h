@@ -7,7 +7,7 @@
 #include <clarisma/thread/TaskEngine.h>
 #include <clarisma/util/TaggedPtr.h>
 #include <geodesk/geom/Tile.h>
-#include "build/util/ProtoGolReader.h"
+#include "geodesk-gol/build/util/ProtoGolReader.h"
 #include "ExportFileWriter.h"
 #include "ExportTableBuilder.h"
 #include "ValidatorPileWriter.h"

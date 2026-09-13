@@ -5,7 +5,7 @@
 #include "Layout.h"
 #include "TileModel.h"
 #include <clarisma/util/varint.h>
-#include "tile/compiler/NodeTableFixer.h"
+#include "geodesk-gol/tile/compiler/NodeTableFixer.h"
 
 void TWay::placeBody(Layout& layout)
 {

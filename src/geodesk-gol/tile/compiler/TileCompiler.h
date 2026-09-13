@@ -4,7 +4,7 @@
 #pragma once
 
 #include "geodesk/feature/FeatureStore.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 namespace geodesk {
 class FeatureStore;

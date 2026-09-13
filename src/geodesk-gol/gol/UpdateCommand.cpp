@@ -9,7 +9,7 @@
 #include <clarisma/validate/FileSizeParser.h>
 #include <clarisma/validate/Validate.h>
 
-#include "change/Updater.h"
+#include "geodesk-gol/change/Updater.h"
 
 UpdateCommand::Option UpdateCommand::UPDATE_OPTIONS[] =
 {

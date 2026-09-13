@@ -6,7 +6,7 @@
 #include <clarisma/data/LinkedStack.h>
 #include <clarisma/util/BufferWriter.h>
 #include <geodesk/geom/Box.h>
-#include "change/model/CTagTable.h"
+#include "geodesk-gol/change/model/CTagTable.h"
 #include "TableEncoder.h"
 
 using namespace geodesk;

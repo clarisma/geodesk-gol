@@ -4,7 +4,7 @@
 #pragma once
 
 #include <geodesk/feature/types.h>
-#include "tile/model/TString.h"
+#include "geodesk-gol/tile/model/TString.h"
 
 	// Keys must be stripped of all flags, just the code
 	// TODO: We could simply add string handles, no need to get

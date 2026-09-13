@@ -4,8 +4,8 @@
 #pragma once
 
 #include <geodesk/feature/RelationTableIterator.h>
-#include "tile/model/TRelationTable.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TRelationTable.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 class RelationTableFixer : public RelationTableIterator
 {

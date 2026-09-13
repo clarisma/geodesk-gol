@@ -6,8 +6,8 @@
 #include <clarisma/util/BufferWriter.h>
 #include <geodesk/geom/Box.h>
 #include <geodesk/geom/Coordinate.h>
-#include "tile/model/TileModel.h"
-#include "tile/model/TFeature.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TFeature.h"
 
 class TNode;
 class TWay;

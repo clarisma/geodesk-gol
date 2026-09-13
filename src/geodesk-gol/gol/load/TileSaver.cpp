@@ -6,9 +6,9 @@
 #include <clarisma/util/Crc32C.h>
 #include <clarisma/zip/Zip.h>
 #include <geodesk/query/TileIndexWalker.h>
-#include "tile/model/TileModel.h"
-#include "tile/model/TileReader.h"
-#include "tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TileReader.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
 
 // TODO: Never save stale tiles to a TES Archive!
 

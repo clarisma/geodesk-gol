@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
-#include "tile/util/TileTaskEngine.h"
+#include "geodesk-gol/tile/util/TileTaskEngine.h"
 
 
 class GolChecker : public TileTaskEngine

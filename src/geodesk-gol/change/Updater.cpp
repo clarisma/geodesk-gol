@@ -10,11 +10,11 @@
 #include <geodesk/feature/ParentRelationIterator.h>
 #include <geodesk/query/SimpleQuery.h>
 #include <geodesk/query/TileIndexWalker.h>
-#include <tile/tes/TesChecker.h>
+#include <geodesk-gol/tile/tes/TesChecker.h>
 
 #include "ChangeIngester.h"
 #include "ChangeReader.h"
-#include "tile/compiler/TileCompiler.h"
+#include "geodesk-gol/tile/compiler/TileCompiler.h"
 
 static const char READING_TASK_PREFIX[] = "Reading ";
 

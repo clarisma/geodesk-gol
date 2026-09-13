@@ -5,7 +5,7 @@
 
 #include <clarisma/cli/ConsoleWriter.h>
 
-#include "build/util/StringCatalog.h"
+#include "geodesk-gol/build/util/StringCatalog.h"
 #include <clarisma/util/MutableDataPtr.h>
 
 const char AreaClassifier::DEFAULT[] =

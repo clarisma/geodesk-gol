@@ -7,8 +7,8 @@
 #include "TFeature.h"
 #include "TIndexTrunk.h"
 #include "TileModel.h"
-#include "tile/compiler/HilbertIndexBuilder.h"
-#include "tile/compiler/IndexSettings.h"
+#include "geodesk-gol/tile/compiler/HilbertIndexBuilder.h"
+#include "geodesk-gol/tile/compiler/IndexSettings.h"
 
 
 

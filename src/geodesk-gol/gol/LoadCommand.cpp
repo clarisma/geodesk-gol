@@ -8,7 +8,7 @@
 #include <clarisma/io/FilePath.h>
 #include <clarisma/net/UrlUtils.h>
 #include <clarisma/validate/Validate.h>
-#include "gol/load/TileLoader.h"
+#include "geodesk-gol/gol/load/TileLoader.h"
 #include <geodesk/feature/FeatureStore.h>
 
 

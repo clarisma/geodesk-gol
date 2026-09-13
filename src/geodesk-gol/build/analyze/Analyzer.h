@@ -3,9 +3,9 @@
 
 #pragma once
 #include <filesystem>
-#include "osm/OsmPbfReader.h"
+#include "geodesk-gol/osm/OsmPbfReader.h"
 #include "NodeCountTable.h"
-#include "build/util/StringStatistics.h"
+#include "geodesk-gol/build/util/StringStatistics.h"
 #include "OsmStatistics.h"
 
 class Analyzer;

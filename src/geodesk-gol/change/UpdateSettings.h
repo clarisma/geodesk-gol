@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "tag/AreaClassifier.h"
+#include "geodesk-gol/tag/AreaClassifier.h"
 
 class UpdateSettings 
 {

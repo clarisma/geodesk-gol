@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
-#include <build/util/TileCatalog.h>
+#include <geodesk-gol/build/util/TileCatalog.h>
 #include <clarisma/data/HashMap.h>
 #include <geodesk/feature/FeatureType.h>
 #include <geodesk/feature/Tip.h>

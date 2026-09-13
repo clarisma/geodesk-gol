@@ -4,7 +4,7 @@
 #pragma once
 #include "AbstractQueryCommand.h"
 #include <geodesk/format/KeySchema.h>
-#include "gol/query/OutputFormat.h"
+#include "geodesk-gol/gol/query/OutputFormat.h"
 
 
 class QueryCommand : public GolCommand

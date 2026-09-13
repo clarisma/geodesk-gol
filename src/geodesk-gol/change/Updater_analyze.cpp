@@ -11,13 +11,13 @@
 #include <geodesk/feature/ParentRelationIterator.h>
 #include <geodesk/query/SimpleQuery.h>
 #include <geodesk/query/TileIndexWalker.h>
-#include <tile/tes/TesChecker.h>
+#include <geodesk-gol/tile/tes/TesChecker.h>
 
 #include "ChangeReader.h"
-#include "change/model/ChangeModelDumper.h"
-#include "change/model/ChangedTile.h"
+#include "geodesk-gol/change/model/ChangeModelDumper.h"
+#include "geodesk-gol/change/model/ChangedTile.h"
 #include "clarisma/io/FilePath.h"
-#include "tile/compiler/TileCompiler.h"
+#include "geodesk-gol/tile/compiler/TileCompiler.h"
 
 
 // TODO: When do we process the membership changes of members

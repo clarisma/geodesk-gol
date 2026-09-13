@@ -4,8 +4,8 @@
 #pragma once
 
 #include <geodesk/feature/LocalTagIterator.h>
-#include "tile/model/TTagTable.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TTagTable.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 class LocalTagFixer : public LocalTagIterator
 {

@@ -3,10 +3,10 @@
 
 #pragma once
 #include <semaphore>
-#include <build/util/TileCatalog.h>
+#include <geodesk-gol/build/util/TileCatalog.h>
 #include <clarisma/thread/TaskEngine.h>
 #include <geodesk/feature/Tip.h>
-#include "tile/tes/TesArchiveWriter.h"
+#include "geodesk-gol/tile/tes/TesArchiveWriter.h"
 
 #include "ChangeManager.h"
 #include "ChangeWriter.h"

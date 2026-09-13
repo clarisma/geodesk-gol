@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "Analyzer.h"
-#include "build/GolBuilder.h"
-#include "build/util/StringCatalog.h"
+#include "geodesk-gol/build/GolBuilder.h"
+#include "geodesk-gol/build/util/StringCatalog.h"
 #include <string>
 
 #include "clarisma/io/FileBuffer3.h"

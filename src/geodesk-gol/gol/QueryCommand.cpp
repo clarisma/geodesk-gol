@@ -10,17 +10,17 @@
 #include <clarisma/validate/Validate.h>
 #include <geodesk/format/KeySchema.h>
 
-#include "gol/query/OutputFormat.h"
-#include "gol/query/BriefQueryPrinter.h"
-#include "gol/query/CountQueryPrinter.h"
-#include "gol/query/CsvQueryPrinter.h"
-#include "gol/query/GeoJsonQueryPrinter.h"
-#include "gol/query/ListQueryPrinter.h"
-#include "gol/query/OsmPbfQueryPrinter.h"
-#include "gol/query/WktQueryPrinter.h"
-//#include "gol/query/TableQueryPrinter.h"
+#include "geodesk-gol/gol/query/OutputFormat.h"
+#include "geodesk-gol/gol/query/BriefQueryPrinter.h"
+#include "geodesk-gol/gol/query/CountQueryPrinter.h"
+#include "geodesk-gol/gol/query/CsvQueryPrinter.h"
+#include "geodesk-gol/gol/query/GeoJsonQueryPrinter.h"
+#include "geodesk-gol/gol/query/ListQueryPrinter.h"
+#include "geodesk-gol/gol/query/OsmPbfQueryPrinter.h"
+#include "geodesk-gol/gol/query/WktQueryPrinter.h"
+//#include "geodesk-gol/gol/query/TableQueryPrinter.h"
 #include "clarisma/cli/CliApplication.h"
-#include "gol/query/XmlQueryPrinter.h"
+#include "geodesk-gol/gol/query/XmlQueryPrinter.h"
 
 using namespace clarisma;
 using namespace geodesk;

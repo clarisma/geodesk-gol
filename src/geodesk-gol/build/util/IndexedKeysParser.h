@@ -3,7 +3,7 @@
 
 #pragma once
 #include <vector>
-#include "tag/AbstractTagsParser.h"
+#include "geodesk-gol/tag/AbstractTagsParser.h"
 #include "IndexedKey.h"
 
 class IndexedKeysParser : public AbstractTagsParser

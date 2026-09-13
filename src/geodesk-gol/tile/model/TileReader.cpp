@@ -5,8 +5,8 @@
 #include <clarisma/util/varint.h>
 #include <geodesk/feature/MemberTableIterator.h>
 #include <geodesk/feature/RelationTableIterator.h>
-#include "tile/compiler/RelationTableHasher.h"
-#include "tile/compiler/TagTableHasher.h"
+#include "geodesk-gol/tile/compiler/RelationTableHasher.h"
+#include "geodesk-gol/tile/compiler/TagTableHasher.h"
 #include "TNode.h"
 #include "TWay.h"
 #include "TRelation.h"

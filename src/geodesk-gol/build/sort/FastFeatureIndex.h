@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
-#include "build/util/MappedIndex.h"
+#include "geodesk-gol/build/util/MappedIndex.h"
 
 /**
  * A utility class that allows multiple threads to efficiently write 

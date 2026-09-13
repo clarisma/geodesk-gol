@@ -5,7 +5,7 @@
 
 #include <clarisma/util/MutableDataPtr.h>
 #include <geodesk/feature/Tex.h>
-#include "tile/model/TFeature.h"
+#include "geodesk-gol/tile/model/TFeature.h"
 
 // TODO: Check if this class can handle negative offsets
 //  The handle for a way's body could be 4 (first assigned handle),

@@ -3,7 +3,7 @@
 
 #pragma once
 #include "BasicCommand.h"
-#include "build/GolBuilder.h"
+#include "geodesk-gol/build/GolBuilder.h"
 
 class BuildCommand : BasicCommand
 {

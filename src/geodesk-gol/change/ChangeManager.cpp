@@ -6,8 +6,8 @@
 #include <clarisma/util/Pointers.h>
 #include <geodesk/feature/ParentRelationIterator.h>
 #include <geodesk/query/ParentWaysQuery.h>
-#include "change/model/ChangeModelDumper.h"
-#include "change/model/ChangedTile.h"
+#include "geodesk-gol/change/model/ChangeModelDumper.h"
+#include "geodesk-gol/change/model/ChangedTile.h"
 
 // TODO: When do we process the membership changes of members
 //  of a deleted relation? ==> during scan in TCA

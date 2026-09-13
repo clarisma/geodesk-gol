@@ -5,7 +5,7 @@
 
 #include <clarisma/io/FilePath.h>
 
-#include "check/GolChecker.h"
+#include "geodesk-gol/check/GolChecker.h"
 
 int CheckCommand::run(char* argv[])
 {

@@ -4,7 +4,7 @@
 #pragma once
 #include <string_view>
 #include <span>
-#include "tile/model/Membership.h"
+#include "geodesk-gol/tile/model/Membership.h"
 #include "RelationMember.h"
 
 class TileModel;

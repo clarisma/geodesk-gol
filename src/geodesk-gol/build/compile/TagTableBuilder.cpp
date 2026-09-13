@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "TagTableBuilder.h"
-#include "build/util/ProtoGol.h"
+#include "geodesk-gol/build/util/ProtoGol.h"
 #include <geodesk/feature/TagValues.h>
-#include <tag/AreaClassifier.h>
+#include <geodesk-gol/tag/AreaClassifier.h>
 
-#include "tile/compiler/TagTableWriter.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/compiler/TagTableWriter.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 //// TODO: BAD !!!!!!!!!!!!!!
 ///   Must allocate all strings *before* building the tagtable

@@ -5,7 +5,7 @@
 #include <clarisma/util/log.h>
 #include "TileModel.h"
 #include "Layout.h"
-#include "tile/compiler/MemberTableFixer.h"
+#include "geodesk-gol/tile/compiler/MemberTableFixer.h"
 
 void TRelationBody::write(const TileModel& tile) const
 {

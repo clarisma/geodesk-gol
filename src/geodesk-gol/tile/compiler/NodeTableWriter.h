@@ -4,8 +4,8 @@
 #pragma once
 
 #include "AbstractMemberTableWriter.h"
-#include "tile/model/TNode.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TNode.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 class NodeTableWriter : public AbstractMemberTableWriter<0,-2>
 {

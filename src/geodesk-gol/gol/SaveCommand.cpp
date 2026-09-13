@@ -5,7 +5,7 @@
 #include <clarisma/cli/CliHelp.h>
 #include <clarisma/io/FilePath.h>
 #include <geodesk/query/TileIndexWalker.h>
-#include "gol/load/TileSaver.h"
+#include "geodesk-gol/gol/load/TileSaver.h"
 
 
 SaveCommand::Option SaveCommand::OPTIONS[] =

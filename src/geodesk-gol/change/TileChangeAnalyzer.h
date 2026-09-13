@@ -7,8 +7,8 @@
 #include <clarisma/data/HashSet.h>
 #include <geodesk/feature/Tex.h>
 #include <geodesk/feature/WayNodeIterator.h>
-#include "change/model/CFeature.h"
-#include "tile/model/TileReaderBase.h"
+#include "geodesk-gol/change/model/CFeature.h"
+#include "geodesk-gol/tile/model/TileReaderBase.h"
 
 using namespace geodesk;
 using clarisma::HashMap;

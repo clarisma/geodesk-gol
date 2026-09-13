@@ -4,7 +4,7 @@
 #pragma once
 #include <clarisma/data/HashMap.h>
 #include <clarisma/util/BufferWriter.h>
-#include "change/model/CFeature.h"
+#include "geodesk-gol/change/model/CFeature.h"
 
 using clarisma::HashMap;
 

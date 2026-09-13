@@ -7,7 +7,7 @@
 #include <clarisma/text/Format.h>
 #include <clarisma/util/Buffer.h>
 #include <geodesk/feature/FeatureStore.h>
-#include "tile/util/TileDumper.h"
+#include "geodesk-gol/tile/util/TileDumper.h"
 
 int DumpTilesCommand::run(char* argv[])
 {

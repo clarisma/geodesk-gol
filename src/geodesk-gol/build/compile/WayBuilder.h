@@ -4,9 +4,9 @@
 #pragma once
 
 #include "Compiler.h"
-#include "tile/compiler/NodeTableWriter.h"
-#include "tile/model/MutableFeaturePtr.h"
-#include "tile/model/TWay.h"
+#include "geodesk-gol/tile/compiler/NodeTableWriter.h"
+#include "geodesk-gol/tile/model/MutableFeaturePtr.h"
+#include "geodesk-gol/tile/model/TWay.h"
 
 class TRelationTable;
 

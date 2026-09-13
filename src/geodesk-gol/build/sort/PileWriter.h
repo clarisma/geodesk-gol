@@ -7,8 +7,8 @@
 #include <clarisma/alloc/SimpleArena.h>
 #include <clarisma/util/protobuf.h>
 #include <geodesk/geom/Coordinate.h>
-#include "build/util/ParentTileLocator.h"
-#include "build/util/ProtoGol.h"
+#include "geodesk-gol/build/util/ParentTileLocator.h"
+#include "geodesk-gol/build/util/ProtoGol.h"
 
 namespace clarisma {
 class PileFile;

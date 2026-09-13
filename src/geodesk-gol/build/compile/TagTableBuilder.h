@@ -5,8 +5,8 @@
 
 #include <vector>
 #include <clarisma/data/Span.h>
-#include "tag/TagTableModel.h"
-#include "tile/model/TString.h"
+#include "geodesk-gol/tag/TagTableModel.h"
+#include "geodesk-gol/tile/model/TString.h"
 
 class AreaClassifier;
 class StringCatalog;

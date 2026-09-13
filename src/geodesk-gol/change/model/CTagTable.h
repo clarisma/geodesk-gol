@@ -6,7 +6,7 @@
 #include <geodesk/feature/TagTablePtr.h>
 #include <clarisma/data/HashSet.h>
 #include <clarisma/util/log.h>
-#include "tag/TagTableModel.h"
+#include "geodesk-gol/tag/TagTableModel.h"
 
 namespace geodesk {
 class AbstractTagIterator;

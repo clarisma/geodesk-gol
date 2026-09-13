@@ -10,16 +10,16 @@
 #include <geodesk/feature/Tags.h>
 #include <geodesk/feature/FeatureBase.h>
 
-#include "tile/model/TileReader.h"
-#include "tile/model/TExportTable.h"
-#include "tile/model/TIndexLeaf.h"
-#include "tile/model/TIndexTrunk.h"
-#include "tile/model/TNode.h"
-#include "tile/model/TWay.h"
-#include "tile/model/TRelation.h"
-#include "tile/model/TTagTable.h"
-#include "tile/model/TRelationTable.h"
-#include "tile/model/TString.h"
+#include "geodesk-gol/tile/model/TileReader.h"
+#include "geodesk-gol/tile/model/TExportTable.h"
+#include "geodesk-gol/tile/model/TIndexLeaf.h"
+#include "geodesk-gol/tile/model/TIndexTrunk.h"
+#include "geodesk-gol/tile/model/TNode.h"
+#include "geodesk-gol/tile/model/TWay.h"
+#include "geodesk-gol/tile/model/TRelation.h"
+#include "geodesk-gol/tile/model/TTagTable.h"
+#include "geodesk-gol/tile/model/TRelationTable.h"
+#include "geodesk-gol/tile/model/TString.h"
 
 
 

@@ -5,13 +5,13 @@
 #include <filesystem>
 #include <clarisma/cli/Console.h>
 #include <clarisma/store/PileFile.h>
-#include "osm/OsmPbfMetadata.h"
+#include "geodesk-gol/osm/OsmPbfMetadata.h"
 
-#include "build/analyze/OsmStatistics.h"
-#include "build/util/BuildSettings.h"
-#include "build/util/MappedIndex.h"
-#include "build/util/StringCatalog.h"
-#include "build/util/TileCatalog.h"
+#include "geodesk-gol/build/analyze/OsmStatistics.h"
+#include "geodesk-gol/build/util/BuildSettings.h"
+#include "geodesk-gol/build/util/MappedIndex.h"
+#include "geodesk-gol/build/util/StringCatalog.h"
+#include "geodesk-gol/build/util/TileCatalog.h"
 
 // TODO: Use plain strings instead of std::filesystem::path?
 

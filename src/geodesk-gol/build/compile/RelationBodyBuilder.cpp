@@ -5,13 +5,13 @@
 #include <string_view>
 #include <clarisma/util/log.h>
 #include <clarisma/util/varint.h>
-#include <tile/model/Membership.h>
+#include <geodesk-gol/tile/model/Membership.h>
 
-#include "build/util/ProtoGol.h"
-#include "tile/model/TileModel.h"
-#include "tile/model/TRelation.h"
-#include "tile/model/TRelationTable.h"
-#include "tile/compiler/MemberTableWriter.h"
+#include "geodesk-gol/build/util/ProtoGol.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TRelation.h"
+#include "geodesk-gol/tile/model/TRelationTable.h"
+#include "geodesk-gol/tile/compiler/MemberTableWriter.h"
 
 // TODO: Cannot be a singleton in Worker, relations are built recursively
 

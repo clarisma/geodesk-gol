@@ -4,8 +4,8 @@
 #pragma once
 
 #include <geodesk/feature/NodeTableIterator.h>
-#include "tile/model/TWay.h"
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TWay.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 class NodeTableFixer : public NodeTableIterator
 {

@@ -8,7 +8,7 @@
 #include <clarisma/util/Xml.h>
 #include <geodesk/feature/TagUtils.h>
 #include <geodesk/format/LeafletFormatter.h>
-#include "gol/map/MapFeatureOptions.h"
+#include "geodesk-gol/gol/map/MapFeatureOptions.h"
 
 using namespace geodesk;
 

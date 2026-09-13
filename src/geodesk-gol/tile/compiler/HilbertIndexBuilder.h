@@ -3,7 +3,7 @@
 
 #pragma once
 #include <utility> // for std::pair
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 class TFeature;
 class TIndexBranch;

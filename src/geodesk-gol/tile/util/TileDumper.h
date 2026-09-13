@@ -6,7 +6,7 @@
 #include <clarisma/util/StreamWriter.h>
 #include <geodesk/feature/Tex.h>
 #include <geodesk/feature/TilePtr.h>
-#include "tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TileModel.h"
 
 class TElement;
 class TTagTable;

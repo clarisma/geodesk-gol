@@ -8,7 +8,7 @@
 #include <clarisma/validate/Validate.h>
 #include <geodesk/feature/FeatureStore.h>
 #include <geodesk/feature/ZoomLevels.h>
-#include "tag/AreaClassifier.h"
+#include "geodesk-gol/tag/AreaClassifier.h"
 #include "IndexedKey.h"
 
 

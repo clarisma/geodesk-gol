@@ -3,7 +3,7 @@
 
 #pragma once
 #include "PileWriter.h"
-#include "build/util/TileCatalog.h"
+#include "geodesk-gol/build/util/TileCatalog.h"
 #include <geodesk/geom/Box.h>
 
 class ValidatorPileWriter : public PileWriter

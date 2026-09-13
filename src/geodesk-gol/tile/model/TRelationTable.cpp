@@ -3,7 +3,7 @@
 
 #include "TRelationTable.h"
 #include "TileModel.h"
-#include "tile/compiler/RelationTableFixer.h"
+#include "geodesk-gol/tile/compiler/RelationTableFixer.h"
 
 void TRelationTable::write(const TileModel& tile) const
 {

@@ -5,8 +5,8 @@
 #include <clarisma/alloc/Block.h>
 #include <clarisma/io/File.h>
 #include <clarisma/util/DateTime.h>
-#include "tile/tes/TesArchive.h"
-#include "tile/util/TileData.h"
+#include "geodesk-gol/tile/tes/TesArchive.h"
+#include "geodesk-gol/tile/util/TileData.h"
 
 class TesArchiveWriter 
 {

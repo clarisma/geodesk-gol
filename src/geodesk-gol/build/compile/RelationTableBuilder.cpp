@@ -4,10 +4,10 @@
 #pragma once
 
 #include "RelationTableBuilder.h"
-#include "tile/compiler/RelationTableWriter.h"
-#include "tile/model/Membership.h"
-#include "tile/model/TileModel.h"
-#include "tile/model/TRelationTable.h"
+#include "geodesk-gol/tile/compiler/RelationTableWriter.h"
+#include "geodesk-gol/tile/model/Membership.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TRelationTable.h"
 
 
 int RelationTableBuilder::countMemberships(Membership* p)

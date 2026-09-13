@@ -5,8 +5,8 @@
 
 #include "AbstractMemberTableWriter.h"
 #include "RelationTableHasher.h"
-#include "tile/model/TileModel.h"
-#include "tile/model/TRelation.h"
+#include "geodesk-gol/tile/model/TileModel.h"
+#include "geodesk-gol/tile/model/TRelation.h"
 
 
 class RelationTableWriter : public AbstractMemberTableWriter<0, 2>

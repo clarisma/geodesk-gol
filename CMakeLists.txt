@@ -129,7 +129,7 @@ else()
 endif()
 
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "src/*.cpp")
-list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/gol/main.cpp")
+list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/geodesk-gol/gol/main.cpp")
 
 # Keep the implementation in a separate target so geodesk-gol can be consumed
 # with add_subdirectory() or FetchContent. The namespaced alias is the preferred
@@ -187,7 +187,7 @@ if(APPLE)
 endif()
 
 if(GOL_BUILD_TOOL)
-    add_executable(gol src/gol/main.cpp)
+    add_executable(gol src/geodesk-gol/gol/main.cpp)
     target_link_libraries(gol PRIVATE GeoDesk::gol)
 
     if (MINGW AND CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
