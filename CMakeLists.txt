@@ -6,6 +6,14 @@ include(GNUInstallDirs)
 
 option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
 option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
+# Build the CLI by default for standalone builds, but not when this project is
+# consumed via add_subdirectory() or FetchContent.
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(GOL_BUILD_TOOL_DEFAULT ON)
+else()
+    set(GOL_BUILD_TOOL_DEFAULT OFF)
+endif()
+option(GOL_BUILD_TOOL "Build the gol command-line tool" ${GOL_BUILD_TOOL_DEFAULT})
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -120,69 +128,86 @@ else()
     FetchContent_MakeAvailable(geodesk)
 endif()
 
-file(GLOB_RECURSE SOURCE_FILES "src/*.cpp")
+file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "src/*.cpp")
+list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/geodesk-gol/gol/main.cpp")
 
-# Create the executable target
-add_executable(gol ${SOURCE_FILES})
-target_compile_definitions(gol PRIVATE GOL_BUILD_STATS)
+# Keep the implementation in a separate target so geodesk-gol can be consumed
+# with add_subdirectory() or FetchContent. The namespaced alias is the preferred
+# target name for downstream projects.
+add_library(geodesk-gol STATIC ${SOURCE_FILES})
+add_library(GeoDesk::gol ALIAS geodesk-gol)
+target_compile_features(geodesk-gol PUBLIC cxx_std_20)
+target_compile_definitions(geodesk-gol PUBLIC
+    CLARISMA_WITH_ZLIB
+    GOL_BUILD_STATS)
 message("GOL_DIAGNOSTICS: ${GOL_DIAGNOSTICS}")
 if(GOL_DIAGNOSTICS)
     message("GOL: Building with diagnostic commands")
-    target_compile_definitions(gol PRIVATE GOL_DIAGNOSTICS)
+    target_compile_definitions(geodesk-gol PUBLIC GOL_DIAGNOSTICS)
 endif()
 if(GOL_EXPERIMENTAL)
     message("GOL: Building with experimental features")
-    target_compile_definitions(gol PRIVATE GOL_EXPERIMENTAL)
+    target_compile_definitions(geodesk-gol PUBLIC GOL_EXPERIMENTAL)
 endif()
 
-# Enable zlib wrapper classes
-target_compile_definitions(gol PRIVATE CLARISMA_WITH_ZLIB)
 # Include directories for geodesk-gol
-target_include_directories(gol PRIVATE include src lib/libgeodesk/include
-    ${zlib_SOURCE_DIR} ${cpphttplib_SOURCE_DIR})
+target_include_directories(geodesk-gol
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    PRIVATE
+        ${zlib_SOURCE_DIR})
+if(NOT WIN32)
+    target_include_directories(geodesk-gol PUBLIC
+        $<BUILD_INTERFACE:${cpphttplib_SOURCE_DIR}>)
+    target_compile_definitions(geodesk-gol PUBLIC CPPHTTPLIB_OPENSSL_SUPPORT)
+endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message("GOL: Disabled warnings about non-standard class layout")
     add_compile_options(-Wno-invalid-offsetof)
 endif()
 
-if (MINGW AND CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
-    # Make the whole runtime static
-    target_link_options(gol  PRIVATE -static -static-libgcc -static-libstdc++)
-endif()
-
 # Link geodesk-gol with libgeodesk
-target_link_libraries(gol PRIVATE geodesk zlibstatic gtl)
+target_link_libraries(geodesk-gol PUBLIC geodesk zlibstatic gtl)
 # Link the libraries for SSL support: WinHTTP or OpenSSL
 if (WIN32)
-    target_link_libraries(gol PRIVATE winhttp)
+    target_link_libraries(geodesk-gol PUBLIC winhttp)
 else()
     # target_link_libraries(gol PRIVATE cpphttplib)
-    target_link_libraries(gol PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_link_libraries(geodesk-gol PUBLIC OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
 # Required for cpp-httblib’s automatic Keychain certificate support on macOS
 if(APPLE)
-    target_link_libraries(gol PRIVATE
+    target_link_libraries(geodesk-gol PUBLIC
             "-framework CoreFoundation"
             "-framework Security"
     )
 endif()
 
-if(GEODESK_SOURCE_DIR)
-    if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set(INSTALL_TARGET "D:/geodesk/tests/gol.exe")
-    else()
-        set(INSTALL_TARGET "/home/md/geodesk/tests/gol")
+if(GOL_BUILD_TOOL)
+    add_executable(gol src/geodesk-gol/gol/main.cpp)
+    target_link_libraries(gol PRIVATE GeoDesk::gol)
+
+    if (MINGW AND CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
+        # Make the whole runtime static
+        target_link_options(gol PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
 
-    add_custom_command(TARGET gol POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_FILE:gol>
-            ${INSTALL_TARGET}
-    )
-else()
-    install(TARGETS gol RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    if(GEODESK_SOURCE_DIR)
+        if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(INSTALL_TARGET "D:/geodesk/tests/gol.exe")
+        else()
+            set(INSTALL_TARGET "/home/md/geodesk/tests/gol")
+        endif()
+
+        add_custom_command(TARGET gol POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                $<TARGET_FILE:gol>
+                ${INSTALL_TARGET}
+        )
+    else()
+        install(TARGETS gol RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    endif()
 endif()
-
-
