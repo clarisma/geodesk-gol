@@ -84,6 +84,7 @@ public:
 	void setReadingTask(uint32_t revision);
 	void reportFileRead(size_t uncompressedSize);
 
+	ChangeManager& changes() { return changes_; }
 	ChangeModel& model() { return changes_.model(); }
 	const TileCatalog& tileCatalog() const { return changes_.tileCatalog(); }
 	Phase phase() const { return phase_; }

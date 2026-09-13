@@ -44,6 +44,10 @@ private:
         // may already have one) and features that will no
         // longer have a TEX (in this case, the pointer is null)
         // Key is the offset of the feature within the tile
+        // TODO: Should this be a CFeatureStub*, so we can track
+        //  unchanged features as well? (or is gaining a TEX
+        //  always a change? But if it has a TEX already,
+        //  a feature is not changed)
     std::vector<ExportTableEntry> exportTableChanges_;
         // Concrete changes to the tile's export table
 };

@@ -14,6 +14,8 @@
 using namespace geodesk;
 using namespace TileConstants;
 
+// TODO: Deprecate in favor of TileScannerBase
+
 template<typename Derived>
 class TileReaderBase
 {

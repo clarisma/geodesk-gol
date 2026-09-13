@@ -26,8 +26,6 @@ namespace geodesk
 }
 using namespace geodesk;
 
-class ChangedTile;
-
 class ChangeModel
 {
 public:
@@ -69,6 +67,8 @@ public:
     /// respective parents).
     ///
     void memberGeometryChanged(ChangedFeatureBase* member);
+    void memberGeometryChanged(const CRelationTable* parents,
+        const Box& pastBounds, const Box& futureBounds, ChangeFlags extraFlags);
 
     void addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel);
 

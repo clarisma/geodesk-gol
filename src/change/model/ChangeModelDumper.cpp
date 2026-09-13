@@ -253,6 +253,7 @@ void ChangeModelDumper::dumpRelation(const ChangedFeature2D* rel)
 
 void ChangeModelDumper::dumpTexChanges()
 {
+    /*
     for(const auto& [tip,changedTile] : model_.changedTiles())
     {
         if (changedTile->hasTexChanges())
@@ -276,4 +277,5 @@ void ChangeModelDumper::dumpTexChanges()
             out_ << "  " << f->typedId() << "\n";
         }
     }
+    */
 }

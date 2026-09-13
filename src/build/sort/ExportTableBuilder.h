@@ -31,7 +31,8 @@ public:
 
 	void addExport(VFeature* feature, Coordinate center)
 	{
-		assert(zoomDelta_ >= 4);
+		// TODO: Use HilbertDistanceInTile
+		assert(zoomDelta_ >= 4);	// TODO: Could change if we increase max zoom level
 		int32_t x = std::clamp((center.x - tileLeft_) >> zoomDelta_, 0, hilbert::MAX_COORDINATE);
 		int32_t y = std::clamp((center.y - tileBottom_) >> zoomDelta_, 0, hilbert::MAX_COORDINATE); 
 		exports_.emplace_back(hilbert::calculateHilbertDistance(
@@ -90,6 +91,8 @@ public:
 
 private:
 	std::vector<std::pair<uint32_t, VFeature*>> exports_;
+		// TODO: could be more efficient to use a dedicated class
+		//  that sorts only on hilbert distance
 	std::vector<ForeignRelationLookup::Entry> exportedRelations_;
 	int32_t tileLeft_;
 	int32_t tileBottom_;

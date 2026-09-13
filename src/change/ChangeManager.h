@@ -11,6 +11,8 @@ using namespace geodesk;
 
 class Updater;
 
+// TODO: Own changed tiles now, need to clear them if the ChangeManager is reused
+
 class ChangeManager
 {
 public:
@@ -27,7 +29,11 @@ public:
 	ChangeModel& model() { return model_; }
 	const TileCatalog& tileCatalog() const { return tileCatalog_; }
 	FeatureStore* store() const { return model_.store(); }
-
+	ChangedTile* getChangedTile(Tip tip);
+	const HashMap<Tip,ChangedTile*>& changedTiles() const
+	{
+		return changedTiles_;
+	}
 	int changedTileCount() const
 	{
 		return static_cast<int>(changedTiles_.size());
@@ -38,11 +44,11 @@ private:
 	void processWays();
 	void preProcessRelations();
 	void processRelations();
-	ChangedTile* getChangedTile(Tip tip);
 	void assignToTiles(ChangedFeature2D* feature);
 	void processNode(ChangedNode* node);
 	void processPastCoincidentNode(ChangedNode* node, NodePtr pastNode);
 	void processWay(ChangedFeature2D* way);
+	bool tryProcessRelation(ChangedFeature2D* rel);
 	int processRelation(ChangedFeature2D* rel);
 	void processDeletedFeature(ChangedFeature2D* deleted);
 	void processMembershipChanges(ChangedFeatureBase* feature);

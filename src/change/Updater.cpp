@@ -52,7 +52,7 @@ void UpdaterWorker::analyze(Tip tip)
 void UpdaterWorker::prepareUpdate(Tip tip)
 {
     DynamicBuffer buf(64 * 1024);
-    writer_.write(updater_->model().getChangedTile(tip), &buf);
+    writer_.write(updater_->changes().getChangedTile(tip), &buf);
 
 #ifdef GOL_DIAGNOSTICS
     if (Console::verbosity() >= Console::Verbosity::DEBUG)
@@ -309,7 +309,7 @@ void Updater::prepareUpdate()
     if (Console::verbosity() >= Console::Verbosity::DEBUG)
     {
         TesChecker::createFolders(dumpPath_,
-            model().changedTiles() | std::views::keys);
+            changes().changedTiles() | std::views::keys);
     }
 #endif
 
@@ -320,7 +320,7 @@ void Updater::prepareUpdate()
     archiveWriter_.open(updateFileName_.c_str(), store->guid(),
         targetRevision_, targetTimestamp_, changedTileCount, true);
         // (always uses way-node IDs)
-    for(const auto& [tip,changedTile] : model().changedTiles())
+    for(const auto& [tip,changedTile] : changes().changedTiles())
     {
         postWork(UpdaterTask(tip));
     }

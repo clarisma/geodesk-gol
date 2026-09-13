@@ -245,7 +245,7 @@ void ChangeManager::processNode(ChangedNode* node)
         if(!pastTip.isNull())
         {
             // TODO: A deleted node always loses any TEX
-            model_.getChangedTile(pastTip)->deletedNodes().push(node);
+            getChangedTile(pastTip)->deletedNodes().push(node);
         }
         node->setRef(CRef::MISSING);
         node->addFlags(ChangeFlags::PROCESSED);
@@ -438,7 +438,7 @@ void ChangeManager::processNode(ChangedNode* node)
     {
         if(!pastTip.isNull())
         {
-            ChangedTile* pastTile = model_.getChangedTile(pastTip);
+            ChangedTile* pastTile = getChangedTile(pastTip);
             pastTile->deletedNodes().push(model_.copy(node));
             // LOGS << "Deleted " << node->typedId() <<", future TIP = " << futureTip;
             // TODO: drop TEX, if any
@@ -471,7 +471,7 @@ void ChangeManager::processNode(ChangedNode* node)
     }
     if(!futureTip.isNull())
     {
-        ChangedTile* futureTile = model_.getChangedTile(futureTip);
+        ChangedTile* futureTile = getChangedTile(futureTip);
         futureTile->changedNodes().push(node);
         if (test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
         {
@@ -550,7 +550,7 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
 void ChangeManager::addDeleted(Tip tip, ChangedFeatureStub* feature)
 {
     assert(feature->type() != FeatureType::NODE);
-    ChangedTile* tile = model_.getChangedTile(tip);
+    ChangedTile* tile = getChangedTile(tip);
     (feature->type() == FeatureType::WAY ?
         tile->deletedWays() : tile->deletedRelations()).push(feature);
 }
@@ -821,7 +821,7 @@ int ChangeManager::normalizeRefs(CFeature* feature)
                 // a SE tile
 
                 TilePair tp = tileCatalog_.tilePair(pastBounds);
-                assert(tp.first().tip() == tip);
+                assert(tileCatalog_.tipOfTile(tp.first()) == tip);
                 assert(tp.hasSecond());
                 refSE = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.second()));
             }
@@ -856,7 +856,7 @@ int ChangeManager::normalizeRefs(CFeature* feature)
         //  this means the GOL is corrupt)
 
         TilePair tp = tileCatalog_.tilePair(pastBounds);
-        assert(tp.second().tip() == tip);
+        assert(tileCatalog_.tipOfTile(tp.second()) == tip);
         assert(tp.hasSecond());
         ref = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.first()));
         feature->setRef(ref);
@@ -1082,6 +1082,251 @@ void ChangeManager::cascadeBoundsChange(FeaturePtr feature, const Box& futureBou
         }
     }
 }
+
+
+bool ChangeManager::tryProcessRelation(ChangedFeature2D* rel)
+{
+    normalizeRefs(rel);
+    if(rel->isDeleted())
+    {
+        rel->addFlags(ChangeFlags::PROCESSED);
+        return true;
+    }
+
+    model_.ensureMembersLoaded(rel);
+    rel->addFlags(ChangeFlags::RELATION_ATTEMPTED);
+
+    bool hasUnresolvedMembers = false;
+    bool memberTilesChanged = false;
+    int omittedMembersCount = 0;
+    Box bounds;
+
+    // If a relation will be a super-relation, we always process its members,
+    // even for a super-relation without geometry changes or member changes,
+    // to ensure that child relations are always processed before parents
+    // This avoids a situation where a child relation with geom changes
+    // is processed after its parents relation without geom changes,
+    // which may cause geometry changes to cascade to the parent --
+    // but at that point, the parent has already been processed (can't
+    // process it twice). This also means we need to implicitly change
+    // all unchanged child relations of a changed parent, so the processing
+    // can descend to its respective children
+
+    if (rel->isAny(
+        ChangeFlags::MEMBERS_CHANGED |
+        ChangeFlags::GEOMETRY_CHANGED |
+        ChangeFlags::WILL_BE_SUPER_RELATION))
+    {
+        auto members = rel->members();
+        for(int i=0; i<members.size(); i++)
+        {
+            if(members[i] == nullptr)   [[unlikely]]
+            {
+                // The member has been determined missing in an
+                // earlier attempt, and replaced with null
+                omittedMembersCount++;
+                continue;
+            }
+            CFeature* member = members[i]->get();
+            FeatureType memberType = member->type();
+
+            if(memberType == FeatureType::RELATION)     [[unlikely]]
+            {
+                if(rel->id() == 169101 || rel->id() == 17721802)
+                {
+                    LOGS << "Processing member " << member->typedId() << " of " << rel->typedId();
+                }
+
+                // We always upgrade a child relation to "changed",
+                // (even if it has o actual changes), in order to allow
+                // processing to descend to any of its potential child
+                // relations (which may have actual changes), to ensure
+                // that child relations are always processed before
+                // parent relations
+
+                ChangedFeature2D* memberRel = model_.getChangedFeature2D(member);
+                member = memberRel;
+                    // so subsequent ops use the ChangedFeature2D, not the stub
+                if(memberRel->is(ChangeFlags::RELATION_ATTEMPTED))  [[unlikely]]
+                {
+                    // TODO: We have a circular reference
+
+                    ConsoleWriter out;
+                    out << memberRel->typedId() << ": Reference cycle (referenced from "
+                        << rel->typedId() << ")\n";
+                    out.flush();
+
+                    assert(false);
+                        // TODO: for now -- since we don't break
+                        //  refcycles yet
+                }
+                else if(memberRel->is(ChangeFlags::RELATION_DEFERRED))
+                {
+                    hasUnresolvedMembers = true;
+                    continue;
+                }
+                else if(!memberRel->is(ChangeFlags::PROCESSED))
+                {
+                    int res = processRelation(memberRel);
+                    // TODO: -1 = refcycle
+                    if(res == 0)
+                    {
+                        hasUnresolvedMembers = true;
+                        continue;
+                    }
+                }
+            }
+
+            if(member->ref().isUnknownOrMissing())   [[unlikely]]
+            {
+                if(memberType != FeatureType::NODE &&
+                    !member->refSE().tip().isNull())
+                {
+                    // If only the SE tile is known, we can deduce
+                    // the NW tile
+                    member->setRef(deduceTwinRef(member->refSE()));
+                }
+                else
+                {
+                    // TODO: No need to issue secondary search for a feature with
+                    //  "unknown" ref which has been explicitly changed
+                    //  (If it existed, it would have been found, hence it must be new)
+
+                    if(member->ref() == CRef::MISSING || memberSearchCompleted_)
+                    {
+                        member->setRef(CRef::MISSING);
+                        members[i] = nullptr;
+                        omittedMembersCount++;
+                    }
+                    else
+                    {
+                        // TODO: look up feature in index, issue
+                        hasUnresolvedMembers = true;
+                    }
+                    member = nullptr;
+                }
+            }
+            else
+            {
+                if(member->type() != FeatureType::NODE &&
+                    member->refSE() == CRef::UNKNOWN)
+                {
+                    /*
+                    LOGS << "Deducing SE ref for " << member->typedId() <<
+                        " based on NW ref " << member->ref();
+                    */
+                    member->setRefSE(deduceTwinRef(member->ref()));
+                }
+            }
+
+            if(member)
+            {
+                if(memberType == FeatureType::NODE)  [[unlikely]]
+                {
+                    if (member->isChanged())
+                    {
+                        memberTilesChanged |= ChangedNode::cast(member)->is(
+                            ChangeFlags::TILES_CHANGED);
+                    }
+                    if (member->xy().isNull()) [[unlikely]]
+                    {
+                        LOGS << member->typedId() << " (ref "
+                            << member->ref() << ") has null coordinate";
+                    }
+                    assert(!member->xy().isNull());
+                    bounds.expandToInclude(member->xy());
+                }
+                else
+                {
+                    Box memberBounds;
+                    if(member->isChanged())
+                    {
+                        ChangedFeature2D* member2D = ChangedFeature2D::cast(member);
+                        if(!member2D->is(ChangeFlags::PROCESSED))
+                        {
+                            hasUnresolvedMembers = true;
+                            continue;
+                        }
+                        memberBounds = member2D->bounds();
+                        memberTilesChanged |= member2D->is(
+                            ChangeFlags::TILES_CHANGED);
+                    }
+                    if (memberBounds.isEmpty())
+                    {
+                        memberBounds = member->getFeature(store()).bounds();
+                    }
+                    bounds.expandToIncludeSimple(memberBounds);
+                }
+            }
+        }
+    }
+
+    if(hasUnresolvedMembers)   [[unlikely]]
+    {
+        rel->addFlags(ChangeFlags::RELATION_DEFERRED);
+        rel->clearFlags(ChangeFlags::RELATION_ATTEMPTED);
+        model_.changedRelations().push(rel);
+        LOGS << "Deferred " << rel->typedId();
+        return 0;
+    }
+
+    if (omittedMembersCount && omittedMembersCount == rel->memberCount()) [[unlikely]]
+    {
+        LOGS << rel->typedId() << ": all members missing";
+        // Delete relation without any members
+        processDeletedFeature(rel);
+        rel->clearFlags(ChangeFlags::RELATION_ATTEMPTED);
+        return 1;
+    }
+
+    if (rel->id() == 17721802)
+    {
+        LOGS << "Processing membership changes for " << rel->typedId();
+    }
+    processMembershipChanges(rel);
+    if (rel->id() == 17721802)
+    {
+        if (rel->peekParentRelations())
+        {
+            LOGS << rel->typedId() << " has "
+                << rel->peekParentRelations()->relations().size()
+                << "parent relations";
+        }
+        else
+        {
+            LOGS << rel->typedId() << " has no parent relations";
+        }
+    }
+    if (rel->isAny(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::GEOMETRY_CHANGED))
+    {
+        updateBounds(rel, bounds);
+        if (memberTilesChanged || rel->isAny(ChangeFlags::TILES_CHANGED |
+            ChangeFlags::MEMBERS_CHANGED))
+        {
+            // If the relation or any of its members changed tiles,
+            // or if the relation may have gained members,
+            // we need to check for potential TEX gainers/losers
+
+            checkMemberExports(rel);
+            rel->addFlags(ChangeFlags::MEMBERS_CHANGED);
+        }
+    }
+    rel->addFlags(ChangeFlags::PROCESSED);
+    rel->clearFlags(ChangeFlags::RELATION_ATTEMPTED |
+        ChangeFlags::RELATION_DEFERRED);
+    if (rel->hasActualChanges())
+    {
+        // There may be cases where a relation may not
+        // actually have changes (e.g. child relation that
+        // is upgraded to "changed" to force processing of
+        // any potential changed grandchild relations);
+        // don't push to tile(s) in that case
+
+        assignToTiles(rel);
+    }
+    return 1;
+}
+
 
 // TODO: What if relation has deleted members?? (pathological)
 int ChangeManager::processRelation(ChangedFeature2D* rel) // NOLINT recursive
@@ -1371,7 +1616,7 @@ void ChangeManager::assignToTiles(ChangedFeature2D* feature)
     Tip tip = ref.tip();
     if(!tip.isNull())   [[unlikely]]
     {
-        model_.getChangedTile(tip)->addChanged(model_.copy(feature));
+        getChangedTile(tip)->addChanged(model_.copy(feature));
         if (feature->id() == 89253924)
         {
             LOGS << "Assigned copy of " << feature->typedId() << " to " << tip;
@@ -1385,7 +1630,7 @@ void ChangeManager::assignToTiles(ChangedFeature2D* feature)
             feature->ref() << " / " << feature->refSE();
     }
     assert(!tip.isNull());
-    model_.getChangedTile(tip)->addChanged(feature);
+    getChangedTile(tip)->addChanged(feature);
     if (feature->id() == 89253924)
     {
         LOGS << "Assigned " << feature->typedId() << " to " << tip;

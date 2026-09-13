@@ -1007,6 +1007,9 @@ void ChangeModel::ensureMembersLoaded(ChangedFeature2D* rel)
 
 void ChangeModel::mayGainTex(CFeature* feature)
 {
+    // TODO
+
+    /*
     Tip tip = feature->ref().tip();
     assert(!tip.isNull());
     getChangedTile(tip)->mayGainTex(feature);
@@ -1019,6 +1022,7 @@ void ChangeModel::mayGainTex(CFeature* feature)
             getChangedTile(tip)->mayGainTex(feature);
         }
     }
+    */
 }
 
 
@@ -1100,7 +1104,6 @@ void ChangeModel::clear()
     changedNodes_.clear();
     changedWays_.clear();
     changedRelations_.clear();
-    changedTiles_.clear();
     mayLoseTex_.clear();
 
     // The following must always be cleared after each use:
@@ -1137,6 +1140,41 @@ void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
     }
 }
 
+// TODO :We want to be able to propagate GEOMETRY_CHANGED, BOUND_CHANGED and
+// MEMBERS_CHANGED separately
+// A changed Relations only needs to scan its member table is bounds may
+//  have changed (need to recalc bbox) or members changed (including members
+//  that have been deleted without explicit removal from parent)
+// A relation that only has a geometry change doesn't need to scan its members;
+//  member tables cna be large with members spread out all over the gol
+/*
+// TODO: Fix !!!
+void ChangeModel::memberGeometryChanged(const CRelationTable* parents,
+    const Box& pastBounds, const Box& futureBounds, ChangeFlags flags)
+{
+    for (CFeatureStub* rel : parents->relations())
+    {
+        ChangedFeatureBase* changedRel = getChangedFeature2D(rel);
+        ChangeFlags missingFlags = flags & changedRel->flags() &
+            (ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::BOUNDS_CHANGED);
+        if (missingFlags != ChangeFlags::NONE)
+        {
+            if (test(missingFlags, ChangeFlags::BOUNDS_CHANGED))
+            {
+
+            }
+        }
+        changedRel->addFlags(flags);
+
+        // TODO: ensure bbox is retrieved
+        if (!changedRel->is(ChangeFlags::GEOMETRY_CHANGED))
+        {
+            memberGeometryChanged(changedRel);
+        }
+        changedRel->addFlags(ChangeFlags::GEOMETRY_CHANGED);
+    }
+}
+*/
 
 const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orphan)
 {
