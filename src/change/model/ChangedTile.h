@@ -7,6 +7,10 @@
 
 using namespace geodesk;
 
+// TODO: If we arena-allocate this class, we need to call
+//  its destructor prior to deallocating the arena, or its members
+//  may leak memory
+
 class ChangedTile 
 {
 public:

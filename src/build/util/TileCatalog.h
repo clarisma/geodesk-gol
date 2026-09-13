@@ -120,6 +120,7 @@ public:
 	}
 
 	TilePair normalizedTilePair(TilePair pair) const noexcept;
+	TilePair tilePair(const Box& bounds) const noexcept;
 	// std::pair<int,int> pilesOfTilePairOrParent(TilePair pair) const noexcept;
 	int pileOfTileOrParent(Tile tile) const noexcept;
 	void write(std::filesystem::path path) const;

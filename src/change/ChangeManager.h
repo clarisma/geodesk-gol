@@ -53,9 +53,11 @@ private:
 	void mayGainOrLoseTex(CFeature* member, ChangedFeature2D* parent);
 	void cascadeNodeCoordinateChange(NodePtr node, Coordinate futureXY);
 	void cascadeBoundsChange(FeaturePtr feature, const Box& futureBounds);
-	int normalizeRefs(ChangedFeature2D* changed);
+	CRef getRef(FeaturePtr feature) const;
+	int normalizeRefs(CFeature* feature);
 	CRef deduceTwinRef(CRef ref) const;
 	ChangedNode* findUniqueLocationNode(Tip tip, Coordinate xy);
+	void wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node);
 
 	const CTagTable* getExceptionNodeTags(bool duplicate, bool orphan);
 

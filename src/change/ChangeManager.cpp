@@ -44,6 +44,10 @@ void ChangeManager::preProcessRelations()
         {
             if (rel->ref() == CRef::UNKNOWN)
             {
+                // TODO: need to check if both refs are unknown,
+                //  because we may have only found the SE twin of
+                //  a twin-tile relation
+
                 // If a relation is changed explicitly and
                 // it has not been found, this means it has
                 // been newly created; we need to add memberships
@@ -203,8 +207,12 @@ void ChangeManager::processRelations()
 
 // TODO: when/how do we determine if a node's geometry changed?
 
+// TODO: Cascade node move to parent relations
+
 // TODO: If feature status change, need to implicitly change ways
 //  (their node table must be updated)
+
+// TODO: what happens if a node moves AND is deleted?
 
 void ChangeManager::processNode(ChangedNode* node)
 {
@@ -230,15 +238,24 @@ void ChangeManager::processNode(ChangedNode* node)
     //  Adding an orphan node to a way revokes its orphan status
     //  and may cause it to become anonymous
 
+    processMembershipChanges(node);
+
     if(node->isDeleted())
     {
         if(!pastTip.isNull())
         {
+            // TODO: A deleted node always loses any TEX
             model_.getChangedTile(pastTip)->deletedNodes().push(node);
         }
         node->setRef(CRef::MISSING);
         node->addFlags(ChangeFlags::PROCESSED);
         return;
+
+        // TODO: If node was a feature, a delete has to be modify
+        //  any parent ways & relations via cascade, because we
+        //  cannot be guaranteed that the node has been removed
+        //  from those parents (we cannot assume that the osc
+        //  respects referential integrity)
     }
 
     if (node->xy().isNull())    [[unlikely]]
@@ -256,8 +273,6 @@ void ChangeManager::processNode(ChangedNode* node)
             return;
         }
     }
-
-    processMembershipChanges(node);
 
     ChangeFlags changeFlags = node->flags();
     bool willHaveTags;
@@ -482,39 +497,55 @@ void ChangeManager::processNode(ChangedNode* node)
             CRef::MISSING : CRef::ANONYMOUS_NODE);
     }
 
+    bool wasFeature = !pastNode.isNull();
+    if (willBeFeature != wasFeature)    [[unlikely]]
+    {
+        // If a node's feature status has changed, all ways that
+        // contain this node need to update their node tables
+
+        if (!test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
+        {
+            // Only do this if the node hasn't moved (for nodes that
+            // moved, the TileChangeAnalyzer has already marked their
+            // implicitly changed parent ways
+
+            if (willBeFeature || (pastFeatureFlags & FeatureFlags::WAYNODE) != 0)
+            {
+                // Only do this if an anonymous node (which is always a waynode)
+                // turn feature node, or a waynode-flagged feature node turns
+                // anonymous
+
+                wayNodeFeatureStatusChanged(node->xy(), pastNode);
+            }
+        }
+    }
     changeFlags |= ChangeFlags::PROCESSED;
     node->setFlags(changeFlags);
 }
 
-/*
-void ChangeManager::processPastCoincidentNode(ChangedNode* node, NodePtr pastNode)
+// TODO: move to ChangeModel
+void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
 {
-    assert(pastNode.hasSharedLocation());
-    Box bbox(pastNode.xy());
-    Query query(model_.store(), bbox, FeatureTypes::NODES,
-        model_.store()->borrowAllMatcher(), nullptr);
-    NodePtr otherNode;
+    ParentWaysQuery query(store(), xy, node);
     for (;;)
     {
-        FeaturePtr feature = query.next();
-        if (feature.isNull()) break;
-        assert(feature.isNode());
-        CFeature* otherChangedNode = model_.peekFeature(
-            TypedFeatureId::ofNode(feature.id()));
-        bool otherMoved = false;
-        if (otherChangedNode && otherChangedNode->isChanged())
+        WayPtr way = query.next();
+        if (way.isNull()) break;
+        ChangedFeature2D* changedWay =
+            model_.getChangedFeature2D(FeatureType::WAY, way.id());
+        CRef ref = getRef(way);
+        if (!way.hasNorthwestTwin()) [[likely]]
         {
-            if (ChangedNode::cast(otherChangedNode)->is(
-                ChangeFlags::GEOMETRY_CHANGED))
-            {
-                otherMoved = true;
-            }
+            changedWay->offerRef(ref);
         }
-        NodePtr otherNode(feature);
-
+        else
+        {
+            changedWay->offerRefSE(ref);
+        }
+        // TODO: need to mark the way?
     }
 }
-*/
+
 
 void ChangeManager::addDeleted(Tip tip, ChangedFeatureStub* feature)
 {
@@ -540,6 +571,9 @@ void ChangeManager::processDeletedFeature(ChangedFeature2D* deleted)
 
 void ChangeManager::processMembershipChanges(ChangedFeatureBase* feature)
 {
+    // TODO: Do we need to guard against the reltable already
+    //  being loaded? (Changes and actual table are unioned)
+
     const MembershipChange* changes = feature->membershipChanges();
     if (changes)    [[unlikely]]
     {
@@ -569,10 +603,14 @@ void ChangeManager::processWay(ChangedFeature2D* way)
 
     if(way->isDeleted())
     {
+        // TODO: Need to normalize refs, because under the new search
+        //  model, we may only have one ref of a twin-tile feature
         processDeletedFeature(way);
         return;
     }
 
+    // TODO: need to do this even for explicitly changed ways,
+    //  because we may only be searching the NW tiles of twin-tile ways
     if (!way->isChangedExplicitly())
     {
         if (normalizeRefs(way) < 1) return;
@@ -677,6 +715,9 @@ void ChangeManager::processWay(ChangedFeature2D* way)
             pastWayFlags = pastWay.flags();
             pastWayBody = pastWay.bodyptr();
         }
+
+        // TODO: Do we need to consult the old node table?
+
         FeatureNodeIterator iter(store(), pastWayBody,
             pastWayFlags, store()->borrowAllMatcher(), nullptr);
         for(CFeatureStub* nodeStub : way->members())
@@ -739,54 +780,63 @@ void ChangeManager::processWay(ChangedFeature2D* way)
         ChangeFlags::PROCESSED);
 }
 
+/// Past bounds must be set
 ///
 /// @param changed
 /// @return  1   if at least one ref has been resolved
 ///          0   if feature is missing
 ///         -1   if feature refs are unknown (search required)
 ///
-int ChangeManager::normalizeRefs(ChangedFeature2D* changed)
+// TODO: This may be wrong, because it looks up the tile of
+//  the topLeft/bottomRight coordinate; in reality, the
+//  true twin-tile may be at a lower zoom level, we need to
+//  look at the bounds of the feature to determine its level
+int ChangeManager::normalizeRefs(CFeature* feature)
 {
-    assert(!changed->isChangedExplicitly());
+    // For twin-tile features, we may have only one of the twins.
+    // If the one ref is MISSING, we will set it to either UNRESOLVED
+    // (i.e. we know the TIP, but don't have its offset or TEX),
+    // or SINGLE_TILE (SE part only)
 
-    // For a feature that has been changed implicitly, we may not
-    // have searched any of its tiles, but we must at least have one
-    // ref (NW or SE). If the other ref is MISSING, we will set it to
-    // either UNRESOLVED (i.e. we know the TIP, but don't have its
-    // offset or TEX), or SINGLE_TILE
-    CRef ref = changed->ref();
+    assert(feature->type() != FeatureType::NODE);
+    CRef ref = feature->ref();
     Tip tip = ref.tip();
-    if(!tip.isNull())
+    if(!tip.isNull())   [[likely]]
     {
-        if (changed->refSE().tip().isNull())
+        CRef refSE = feature->refSE();
+        if (refSE == CRef::SINGLE_TILE) [[likely]]
+        {
+            return 1;
+        }
+        if (feature->refSE().tip().isNull())
         {
             Box pastBounds = ref.getFeature(store()).bounds();
             Box tileBounds = tileCatalog_.tileOfTip(tip).bounds();
+            refSE = CRef::SINGLE_TILE;
             if(pastBounds.maxX() > tileBounds.maxX() ||
                 pastBounds.minY() < tileBounds.minY())
             {
                 // The feature's bounds extend past the right or
                 // bottom edge of its NW tile, which means it has
                 // a SE tile
-                changed->setRefSE(CRef::ofUnresolved(
-                    tileCatalog_.tipOfCoordinateSlow(
-                        pastBounds.bottomRight())));
+
+                TilePair tp = tileCatalog_.tilePair(pastBounds);
+                assert(tp.first().tip() == tip);
+                assert(tp.hasSecond());
+                refSE = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.second()));
             }
-            else
-            {
-                changed->setRefSE(CRef::SINGLE_TILE);
-            }
+            feature->setRefSE(refSE);
         }
     }
     else
     {
-        ref = changed->refSE();
+        ref = feature->refSE();
         tip = ref.tip();
         if (tip.isNull())
         {
             if (memberSearchCompleted_)
             {
-                changed->setRef(CRef::MISSING);
+                feature->setRef(CRef::MISSING);
                 return 0;
             }
 
@@ -794,6 +844,7 @@ int ChangeManager::normalizeRefs(ChangedFeature2D* changed)
             //  search request
             return -1;
         }
+
         Box pastBounds = ref.getFeature(store()).bounds();
         Box tileBounds = tileCatalog_.tileOfTip(tip).bounds();
         assert(pastBounds.minX() < tileBounds.minX() ||
@@ -804,9 +855,11 @@ int ChangeManager::normalizeRefs(ChangedFeature2D* changed)
         //  of asserts -- if these constraints are violated,
         //  this means the GOL is corrupt)
 
-        changed->setRef(CRef::ofUnresolved(
-            tileCatalog_.tipOfCoordinateSlow(
-               pastBounds.topLeft())));
+        TilePair tp = tileCatalog_.tilePair(pastBounds);
+        assert(tp.second().tip() == tip);
+        assert(tp.hasSecond());
+        ref = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.first()));
+        feature->setRef(ref);
     }
     return 1;
 }
@@ -1045,6 +1098,8 @@ int ChangeManager::processRelation(ChangedFeature2D* rel) // NOLINT recursive
         return 1;
     }
 
+    // TODO: need to do this even for explicitly changed ways,
+    //  because we may only be searching the NW tiles of twin-tile ways
     if (!rel->isChangedExplicitly())
     {
         int result = normalizeRefs(rel);
@@ -1481,7 +1536,24 @@ ChangedNode* ChangeManager::findUniqueLocationNode(Tip tip, Coordinate xy)
         tip, tile.handleOf(soleRemainingNode)));
     uniqueLocationNodes_[xy] = node;
     return node;
+}
 
+
+CRef ChangeManager::getRef(FeaturePtr feature) const
+{
+    Tip tip;
+    if (feature.isNode()) [[unlikely]]
+    {
+        tip = tileCatalog_.tipOfCoordinateSlow(NodePtr(feature).xy());
+    }
+    else
+    {
+        TilePair tp = tileCatalog_.tilePair(feature.bounds());
+        tip = tileCatalog_.tipOfTile(
+            tp[feature.hasNorthwestTwin() ? 1 : 0]);
+    }
+    return CRef::ofMaybeExported(tip,
+        store()->fetchTile(tip).handleOf(feature));
 }
 
 // TODO: possible replacement for checkExport()

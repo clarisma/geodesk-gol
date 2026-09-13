@@ -851,6 +851,12 @@ void ChangeModel::cascadeMemberChange(FeaturePtr past,
         return;
     }
 
+    // TODO: Don't base cascade based on the updated reltable,
+    //  because it may contain a refcycle that hasn't been broken yet
+    //  (which leads to endless recursion and stack overflow)
+    //  Always use the past reltables; relations that add/drop
+    //  members are already marked geom/members changed
+
     if (future->is(ChangeFlags::RELTABLE_LOADED))
     {
         // RELTABLE_LOADED does not necessarily mean that the feature
@@ -1112,9 +1118,19 @@ void ChangeModel::clear()
     assert(tempMembers_.empty());
 }
 
-
+// TODO: Also make it possible to set MEMBERS_CHANGED on a parent
+//  relation if the feature has been deleted (Remember, we can't rely
+//  on the .osc files providing referential integrity; a member can
+//  be deleted without the parent relation explicitly changed, so
+//  we have to remove the deleted member via an implicit change)
 void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
 {
+    // TODO: iterate *past* relations; current relation table may have
+    //  refcycles that haven't been broken, possibly leading to endless
+    //  recursion and stack overflow
+    //  But is this actually a problem? We won't cascade from explicitly
+    //  changed rels, because they already have geom/member change
+
     const CRelationTable* rels = getParentRelations(member);
     if (rels)
     {

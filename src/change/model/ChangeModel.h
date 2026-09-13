@@ -186,8 +186,10 @@ private:
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeature2D> changedWays_;
     LinkedStack<ChangedFeature2D> changedRelations_;
-    HashMap<Tip,ChangedTile*> changedTiles_;
-    HashSet<CFeatureStub*> mayLoseTex_;     // TODO: make vector, use MAY_LOSE_TEX flag
+    HashMap<Tip,ChangedTile*> changedTiles_;    // TODO: move to ChangeManager
+    HashSet<CFeatureStub*> mayLoseTex_;
+        // TODO: make vector, use MAY_LOSE_TEX flag
+        // TODO: move to ChangeManager
     TagTableModel tags_;
     AreaClassifier areaClassifier_;
     std::vector<CFeatureStub*> tempRelations_;

@@ -116,6 +116,7 @@ void TileChangeAnalyzer::readWay(WayPtr way)
                     LOGS << "way/" << way.id() << "is changed (version " << changed->version() << ")";
                 }
 
+                // TODO: Do we need to capture the past bounds?
                 changed->setBounds(bounds);
                 compareWayNodes(changed, way);
                     // We call compareWayNodes() also for deleted ways,

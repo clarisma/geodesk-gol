@@ -132,6 +132,13 @@ TilePair TileCatalog::normalizedTilePair(TilePair pair) const noexcept
 }
 
 
+TilePair TileCatalog::tilePair(const Box& bounds) const noexcept
+{
+	TilePair tp(tileOfCoordinateSlow(bounds.topLeft()));
+	tp += tileOfCoordinateSlow(bounds.bottomRight());
+	return normalizedTilePair(tp);
+}
+
 void TileCatalog::write(std::filesystem::path path) const
 {
 	FileBuffer3 out;
