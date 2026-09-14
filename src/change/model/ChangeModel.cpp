@@ -114,7 +114,7 @@ const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipCh
     if (ref.canGetFeature())
     {
         Tip tip = ref.tip();
-        DataPtr pTile = store()->fetchTile(tip);
+        TilePtr pTile = store()->fetchTile(tip);
         FeaturePtr feature = ref.getFeature(pTile);
         assert(!feature.isNull());
         if(feature.isRelationMember())
@@ -818,6 +818,8 @@ void ChangeModel::addNewRelationMemberships()
 }
 */
 
+
+/*
 void ChangeModel::cascadeMemberChange(NodePtr past, ChangedNode* future)
 {
     Box futureBounds(future->xy());
@@ -886,6 +888,7 @@ void ChangeModel::cascadeMemberChange(FeaturePtr past,
 }
 
 
+
 // TODO: We must also cascade if a member's tiles changed (even if
 //  the change cannot affect the relation's bounds), so processRelation()
 //  can check whether members (or the relation itself) will gain/lose TEXes
@@ -931,11 +934,6 @@ void ChangeModel::memberBoundsChanged(CFeature* relation,
         // lie on the parent's bounds, the member's bounds change may
         // cause the parent's bounds to change as well
 
-        /*
-        LOGS << "Bounds of " << relation->typedId()
-            << " may change due to bounds change of member";
-        */
-
         ChangedFeature2D* changed = getChangedFeature2D(relation);
         assert(!changed->is(ChangeFlags::PROCESSED));
         changed->setBounds(pastRelationBounds);
@@ -947,6 +945,7 @@ void ChangeModel::memberBoundsChanged(CFeature* relation,
     }
 }
 
+*/
 
 void ChangeModel::ensureMembersLoaded(ChangedFeature2D* rel)
 {
@@ -961,7 +960,7 @@ void ChangeModel::ensureMembersLoaded(ChangedFeature2D* rel)
     }
     Tip tip = ref.tip();
     assert(!tip.isNull());
-    DataPtr pTile = store()->fetchTile(tip);
+    TilePtr pTile = store()->fetchTile(tip);
     RelationPtr pastRel(ref.getFeature(pTile));
     assert(!pastRel.isNull());
 
@@ -1112,69 +1111,82 @@ void ChangeModel::clear()
     assert(tempMembers_.empty());
 }
 
-// TODO: Also make it possible to set MEMBERS_CHANGED on a parent
-//  relation if the feature has been deleted (Remember, we can't rely
-//  on the .osc files providing referential integrity; a member can
-//  be deleted without the parent relation explicitly changed, so
-//  we have to remove the deleted member via an implicit change)
-void ChangeModel::memberGeometryChanged(ChangedFeatureBase* member)
-{
-    // TODO: iterate *past* relations; current relation table may have
-    //  refcycles that haven't been broken, possibly leading to endless
-    //  recursion and stack overflow
-    //  But is this actually a problem? We won't cascade from explicitly
-    //  changed rels, because they already have geom/member change
 
-    const CRelationTable* rels = getParentRelations(member);
-    if (rels)
+/// @brief Returns whether a changed member may alter the parent bbox.
+///
+/// Assumes all boxes are simple and non-empty.
+///
+bool ChangeModel::parentBoundsMayChange(const Box& parent,
+    const Box& past, const Box& future) noexcept
+{
+    const bool minX =
+        (future.minX() < parent.minX()) |
+        ((past.minX() == parent.minX()) &
+            (future.minX() > parent.minX()));
+    const bool minY =
+        (future.minY() < parent.minY()) |
+        ((past.minY() == parent.minY()) &
+            (future.minY() > parent.minY()));
+    const bool maxX =
+        (future.maxX() > parent.maxX()) |
+        ((past.maxX() == parent.maxX()) &
+            (future.maxX() < parent.maxX()));
+    const bool maxY =
+        (future.maxY() > parent.maxY()) |
+        ((past.maxY() == parent.maxY()) &
+            (future.maxY() < parent.maxY()));
+    return minX | minY | maxX | maxY;
+}
+
+void ChangeModel::memberChanged(const CRelationTable* parents,
+    const Box& pastMemberBounds, const Box& futureMemberBounds,
+    ChangeFlags cascadeFlags)
+{
+    for (CFeatureStub* relStub : parents->relations())
     {
-        for (CFeatureStub* rel : rels->relations())
+        ChangedFeature2D* rel = getChangedFeature2D(relStub);
+        assert(!rel->is(ChangeFlags::PROCESSED));
+        ChangeFlags addRelFlags = cascadeFlags;
+        Box pastRelationBounds = rel->bounds();
+        Box tentativeFutureRelationBounds = pastRelationBounds;
+        if (test(cascadeFlags, ChangeFlags::BOUNDS_CHANGED))
         {
-            ChangedFeatureBase* changedRel = getChangedFeature2D(rel);
-            if (!changedRel->is(ChangeFlags::GEOMETRY_CHANGED))
+            // If the member's bounds have changed, let's check
+            // if that change can actually affect the parent's
+            // bounds; if not, don't apply BOUNDS_CHANGED
+
+            if (parentBoundsMayChange(rel->bounds(),
+                pastMemberBounds, futureMemberBounds))
             {
-                changedRel->addFlags(ChangeFlags::GEOMETRY_CHANGED);
-                memberGeometryChanged(changedRel);
+                tentativeFutureRelationBounds.
+                    expandToIncludeSimple(futureMemberBounds);
+                // Important: We don't set these bounds for
+                //  the relation, since these are tentative
+            }
+            else
+            {
+                addRelFlags &= ~ChangeFlags::BOUNDS_CHANGED;
+            }
+        }
+        if ((rel->flags() & addRelFlags) != addRelFlags)
+        {
+            // Only apply flags and cascade if any flags change
+            rel->addFlags(addRelFlags);
+            const CRelationTable* grandparents =
+                getParentRelations(rel);
+            if (grandparents)
+            {
+                memberChanged(grandparents, pastRelationBounds,
+                    tentativeFutureRelationBounds,
+                        addRelFlags & (ChangeFlags::GEOMETRY_CHANGED |
+                            ChangeFlags::BOUNDS_CHANGED));
+                // cascade only GEOMETRY and BOUNDS changes
+                // to the relation's parents
             }
         }
     }
 }
 
-// TODO :We want to be able to propagate GEOMETRY_CHANGED, BOUND_CHANGED and
-// MEMBERS_CHANGED separately
-// A changed Relations only needs to scan its member table is bounds may
-//  have changed (need to recalc bbox) or members changed (including members
-//  that have been deleted without explicit removal from parent)
-// A relation that only has a geometry change doesn't need to scan its members;
-//  member tables cna be large with members spread out all over the gol
-/*
-// TODO: Fix !!!
-void ChangeModel::memberGeometryChanged(const CRelationTable* parents,
-    const Box& pastBounds, const Box& futureBounds, ChangeFlags flags)
-{
-    for (CFeatureStub* rel : parents->relations())
-    {
-        ChangedFeatureBase* changedRel = getChangedFeature2D(rel);
-        ChangeFlags missingFlags = flags & changedRel->flags() &
-            (ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::BOUNDS_CHANGED);
-        if (missingFlags != ChangeFlags::NONE)
-        {
-            if (test(missingFlags, ChangeFlags::BOUNDS_CHANGED))
-            {
-
-            }
-        }
-        changedRel->addFlags(flags);
-
-        // TODO: ensure bbox is retrieved
-        if (!changedRel->is(ChangeFlags::GEOMETRY_CHANGED))
-        {
-            memberGeometryChanged(changedRel);
-        }
-        changedRel->addFlags(ChangeFlags::GEOMETRY_CHANGED);
-    }
-}
-*/
 
 const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orphan)
 {

@@ -68,9 +68,39 @@ private:
 
 	const CTagTable* getExceptionNodeTags(bool duplicate, bool orphan);
 
+	static bool isResolved(CFeature* feature)
+	{
+		if (feature->ref().canGetFeature())  [[likely]]
+		{
+			CRef refSE = feature->refSE();
+			if (feature->type() == FeatureType::NODE) return true;
+			if (refSE == CRef::SINGLE_TILE)  [[likely]]
+			{
+				return true;
+			}
+			return refSE.canGetFeature();
+		}
+		return false;
+	}
+
+	void ensureResolved(CFeature* feature)
+	{
+		if (!isResolved(feature)) [[unlikely]]
+		{
+			resolve(feature);
+		}
+	}
+
+	void resolve(CFeature* feature);
+
+	void texChange(CFeature* feature, bool inSE, bool texNeeded);
+
 	ChangeModel model_;
 	TileCatalog tileCatalog_;
 	HashMap<Tip,ChangedTile*> changedTiles_;
+		// TODO: Make this a plain array? If there are few changed tiles,
+		//  the extra memory usage won't matter; if there are many, we
+		//  save memory, and lookups are faster in either case
 	HashMap<Coordinate,ChangedNode*> uniqueLocationNodes_;
 	bool memberSearchCompleted_ = true; // TODO
 	const CTagTable* duplicateNodeTags_ = nullptr;

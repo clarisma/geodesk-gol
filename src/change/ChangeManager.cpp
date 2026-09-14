@@ -8,6 +8,7 @@
 #include <geodesk/query/ParentWaysQuery.h>
 #include "change/model/ChangeModelDumper.h"
 #include "change/model/ChangedTile.h"
+#include "geodesk/query/FeatureFinder.h"
 
 // TODO: When do we process the membership changes of members
 //  of a deleted relation? ==> during scan in TCA
@@ -84,12 +85,33 @@ void ChangeManager::preProcessRelations()
     // because we need to have the membership changes, since we're
     // retrieving relation tables (into which any membership changes
     // are merged)
+    Box maxBounds = Box::ofWorld();
     rel = model_.changedRelations().first();
+        // TODO: We need to move the stack locally, because cascading
+        //  may add new relations (though that's probably benign)
+
+    // TODO: Is a change in area status of a member considered
+    //  a geometric change in the parent relation?
+
     while (rel)
     {
-        if(rel->is(ChangeFlags::GEOMETRY_CHANGED))
+        ChangeFlags flags = rel->flags();
+        if(testAny(flags, ChangeFlags::MEMBERS_CHANGED |
+            ChangeFlags::DELETED))
         {
-            model_.memberGeometryChanged(rel);
+            // If a relation's members have changed, we mark
+            //  all of its parents as having changed GEOMETRY
+            //  and BOUNDS (this forces processing, which may
+            //  clear these flags); if the relation is deleted,
+            //  we mark its direct parents MEMBERS_CHANGED, as well
+            //  (in case the .osc files don't remove the deleted
+            //   relation from its parents)
+            ChangeFlags cascadeFlags = ChangeFlags::GEOMETRY_CHANGED |
+                ChangeFlags::BOUNDS_CHANGED |
+                    (test(flags, ChangeFlags::DELETED) ?
+                        ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE);
+            model_.memberChanged(rel, maxBounds,
+                maxBounds, cascadeFlags);
         }
         rel = rel->next();
     }
@@ -226,6 +248,7 @@ void ChangeManager::processNode(ChangedNode* node)
     CRef pastRef = node->ref();
     Tip pastTip = pastRef.tip();
     NodePtr pastNode = node->getFeature(store());
+    Coordinate pastXY = node->xy();
     uint32_t pastFeatureFlags = 0;
     if (!pastNode.isNull())
     {
@@ -481,7 +504,16 @@ void ChangeManager::processNode(ChangedNode* node)
             // we won't need to call this method, since its parent
             // relations by definition already explicitly change)
             // model_.cascadeMemberChange(pastNode, node);
-            model_.memberGeometryChanged(node);
+
+            Box pastBounds = pastXY;
+            Box futureBounds = node->xy();
+            model_.memberChanged(node, pastBounds, futureBounds,
+                ChangeFlags::GEOMETRY_CHANGED |
+                    (test(changeFlags, ChangeFlags::DELETED) ?
+                        ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
+
+            // TODO: This is in the wrong place
+            // TODO: move down, must also call if deleted
         }
     }
     else
@@ -553,6 +585,7 @@ void ChangeManager::addDeleted(Tip tip, ChangedFeatureStub* feature)
     ChangedTile* tile = getChangedTile(tip);
     (feature->type() == FeatureType::WAY ?
         tile->deletedWays() : tile->deletedRelations()).push(feature);
+    // TODO: Need to remove any TEX
 }
 
 void ChangeManager::processDeletedFeature(ChangedFeature2D* deleted)
@@ -687,7 +720,10 @@ void ChangeManager::processWay(ChangedFeature2D* way)
     if (way->is(ChangeFlags::GEOMETRY_CHANGED))
     {
         updateBounds(way, newBounds);
-        model_.memberGeometryChanged(way);
+        // model_.memberGeometryChanged(way);
+        // TODO: cascade changes to parent relations
+        //  but should be called later, needs to report
+        //  geom/bounds changes as well as deletion (member change in parent)
     }
     assignToTiles(way);
     bool membersChanged = false;
@@ -1809,10 +1845,69 @@ ChangedTile* ChangeManager::getChangedTile(Tip tip)
     if(it != changedTiles_.end()) return it->second;
     Arena& arena = model_.arena();
     ChangedTile* changedTile = arena.create<ChangedTile>(tip,
-        tileCatalog_.tileOfTip(tip));
+        tileCatalog_.tileOfTip(tip), store()->fetchTile(tip));
     changedTiles_[tip] = changedTile;
     return changedTile;
 }
+
+
+void ChangeManager::resolve(CFeature* feature)
+{
+    // TODO
+}
+
+
+void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
+{
+    assert(feature->type() != FeatureType::NODE || !inSE);
+        // Nodes are single-tile and hence can only be in a NW tile
+
+    int32_t handle;
+    CRef ref = feature->ref(inSE);
+    Tip tip = ref.tip();
+    assert(!tip.isNull());
+    ChangedTile* changedTile = getChangedTile(tip);
+    if (ref.isNew())
+    {
+        assert(texNeeded);
+            // For a new ref, requesting a new TEX is the only
+            // valid TEX change; a new ref cannot have a TEX
+            // that needs dropping
+        handle = 0;
+    }
+    else
+    {
+        TilePtr pTile = store()->fetchTile(tip);
+        assert(pTile);
+        // TODO: What happens if the tile is not loaded?
+        FeaturePtr fp = ref.getFeature(pTile);
+        if (fp.isNull())    [[unlikely]]
+        {
+            assert (feature->type() != FeatureType::NODE);
+            // We cannot perform alt-tile resolution
+            // for nodes, because ndoes are single-tile
+            CRef otherRef = feature->ref(!inSE);
+            Tip otherTip = otherRef.tip();
+            assert(!otherTip.isNull());
+            TilePtr pTileOther = store()->fetchTile(otherTip);
+            // TODO: what happens if the other tile is not loaded?
+            assert(pTileOther);
+            // Retrieve the feature from the other tile
+            fp = otherRef.getFeature(pTileOther);
+            assert(!fp.isNull());
+            Box bounds = fp.bounds();
+            Coordinate corner = inSE ? bounds.bottomRight() : bounds.topLeft();
+            bounds = corner;
+            FeatureFinder finder;
+            // Now look up the feature in the original tile
+            fp = finder.find(pTile, feature->typedId(), bounds);
+            assert(!fp.isNull());
+        }
+        handle = pTile.handleOf(fp);
+    }
+    changedTile->texChange(handle, texNeeded ? feature : nullptr);
+}
+
 
 // TODO: possible replacement for checkExport()
 /*

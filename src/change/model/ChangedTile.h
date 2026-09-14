@@ -15,13 +15,19 @@ using clarisma::LinkedStack;
 class ChangedTile 
 {
 public:
-    explicit ChangedTile(Tip tip, Tile tile) :
+    explicit ChangedTile(Tip tip, Tile tile, TilePtr tilePtr) :
         tip_(tip),
-        tile_(tile) {}
-        // mayGainTex_(arena) {}
+        tile_(tile),
+        tilePtr_(tilePtr) {}
 
     Tip tip() const { return tip_; }
-    clarisma::LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
+
+    // TODO: Change all to ChangedFeatureStub;
+    //  node can be copied as well, because it may be added in one
+    //  tile and deleted in another!
+    //  No, original is always stored in changedNodes,
+    //   copy goes into deletedNodes
+    LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
     LinkedStack<ChangedFeatureStub>& changedWays() { return changedWays_; };
     LinkedStack<ChangedFeatureStub>& changedRelations() { return changedRelations_; };
     LinkedStack<ChangedFeatureStub>& deletedNodes() { return deletedNodes_; };
@@ -41,14 +47,16 @@ public:
         ((feature->type() == FeatureType::WAY) ? changedWays_ : changedRelations_).push(feature);
     }
 
-    void needsTex(int32_t handle, ChangedFeatureBase* feature)
+    /// Indicates that the given feature may gain or lose a TEX
+    /// If feature is non-null, it will have a TEX in the future
+    /// (If it doesn't have one already, a new TEX will be assigned
+    /// during TEX resolution).
+    /// If feature is nullptr, it will not have a TEX (if it had
+    /// a TEX, its TEX slot will be cleared during TEX resolution).
+    ///
+    void texChange(int32_t handle, CFeature* feature)
     {
         texChanges_[handle] = feature;
-    }
-
-    void withoutTex(int32_t handle)
-    {
-        texChanges_[handle] = nullptr;
     }
 
     // TODO: remove
@@ -81,7 +89,7 @@ public:
     }
     */
 
-    void resolveExports(TilePtr tilePtr);
+    void resolveExports(TilePtr pTile);
     void writeChanges(clarisma::BufferWriter& out);
 
 private:
@@ -112,6 +120,8 @@ private:
 
     static constexpr uint32_t EXPORTS_UNCHANGED = 0xffff'ffff;
 
+    void recordTexChange(CFeature* feature, bool willHaveTex);
+
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeatureStub> changedWays_;
     LinkedStack<ChangedFeatureStub> changedRelations_;
@@ -121,6 +131,7 @@ private:
     // ArenaBag<CFeatureStub*,16> mayGainTex_;
     Tip tip_;
     Tile tile_;
+    TilePtr tilePtr_;
     // bool hasTexChanges_ = false;
 
     clarisma::HashMap<int32_t,CFeatureStub*> texChanges_;

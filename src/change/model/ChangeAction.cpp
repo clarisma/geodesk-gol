@@ -76,12 +76,14 @@ void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* ch
 {
     ChangedFeature2D* way = ChangedFeature2D::cast(changed);
     assert(!ref_.tip().isNull());
-    DataPtr pTile = model.store()->fetchTile(ref_.tip());
+    TilePtr pTile = model.store()->fetchTile(ref_.tip());
     assert(pTile);
     WayPtr pastWay(ref_.getFeature(pTile));
     assert(!pastWay.isNull());
     way->setBounds(pastWay.bounds());
         // TODO: why are setting the old bounds? They may change!
+        //  --> We need to always initialize the bounds of a ChangedFeature2D
+        //      with its old bounds
     if (way->memberCount() == 0)
     {
         way->setMembers(model.loadWayNodes(ref_.tip(), pTile, pastWay));

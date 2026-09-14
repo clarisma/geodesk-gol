@@ -36,6 +36,12 @@ public:
         return ref_;
     }
 
+    CRef ref(bool ofSE) const noexcept
+    {
+        assert(!isReplaced());
+        return ofSE ? refSE_ : ref_;
+    }
+
     void setRef(CRef ref) noexcept
     {
         assert(!isReplaced());

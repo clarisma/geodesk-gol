@@ -62,13 +62,34 @@ public:
     void setMembers(ChangedFeature2D* changed, CFeatureStub** members,
         int memberCount, CFeature::Role* roles);
 
-    /// Cascades geometry changes of a member feature to
-    /// any parent relations (and recursively to their
-    /// respective parents).
+    /// Applies the given flags to each parent relation
+    /// - Flags must be one or more of GEOMETRY_CHANGED,
+    ///   BOUNDS_CHANGED or MEMBERS_CHANGED
+    /// - BOUNDS_CHANGED is only applied to the parent relation
+    ///   if the change in the member bounds could actually
+    ///   affect the relation's bounds (the true bounds of
+    ///   the relation will be computed in a later step,
+    ///   which may clear the relation's BOUNDS_CHANGED flag)
+    /// - GEOMETRY_CHANGED (and possibly BOUNDS_CHANGED) are
+    ///   recursively cascaded upwards to any of the relation's
+    ///   parents, if the relation's flags have changed
+    /// - This method is immune to cyclical relations
     ///
-    void memberGeometryChanged(ChangedFeatureBase* member);
-    void memberGeometryChanged(const CRelationTable* parents,
-        const Box& pastBounds, const Box& futureBounds, ChangeFlags extraFlags);
+    void memberChanged(const CRelationTable* parents,
+        const Box& pastMemberBounds, const Box& futureMemberBounds,
+        ChangeFlags cascadeFlags);
+
+    void memberChanged(ChangedFeatureBase* member,
+        const Box& pastMemberBounds, const Box& futureMemberBounds,
+        ChangeFlags cascadeFlags)
+    {
+        const CRelationTable* parents = getParentRelations(member);
+        if (parents)    [[unlikely]]
+        {
+            memberChanged(parents, pastMemberBounds,
+                futureMemberBounds, cascadeFlags);
+        }
+    }
 
     void addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel);
 
@@ -123,8 +144,8 @@ public:
     void prepareNodes();
     void prepareWays();
     // void addNewRelationMemberships();
-    void cascadeMemberChange(NodePtr past, ChangedNode* future);
-    void cascadeMemberChange(FeaturePtr past, ChangedFeature2D* future);
+    // void cascadeMemberChange(NodePtr past, ChangedNode* future);
+    // void cascadeMemberChange(FeaturePtr past, ChangedFeature2D* future);
     void mayGainTex(CFeature* f);
     void mayLoseTex(CFeature* f)
     {
@@ -169,6 +190,9 @@ private:
         ChangedFeatureBase* future, const Box& futureBounds);
     void memberBoundsChanged(CFeature* relation,
         FeaturePtr pastMember, const Box& futureMemberBounds);
+    static bool parentBoundsMayChange(const Box& parent,
+        const Box& pastMember, const Box& futureMember) noexcept;
+
 
     FeatureStore* store_;
     Arena arena_;

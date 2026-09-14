@@ -21,6 +21,7 @@ public:
         CFeature(CHANGED | REPLACED,
             reinterpret_cast<CFeature*>(feature)->type(),
             reinterpret_cast<CFeature*>(feature)->id())
+            // TODO: Are these casts needed?
     {
         changed_ = feature;
     }

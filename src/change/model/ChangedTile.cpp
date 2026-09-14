@@ -5,13 +5,36 @@
 
 #include <geodesk/geom/index/HilbertDistanceInTile.h>
 #include "ChangedFeature2D.h"
+#include "geodesk/query/FeatureFinder.h"
 
-void ChangedTile::resolveExports(TilePtr tilePtr)
+// TODO
+
+/*
+void ChangedTile::recordTexChange(CFeature* feature, bool willHaveTex)
+{
+    bool isSE = false;
+    CRef ref = feature->ref();
+    if (ref.tip() != tip_) [[unlikely]]
+    {
+        assert(feature->type() != FeatureType::NODE);
+        ref = feature->refSE();
+        assert(ref.tip() == tip_);
+        isSE = true;
+    }
+    if (ref.isUnresolved()) [[unlikely]]
+    {
+        FeatureFinder finder;
+        finder.find(ref.getFeature())
+    }
+}
+*/
+
+void ChangedTile::resolveExports(TilePtr pTile)
 {
     if (texChanges_.empty()) return;
 
     bool tableChanged = false;
-    ExportTablePtr exports = tilePtr.exports();
+    ExportTablePtr exports = tilePtr_.exports();
     uint32_t exportsCount = 0;
     if (exports)
     {
@@ -27,7 +50,7 @@ void ChangedTile::resolveExports(TilePtr tilePtr)
             }
             else
             {
-                int32_t handle = tilePtr.handleOf(exported);
+                int32_t handle = pTile.handleOf(exported);
                 auto it = texChanges_.find(handle);
                 if (it != texChanges_.end())
                 {
@@ -93,7 +116,7 @@ void ChangedTile::resolveExports(TilePtr tilePtr)
             }
             else
             {
-                center = FeaturePtr(tilePtr + handle).bounds().center();
+                center = pTile.getFeature(handle).bounds().center();
             }
         }
         sorted.emplace_back(hilbert.compute(center), feature);

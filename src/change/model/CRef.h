@@ -187,13 +187,13 @@ public:
     }
     */
 
-    FeaturePtr getFeature(DataPtr pTile) const
+    FeaturePtr getFeature(TilePtr pTile) const
     {
         uint32_t stat = statusCategory();
         if(stat == EXPORTED)
         {
-            DataPtr pExports = (pTile + TileConstants::EXPORTS_OFS).follow();
-            return FeaturePtr((pExports + static_cast<int>(tex()) * 4).follow());
+            ExportTablePtr pExports = pTile.exports();
+            return pExports.featureAt(tex());
         }
         assert(stat == NOT_EXPORTED || stat == MAYBE_EXPORTED);
         return FeaturePtr(pTile + offset());
@@ -208,7 +208,7 @@ public:
     {
         if (!canGetFeature()) return FeaturePtr();
         assert(!tip().isNull());
-        DataPtr pTile = store->fetchTile(tip());
+        TilePtr pTile = store->fetchTile(tip());
         return getFeature(pTile);
     }
 
@@ -231,6 +231,11 @@ public:
     bool isUnknownOrMissing() const
     {
         return (data_ & (0xffff'ffff & ~SPECIAL_MISSING)) == 0;
+    }
+
+    bool isUnresolved() const
+    {
+        return (data_ & 0xffff'ffff) == SPECIAL_UNRESOLVED;
     }
 
     constexpr bool operator==(const CRef& other) const noexcept = default;
