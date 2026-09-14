@@ -8,6 +8,7 @@
 #include <geodesk/query/ParentWaysQuery.h>
 #include "change/model/ChangeModelDumper.h"
 #include "change/model/ChangedTile.h"
+#include "NodeChangeProcessor.h"
 #include "geodesk/query/FeatureFinder.h"
 
 // TODO: When do we process the membership changes of members
@@ -167,7 +168,7 @@ void ChangeManager::processNodes()
     while(!nodes.isEmpty())
     {
         ChangedNode* node = nodes.pop();
-        processNode(node);
+        NodeChangeProcessor (*this, *node).process();
     }
 }
 
@@ -235,6 +236,9 @@ void ChangeManager::processRelations()
 //  (their node table must be updated)
 
 // TODO: what happens if a node moves AND is deleted?
+
+// TODO: getParentRelations() can mutate flags, which
+//  we then clobber when we set changeFlags!!!
 
 void ChangeManager::processNode(ChangedNode* node)
 {
@@ -341,7 +345,7 @@ void ChangeManager::processNode(ChangedNode* node)
             // If the node has been removed from a way, we now need
             // to check if it still belongs to at least one way
             // We assume the answer is "no"
-            willBelongToWay = false;
+            willBelongToWay = false;    // TODO: not needed?
             ParentWaysQuery query(store(), node->xy(), pastNode);
             for (;;)
             {
@@ -553,6 +557,10 @@ void ChangeManager::processNode(ChangedNode* node)
     }
     changeFlags |= ChangeFlags::PROCESSED;
     node->setFlags(changeFlags);
+
+    // TODO: If node changes tiles and is exported, it must notify
+    //  its parent ways so the node table can be updated
+    //  (or do we do this already whenever geom is changed?)
 }
 
 // TODO: move to ChangeModel

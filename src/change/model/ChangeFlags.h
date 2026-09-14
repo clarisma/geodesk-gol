@@ -80,7 +80,15 @@ enum class ChangeFlags : uint32_t
     WILL_BE_SUPER_RELATION = 1 << 25
 };
 
+// TODO: Should we distinguish MEMBERS_CHANGED (added/removed members/nodes,
+//  or node feature status changed) and MEMBER_TILES_CHANGED?
+//  Both would require rewriting the member table, but only the former
+//  would require recomputing geometry (but tile changes are rare and
+//  easy to miss)
+//
 // TODO: do we need the NEW_ flags? can derive from ref?
+//  --> Consider case where feature moves laterally,
+//      its old SE tile is now its NW tile
 
 constexpr ChangeFlags operator|(ChangeFlags a, ChangeFlags b) noexcept
 {

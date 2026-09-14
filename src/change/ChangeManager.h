@@ -106,4 +106,6 @@ private:
 	const CTagTable* duplicateNodeTags_ = nullptr;
 	const CTagTable* orphanNodeTags_ = nullptr;
 	const CTagTable* duplicateOrphanNodeTags_ = nullptr;
+
+	friend class NodeChangeProcessor;
 };
