@@ -1,0 +1,37 @@
+<!--
+
+Verify that:
+- node/2 becomes an orphan
+- node/5 becomes an orphan
+- node/6 becomes an orphan
+- node/7 becomes an orphan
+- node/8 becomes an orphan
+- node/9 becomes an orphan
+- way/1 has 2 nodes (node/1 & node/3), tagged "missing_nodes=1"
+- way/2 has 2 nodes (node/4 twice), tagged "missing_nodes=2"
+- way/3 is deleted (all nodes missing)
+- rel/1 has geom change
+- rel/2 has geom change
+- rel/3 is deleted (its sole member way has been deleted)
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <way id="1" version="2">
+            <nd ref="1"/>
+            <nd ref="555"/>
+            <nd ref="3"/>
+        </way>
+        <way id="2" version="2">
+            <nd ref="4"/>
+            <nd ref="555"/>
+            <nd ref="666"/>
+        </way>
+        <way id="3" version="2">
+            <nd ref="777"/>
+            <nd ref="555"/>
+            <nd ref="666"/>
+        </way>
+        <node id="2" version="2" changeset="1" lon="90" lat="-45"/>
+    </modify>
+</osmChange>

@@ -55,14 +55,22 @@ public:
 				{
 					updateBounds();
 				}
-				ChangeFlags flags = way().flags();
-				model().memberChanged(&way(), pastBounds_, futureBounds_,
-				   ChangeFlags::GEOMETRY_CHANGED |
-					   (is(ChangeFlags::DELETED) ?
-						   ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE) |
-						(flags & ChangeFlags::BOUNDS_CHANGED));
 			}
-			assignToTiles();
+			if (!is(ChangeFlags::DELETED))	[[likely]]
+			{
+				assignToTiles();
+			}
+		}
+
+		if (isAny(ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::DELETED))
+		{
+			ChangeFlags flags = way().flags();
+			model().memberChanged(&way(), pastBounds_, futureBounds_,
+				(is(ChangeFlags::DELETED) ?
+					(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::GEOMETRY_CHANGED) : ChangeFlags::NONE) |
+						(flags & (ChangeFlags::GEOMETRY_CHANGED |
+							ChangeFlags::BOUNDS_CHANGED)));
+			// TODO: Check these flags
 		}
 
 		// TODO: TEX changes

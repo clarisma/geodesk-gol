@@ -1,0 +1,35 @@
+<osm version="0.6" generator="geodesk-gol-test">
+    <node id="1" version="1" lon="-180" lat="60"/>
+    <node id="2" version="1" lon="-30" lat="60"/>
+    <node id="3" version="1" lon="170" lat="60"/>
+    <node id="4" version="1" lon="-180" lat="30"/>
+    <node id="5" version="1" lon="-30" lat="30"/>
+    <node id="6" version="1" lon="170" lat="30"/>
+    <node id="7" version="1" lon="-180" lat="0"/>
+    <node id="8" version="1" lon="-30" lat="0"/>
+    <node id="9" version="1" lon="170" lat="0"/>
+    <way id="1" version="1">
+        <nd ref="1"/>
+        <nd ref="2"/>
+        <nd ref="3"/>
+    </way>
+    <way id="2" version="1">
+        <nd ref="4"/>
+        <nd ref="5"/>
+        <nd ref="6"/>
+    </way>
+    <way id="3" version="1">
+        <nd ref="7"/>
+        <nd ref="8"/>
+        <nd ref="9"/>
+    </way>
+    <relation id="1" version="1">
+        <member type="way" ref="1"/>
+    </relation>
+    <relation id="2" version="1">
+        <member type="way" ref="2"/>
+    </relation>
+    <relation id="3" version="1">
+        <member type="way" ref="3"/>
+    </relation>
+</osm>

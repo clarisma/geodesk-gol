@@ -10,6 +10,8 @@
 #include "change/model/ChangeModel.h"
 #include "change/model/ChangedNode.h"
 
+// TODO: Don't clobber bboxes of changed features during
+//  the secondary search
 
 // TODO: We perform checks for multi-tile features only
 //  on their NW twin. If we move to ID indexing, we need to be

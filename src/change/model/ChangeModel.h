@@ -38,6 +38,8 @@ public:
     uint32_t getLocalString(std::string_view s);
     const CTagTable* getTagTable(const TagTableModel& tags, bool determineIfArea);
     const CTagTable* getTagTable(CRef ref);
+    void setLocalTag(ChangedFeatureBase* feature,
+        std::string_view key, TagValueType type, uint32_t value);
     const CRelationTable* getRelationTable(CRef ref,
         const MembershipChange* changes = nullptr);
 
@@ -229,6 +231,7 @@ private:
     ChangedNode* getChangedNode(uint64_t id, CFeatureStub* existing);
     ChangedFeature2D* getChangedFeature2D(TypedFeatureId typedId, CFeatureStub* existing);
     uint32_t getTagValue(const TagTableModel::Tag& tag);
+    void gatherTag(bool isLocalKey, const CTagTable::Tag tag);
     template<typename Iter>
     CFeature* readFeature(Iter& iter, Tip tip, DataPtr pTile);
     void loadMembers(ChangedFeature2D* rel);

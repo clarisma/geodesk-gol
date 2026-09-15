@@ -108,6 +108,42 @@ const CTagTable* ChangeModel::getTagTable(CRef ref)
     return tags;
 }
 
+// TODO
+/*
+void ChangeModel::gatherTag(bool isLocalKey, const CTagTable::Tag tag)
+{
+
+}
+
+void ChangeModel::setLocalTag(ChangedFeatureBase* feature,
+    std::string_view key, TagValueType type, uint32_t value)
+{
+    assert(tags_.isEmpty());
+    const CTagTable* tags = feature->tagTable();
+    if (tags)
+    {
+        for(CTagTable::Tag tag : tags->localTags())
+        {
+            TagValueType typeCode = tag.type();
+            uint32_t value = tag.value();
+            tags_.addLocalTag(getString(tag.key()),
+                | typeCode, );
+        }
+        // TODO
+    }
+    else
+    {
+        FeaturePtr fp = feature->getFeature(store_);
+        assert(!fp.isNull());
+        tags_.read(fp.tags());
+    }
+    // TODO: Update the tag
+
+    feature->setTagTable(getTagTable(tags_, false));
+    tags_.clear();
+}
+*/
+
 
 const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipChange* changes)
 {

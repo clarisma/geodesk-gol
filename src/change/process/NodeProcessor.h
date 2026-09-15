@@ -67,6 +67,7 @@ public:
 		processMembershipChanges();
 		if(is(ChangeFlags::DELETED))
 		{
+			// TODO: Deleting a missing node is a no-op
 			if(!pastTip_.isNull())
 			{
 				remove(false);

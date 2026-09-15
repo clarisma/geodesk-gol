@@ -53,8 +53,10 @@ def test_update(gol_tool, tmp_path):
     cases = [
         "cascade",
         "deleted-relation",
-        "tags-changed",
         "duplicates",
+        "geom-only",
+        "missing-nodes",
+        "tags-changed",
         # "orphans",
     ]
     for case in cases:
