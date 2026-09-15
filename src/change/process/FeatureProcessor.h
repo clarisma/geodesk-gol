@@ -69,6 +69,11 @@ protected:
 		mgr_.remove(&feature_, fromSE);
 	}
 
+	void setLocalTag(std::string_view k, TagValueType type, uint32_t v) const
+	{
+		model().setLocalTag(&feature_, k, type, v);
+	}
+
 	ChangedFeatureBase& feature_;
 	ChangeManager& mgr_;
 };

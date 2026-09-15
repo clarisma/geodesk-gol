@@ -171,6 +171,11 @@ public:
         return strings_[code];
     }
 
+    std::string_view getStringView(uint32_t code) const
+    {
+        return getString(code)->toStringView();
+    }
+
     ChangedNode* nodeAtFutureLocation(Coordinate xy) const
     {
         auto iter = futureNodeLocations_.find(xy);

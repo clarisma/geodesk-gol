@@ -119,6 +119,7 @@ private:
 	void fixIncompleteWay()
 	{
 		std::span<CFeatureStub*> nodes = members();
+		auto originalNodeCount = way().memberCount();
 		unsigned validNodeCount = 0;
 		for(CFeatureStub* nodeStub : nodes)
 		{
@@ -138,9 +139,13 @@ private:
 			validNodeCount++;
 		}
 		way().setMembers({nodes.data(), validNodeCount});
+		setLocalTag("geodesk:missing_nodes",
+			TagValueType::NARROW_NUMBER, TagValues::narrowNumber(
+				Decimal(missingNodes_, 0)));
 
-		// TODO: add tag: geodesk:missing_nodes={x}
-		//  and mark ChangeFlags::TAGS_CHANGED
+		// TODO: Ugly -- this should read:
+		// setLocalTag("geodesk:missing_nodes",
+		//     TagModel::Value::number(missingNodes_);
 
 		addFlags(ChangeFlags::MEMBERS_CHANGED |
 			ChangeFlags::WAYNODE_IDS_CHANGED);

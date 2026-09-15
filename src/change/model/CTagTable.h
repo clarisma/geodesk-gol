@@ -67,6 +67,7 @@ public:
     }
 
     bool equals(const ChangeModel& model, int32_t handle, TagTablePtr pTags) const noexcept;
+    void save(TagTableModel& tagModel, const ChangeModel& changeModel) const;
     size_t hash() const noexcept;
 
     static size_t size(size_t tagCount) noexcept

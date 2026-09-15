@@ -128,3 +128,39 @@ CTagTable::StorageSize CTagTable::calculateStorageSize() const
     }
     return { totalSize, localTagsSize };
 }
+
+
+void CTagTable::save(TagTableModel& tagModel, const ChangeModel& changeModel) const
+{
+    for (Tag tag : localTags())
+    {
+        std::string_view key = changeModel.getStringView(tag.key());
+        uint32_t value = tag.value();
+        if (tag.type() == TagValueType::LOCAL_STRING)
+        {
+            tagModel.addLocalTag(key, changeModel.getStringView(value));
+        }
+        else
+        {
+            tagModel.addLocalTag(key, tag.type(), value);
+        }
+    }
+    auto globals = globalTags();
+    if (globals.size() == 1 && globals[0].key() == 0)   [[unlikely]]
+    {
+        // Don't save the empty-table marker
+        return;
+    }
+    for (Tag tag : globals)
+    {
+        uint32_t value = tag.value();
+        if (tag.type() == TagValueType::LOCAL_STRING)
+        {
+            tagModel.addGlobalTag(tag.key(), changeModel.getStringView(value));
+        }
+        else
+        {
+            tagModel.addGlobalTag(tag.key(), tag.type(), value);
+        }
+    }
+}

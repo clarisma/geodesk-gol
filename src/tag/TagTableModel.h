@@ -13,6 +13,12 @@
 using namespace clarisma;
 using namespace geodesk;
 
+// TODO: What happens if we add a global tag to a table that only
+//  has local tags and has been normalized (i.e. it has an empty marker
+//  appended)?
+
+// TODO: rename to TagModel?
+
 class TagTableModel
 {
 public:
@@ -163,6 +169,7 @@ public:
 
 	void addGlobalTag(uint32_t k, TagValueType type, uint32_t v)
 	{
+		assert(type != TagValueType::LOCAL_STRING);
 		tags_.emplace_back(k, type, v);
 		globalTagsSize_ += 4;
 	}
@@ -182,6 +189,7 @@ public:
 
 	void addLocalTag(std::string_view k, TagValueType type, uint32_t v)
 	{
+		assert(type != TagValueType::LOCAL_STRING);
 		addLocalTag(Tag(k,type,v));
 		localTagsSize_ += 6;
 	}
@@ -191,6 +199,17 @@ public:
 		Tag tag(k,v);
 		addLocalTag(tag);
 		localTagsSize_ += 6 + (tag.valueType() & 2);
+	}
+
+	void setLocalTag(std::string_view k, TagValueType type, uint32_t v)
+	{
+		Tag* p = findLocalTag(k);
+		if (p)
+		{
+			*p = Tag(k,type,v);
+			return;
+		}
+		addLocalTag(k,type,v);
 	}
 
 	bool isEmpty() const { return tags_.empty(); }
@@ -256,6 +275,17 @@ protected:
 		{
 			std::swap(tags_[prevLocalTagsCount], tags_[prevCount]);
 		}
+	}
+
+	Tag* findLocalTag(std::string_view k)
+	{
+		auto locals = localTags();
+		for (int i=0; i<locals.size(); i++)
+		{
+			Tag* p = &locals[i];
+			if (p->localKey() == k) return p;
+		}
+		return nullptr;
 	}
 
 	static bool compareGlobal(const Tag& a, const Tag& b)

@@ -108,12 +108,6 @@ const CTagTable* ChangeModel::getTagTable(CRef ref)
     return tags;
 }
 
-// TODO
-/*
-void ChangeModel::gatherTag(bool isLocalKey, const CTagTable::Tag tag)
-{
-
-}
 
 void ChangeModel::setLocalTag(ChangedFeatureBase* feature,
     std::string_view key, TagValueType type, uint32_t value)
@@ -122,14 +116,7 @@ void ChangeModel::setLocalTag(ChangedFeatureBase* feature,
     const CTagTable* tags = feature->tagTable();
     if (tags)
     {
-        for(CTagTable::Tag tag : tags->localTags())
-        {
-            TagValueType typeCode = tag.type();
-            uint32_t value = tag.value();
-            tags_.addLocalTag(getString(tag.key()),
-                | typeCode, );
-        }
-        // TODO
+        tags->save(tags_, *this);
     }
     else
     {
@@ -137,12 +124,12 @@ void ChangeModel::setLocalTag(ChangedFeatureBase* feature,
         assert(!fp.isNull());
         tags_.read(fp.tags());
     }
-    // TODO: Update the tag
-
+    tags_.setLocalTag(key, type, value);
+    tags_.normalize();
     feature->setTagTable(getTagTable(tags_, false));
+    feature->addFlags(ChangeFlags::TAGS_CHANGED);
     tags_.clear();
 }
-*/
 
 
 const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipChange* changes)
@@ -1079,11 +1066,11 @@ const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orpha
     assert(tags_.isEmpty());
     if (duplicate)
     {
-        tags_.addLocalTag("geodesk::duplicate", GlobalStrings::YES);
+        tags_.addLocalTag("geodesk:duplicate", GlobalStrings::YES);
     }
     if (orphan)
     {
-        tags_.addLocalTag("geodesk::orphan", GlobalStrings::YES);
+        tags_.addLocalTag("geodesk:orphan", GlobalStrings::YES);
     }
 
     // TODO: We wouldn't need to call normalize() since the local tags
