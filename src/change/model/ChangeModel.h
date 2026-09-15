@@ -118,7 +118,28 @@ public:
 
     // TODO: Change signature, simply take CRef?
     std::span<CFeatureStub*> loadWayNodes(Tip tip, DataPtr pTile, WayPtr way);
-    void ensureMembersLoaded(ChangedFeature2D* rel);
+
+    /*      // TODO
+    void ensureNodesLoaded(ChangedFeature2D* way)
+    {
+        if (way->memberCount() == 0)   [[unlikely]]
+        {
+            way->setMembers(model.loadWayNodes(ref_.tip(), pTile, pastWay));
+        }
+    }
+    */
+
+    void ensureMembersLoaded(ChangedFeature2D* rel)
+    {
+        assert(rel->type() == FeatureType::RELATION);
+        if (rel->memberCount() > 0) [[likely]]
+        {
+            return;     // already loaded
+        }
+        loadMembers(rel);
+    }
+
+    void ensureBounds(ChangedFeature2D* feature) const;
 
     ChangedFeatureStub* copy(ChangedFeatureBase* feature)
     {
@@ -210,6 +231,7 @@ private:
     uint32_t getTagValue(const TagTableModel::Tag& tag);
     template<typename Iter>
     CFeature* readFeature(Iter& iter, Tip tip, DataPtr pTile);
+    void loadMembers(ChangedFeature2D* rel);
 
     // void readParentRelations(FeaturePtr feature, Tip tip);
     static bool parentBoundsMayChange(const Box& parent,

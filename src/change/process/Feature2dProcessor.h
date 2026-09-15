@@ -8,7 +8,8 @@ class Feature2dProcessor : public FeatureProcessor
 {
 public:
 	Feature2dProcessor(ChangeManager& mgr, ChangedFeature2D& feature) :
-		FeatureProcessor(mgr, feature)
+		FeatureProcessor(mgr, feature),
+		pastBounds_(feature.bounds())
 	{
 	}
 
@@ -32,6 +33,11 @@ protected:
 	void normalizeRefs() const
 	{
 		mgr_.normalizeRefs(&wayOrRelation());
+	}
+
+	void ensureMembersLoaded() const
+	{
+		model().ensureMembersLoaded(&wayOrRelation());
 	}
 
 	void processDeleted() const

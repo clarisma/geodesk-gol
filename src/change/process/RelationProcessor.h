@@ -57,6 +57,7 @@ private:
 		{
 			if (isAny(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::BOUNDS_CHANGED))
 			{
+				ensureMembersLoaded();
 				if (!computeBounds()) return false;
 				if (futureBounds_ != pastBounds_)
 				{

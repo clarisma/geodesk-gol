@@ -989,10 +989,9 @@ void ChangeModel::memberBoundsChanged(CFeature* relation,
 
 */
 
-void ChangeModel::ensureMembersLoaded(ChangedFeature2D* rel)
+void ChangeModel::loadMembers(ChangedFeature2D* rel)
 {
-    if (rel->memberCount() > 0) return;     // already loaded
-
+    assert(rel->type() == FeatureType::RELATION);
     assert(!rel->is(ChangeFlags::PROCESSED));
     assert(tempMembers_.empty());
     CRef ref = rel->ref();
@@ -1188,6 +1187,7 @@ void ChangeModel::memberChanged(const CRelationTable* parents,
     {
         ChangedFeature2D* rel = getChangedFeature2D(relStub);
         assert(!rel->is(ChangeFlags::PROCESSED));
+        ensureBounds(rel);
         ChangeFlags addRelFlags = cascadeFlags;
         Box pastRelationBounds = rel->bounds();
         Box tentativeFutureRelationBounds = pastRelationBounds;
@@ -1255,4 +1255,14 @@ const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orpha
     return tags;
 }
 
-
+void ChangeModel::ensureBounds(ChangedFeature2D* feature) const
+{
+    if (feature->bounds().isEmpty())
+    {
+        FeaturePtr fp = feature->getFeature(store());
+        if (!fp.isNull())
+        {
+            feature->setBounds(fp.bounds());
+        }
+    }
+}

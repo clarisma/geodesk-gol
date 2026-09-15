@@ -28,6 +28,7 @@ public:
 			if (isAny(ChangeFlags::GEOMETRY_CHANGED |
 				ChangeFlags::WAYNODE_IDS_CHANGED | ChangeFlags::MEMBERS_CHANGED))
 			{
+				// TODO: ensure nodes loaded (needed if implicitly changed)
 				if (!computeBounds()) [[unlikely]]
 				{
 					// Need to defer because we need to search

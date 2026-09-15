@@ -217,6 +217,7 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
         if (way.isNull()) break;
         ChangedFeature2D* changedWay =
             model_.getChangedFeature2D(FeatureType::WAY, way.id());
+        model_.ensureBounds(changedWay);
         CRef ref = getRef(way);
         if (!way.hasNorthwestTwin()) [[likely]]
         {
@@ -226,7 +227,7 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
         {
             changedWay->offerRefSE(ref);
         }
-        // TODO: need to mark the way?
+        changedWay->addFlags(ChangeFlags::MEMBERS_CHANGED);
     }
 }
 
