@@ -18,6 +18,9 @@
 //  and we may only have the SE twin in a given tileset. In that
 //  case, we can't find the feature if we only store its NW tile
 
+// TODO: Check edge case: Node is present more than once in way,
+//  but only one reference to it is removed
+
 /// - If relation is in the ChangeModel:
 ///   - Store its ref
 ///   - If it is explicitly changed:

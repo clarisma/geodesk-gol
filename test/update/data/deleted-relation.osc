@@ -10,6 +10,31 @@ Verify that:
 
 Passes 9/10/26
 
+FEATURES:
+  FEATURE #0: node/4 *
+  FEATURE #1: way/1 *
+  FEATURE #2: way/2 *
+  FEATURE #3: relation/2
+1 nodes, 2 ways, 1 relations
+
+STRINGS:
+  STRING #0: "geodesk::orphan"
+
+CHANGED node/4:
+  TAGS (10 bytes):
+    "geodesk::orphan"=2
+    #0=0
+
+CHANGED way/1:
+
+CHANGED way/2:
+  RELATIONS (4 bytes):
+    Local  #3: relation/2
+
+REMOVED:
+  node/3
+  relation/1 DELETED
+
 -->
 
 <osmChange version="0.6" generator="geodesk-gol-test">

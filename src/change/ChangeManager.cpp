@@ -8,7 +8,9 @@
 #include <geodesk/query/ParentWaysQuery.h>
 #include "change/model/ChangeModelDumper.h"
 #include "change/model/ChangedTile.h"
-#include "NodeChangeProcessor.h"
+#include "change/process/NodeProcessor.h"
+#include "change/process/WayProcessor.h"
+#include "change/process/RelationProcessor.h"
 #include "geodesk/query/FeatureFinder.h"
 
 // TODO: When do we process the membership changes of members
@@ -116,6 +118,10 @@ void ChangeManager::preProcessRelations()
         }
         rel = rel->next();
     }
+
+    // TODO: For explicitly changed relations, we need to cascade
+    //  GEOM/BOUNDS changes to their parents; we'll check for refcycles
+    //  at the same time
 }
 
 void ChangeManager::preProcess()
@@ -168,7 +174,13 @@ void ChangeManager::processNodes()
     while(!nodes.isEmpty())
     {
         ChangedNode* node = nodes.pop();
-        NodeChangeProcessor (*this, *node).process();
+        NodeProcessor (*this, *node).process();
+    }
+    if (!model_.changedNodes().isEmpty())   [[unlikely]]
+    {
+        // Pick up any coincident nodes that turn into
+        //  unique-location nodes
+        processNodes();
     }
 }
 
@@ -179,391 +191,23 @@ void ChangeManager::processWays()
     while(!ways.isEmpty())
     {
         ChangedFeature2D* way = ways.pop();
-        processWay(way);
+        WayProcessor (*this, *way).process();
     }
 }
 
 
 void ChangeManager::processRelations()
 {
-    // We need to move the relations into a temporary
-    // list, because the processing of child relations
-    // causes a relation to be moved to another stack
-    // while it is still in out local stack
-    // TODO: Improve this
-
-    std::vector<ChangedFeature2D*> relationList;
     LinkedStack relations(std::move(model_.changedRelations()));
     while(!relations.isEmpty())
     {
-        relationList.push_back(relations.pop());
-    }
-
-    for (ChangedFeature2D* rel : relationList)
-    {
-        if(testAny(rel->flags(),
-            ChangeFlags::PROCESSED |
-            ChangeFlags::RELATION_DEFERRED))
-        {
-            continue;
-        }
-        processRelation(rel);
+        ChangedFeature2D* rel = relations.pop();
+        RelationProcessor (*this, *rel).process();
     }
 }
 
-// TODO: Check if shared_location flag changes; if so, set FLAGS_CHANGED
 
-// TODO: if an anon node becomes a feature (get tags, added to relation,
-//  becomes a duplicate), its parent ways will need to be updated
-//  (node-table changed = technical change);
-//  likewise, feature node to anon (loses tags and removed from all rels,
-//  or duplicate becomes unique), need to update parent ways
-
-// TODO: Now we have chicken/egg problem: ways need all processed nodes,
-//  but an implicit delete of a way (invalid, or missing nodes) may
-//  turn its nodes into orphans
-//  Solution: never implicitly delete a way, try to fix it instead
-//   by removing missing nodes, or interpolating
-//   Only discard a way if *all* of its nodes are missing
-//   This differs from gol build, which currently discards all ways
-//   with *any* missing nodes
-
-// TODO: when/how do we determine if a node's geometry changed?
-
-// TODO: Cascade node move to parent relations
-
-// TODO: If feature status change, need to implicitly change ways
-//  (their node table must be updated)
-
-// TODO: what happens if a node moves AND is deleted?
-
-// TODO: getParentRelations() can mutate flags, which
-//  we then clobber when we set changeFlags!!!
-
-void ChangeManager::processNode(ChangedNode* node)
-{
-    if(node->id() == 3)
-    {
-        LOGS << "Processing node/" << node->id()
-            << ", version: " << node->version()
-            << ", ref: " << node->ref()
-            << ", flags: " << static_cast<uint32_t>(node->flags());
-    }
-    CRef pastRef = node->ref();
-    Tip pastTip = pastRef.tip();
-    NodePtr pastNode = node->getFeature(store());
-    Coordinate pastXY = node->xy();
-    uint32_t pastFeatureFlags = 0;
-    if (!pastNode.isNull())
-    {
-        pastFeatureFlags = pastNode.flags();
-    }
-
-    // TODO: Process case where a feature node is added to a way
-    //  for the first time, requiring its waynode_flag to be set
-    //  (can be an implicit change without any other changes to the node)
-    //  Adding an orphan node to a way revokes its orphan status
-    //  and may cause it to become anonymous
-
-    processMembershipChanges(node);
-
-    if(node->isDeleted())
-    {
-        if(!pastTip.isNull())
-        {
-            // TODO: A deleted node always loses any TEX
-            getChangedTile(pastTip)->deletedNodes().push(node);
-        }
-        node->setRef(CRef::MISSING);
-        node->addFlags(ChangeFlags::PROCESSED);
-        return;
-
-        // TODO: If node was a feature, a delete has to be modify
-        //  any parent ways & relations via cascade, because we
-        //  cannot be guaranteed that the node has been removed
-        //  from those parents (we cannot assume that the osc
-        //  respects referential integrity)
-    }
-
-    if (node->xy().isNull())    [[unlikely]]
-    {
-        // TODO: Can we just avoid this scenario that CRef is
-        //  set but x/y is not, so we don't have to fix it here?
-
-        if (!pastNode.isNull())
-        {
-            node->setXY(pastNode.xy());
-        }
-        if (node->xy().isNull())
-        {
-            node->setRef(CRef::MISSING);
-            return;
-        }
-    }
-
-    ChangeFlags changeFlags = node->flags();
-    bool willHaveTags;
-        // TODO: consider exception nodes (orphan, duplicate) and disregard their tags
-        //  but we only care whether node is a feature (orphans & dupes are features)
-    if (test(changeFlags, ChangeFlags::TAGS_CHANGED))
-    {
-        willHaveTags = node->tagTable() != &CTagTable::EMPTY;
-    }
-    else
-    {
-        if (pastNode.isNull())
-        {
-            willHaveTags = false;
-        }
-        else
-        {
-            willHaveTags = !pastNode.tags().isEmpty() &&
-                (pastFeatureFlags & FeatureFlags::EXCEPTION_NODE) == 0;
-            // An exception node (orphan or duplicate) has synthetic tags;
-            // these don't count as "having tags"
-        }
-    }
-
-    bool willBeRelationMember;
-    if(testAny(changeFlags, ChangeFlags::ADDED_TO_RELATION |
-        ChangeFlags::REMOVED_FROM_RELATION))
-    {
-        willBeRelationMember = node->peekParentRelations() != nullptr;
-    }
-    else
-    {
-        willBeRelationMember = pastNode.isNull() ? false : pastNode.isRelationMember();
-    }
-
-    bool hasBelongedToWay = pastRef == CRef::ANONYMOUS_NODE ||
-        (pastFeatureFlags & FeatureFlags::WAYNODE);
-    bool willBelongToWay = node->isFutureWaynode();
-    if (!willBelongToWay)
-    {
-        if (test(changeFlags, ChangeFlags::REMOVED_FROM_WAY))
-        {
-            // If the node has been removed from a way, we now need
-            // to check if it still belongs to at least one way
-            // We assume the answer is "no"
-            willBelongToWay = false;    // TODO: not needed?
-            ParentWaysQuery query(store(), node->xy(), pastNode);
-            for (;;)
-            {
-                WayPtr way = query.next();
-                if (way.isNull()) break;
-                CFeature* feature = model_.peekFeature(TypedFeatureId::ofWay(way.id()));
-                if (feature == nullptr || !feature->isChanged())
-                {
-                    // If the anon node belonged to a way that is not
-                    // tracked by the model or hasn't changed, we know
-                    // it still belongs to that way
-                    willBelongToWay = true;
-                    break;
-                }
-                ChangedFeatureBase* changed = ChangedFeatureBase::cast(feature);
-                if (!changed->isChangedExplicitly() && !changed->isDeleted())
-                {
-                    // The way was changed, but not explicitly (hence no
-                    // change in waynodes), and it hasn't been deleted
-                    // (remember, deletions can also be implicit!);
-                    // i.e. the way only changed geometry, which means
-                    // it will continue to include the node --> not orphan
-                    willBelongToWay = true;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            willBelongToWay = hasBelongedToWay;
-        }
-    }
-
-    changeFlags |= willBelongToWay ? ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
-    changeFlags |= (hasBelongedToWay != willBelongToWay) ?
-        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE;
-
-    // TODO: duplicate
-
-    bool wasCoincident = pastFeatureFlags & FeatureFlags::SHARED_LOCATION;
-    bool wasDuplicate = (pastFeatureFlags &
-        (FeatureFlags::SHARED_LOCATION | FeatureFlags::EXCEPTION_NODE)) ==
-        (FeatureFlags::SHARED_LOCATION | FeatureFlags::EXCEPTION_NODE);
-    bool willBeCoincident = test(changeFlags, ChangeFlags::FLAGGED_SHARED_LOCATION);
-
-    if (wasCoincident) [[unlikely]]
-    {
-        // If a coincident node moved, we need to check if only
-        // one node remains at its past location -- if so, that
-        // node loses its SHARED_LOCATION flag (and may lose its
-        // feature status if it is untagged, does not belong to
-        // a relation, and is not an orphan).
-
-        // If a coincident node has not moved, we need to still
-        // check if all other nodes have moved from its location,
-        // causing it to be the sole node that location
-
-        assert(!pastTip.isNull());
-        ChangedNode* uniqueNode = findUniqueLocationNode(pastTip, pastNode.xy());
-        if (!willBeCoincident)
-        {
-            if (test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
-            {
-                // If the formerly coincident node moved, and it is
-                // not coincident at its new location, it loses its
-                // SHARED_LOCATION flag (already cleared, but we
-                // need to mark the flag change so the node will be
-                // updated)
-                changeFlags |= ChangeFlags::FLAGS_CHANGED;
-            }
-            else
-            {
-                // If the node is not explicitly marked as being coincident
-                // in the future, it will stay coincident if it is not
-                // the unique node at its location
-                if (uniqueNode != node)
-                {
-                    willBeCoincident = true;
-                }
-                else
-                {
-                    // SHARED_LOCATION already cleared, mark the flag change
-                    changeFlags |= ChangeFlags::FLAGS_CHANGED;
-                }
-            }
-        }
-    }
-
-    bool willBeDuplicate = willBeCoincident && !willHaveTags;
-
-    // Determine orphan status
-
-    bool willBeOrphan = !willHaveTags && !willBeRelationMember && !willBelongToWay;
-    bool wasOrphan = (pastFeatureFlags & (FeatureFlags::EXCEPTION_NODE |
-        FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == FeatureFlags::EXCEPTION_NODE;
-
-    changeFlags |= (willBeDuplicate || willBeOrphan) ?
-        ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
-
-    if (wasDuplicate != willBeDuplicate || wasOrphan != willBeOrphan) [[unlikely]]
-    {
-        changeFlags |= ChangeFlags::FLAGS_CHANGED;
-        if (willBeOrphan || willBeDuplicate)
-        {
-            node->setTagTable(getExceptionNodeTags(willBeDuplicate, willBeOrphan));
-            changeFlags |= ChangeFlags::TAGS_CHANGED;
-        }
-    }
-
-    bool willBeFeature = willHaveTags | willBeRelationMember |
-        willBeOrphan | willBeDuplicate;
-
-    Tip futureTip = tileCatalog_.tipOfCoordinateSlow(node->xy());
-    futureTip = willBeFeature ? futureTip : Tip();
-
-    if(futureTip != pastTip)
-    {
-        if(!pastTip.isNull())
-        {
-            ChangedTile* pastTile = getChangedTile(pastTip);
-            pastTile->deletedNodes().push(model_.copy(node));
-            // LOGS << "Deleted " << node->typedId() <<", future TIP = " << futureTip;
-            // TODO: drop TEX, if any
-        }
-        if(!futureTip.isNull())
-        {
-            node->setRef(CRef::ofNew(futureTip));
-            changeFlags |= ChangeFlags::NEW_TO_NORTHWEST | ChangeFlags::TILES_CHANGED;
-            // If node moves to another tile, we will need to write its tags
-            //  and rels
-            if (!node->tagTable())
-            {
-                const CTagTable* tags = pastRef.tip().isNull() ?
-                    &CTagTable::EMPTY : model_.getTagTable(pastRef);
-                assert(tags);
-                node->setTagTable(tags);
-            }
-            if (!node->peekParentRelations())
-            {
-                node->setParentRelations(model_.getRelationTable(pastRef));
-            }
-        }
-        else
-        {
-            if(node->isFutureWaynode())
-            {
-                node->setRef(CRef::ANONYMOUS_NODE);
-            }
-        }
-    }
-    if(!futureTip.isNull())
-    {
-        ChangedTile* futureTile = getChangedTile(futureTip);
-        futureTile->changedNodes().push(node);
-        if (test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
-        {
-            // If node is (and was) a feature node and has moved,
-            // its parent relations (if any) may implicitly change
-            // (If node is added to a relation for the first time,
-            // we won't need to call this method, since its parent
-            // relations by definition already explicitly change)
-            // model_.cascadeMemberChange(pastNode, node);
-
-            Box pastBounds = pastXY;
-            Box futureBounds = node->xy();
-            model_.memberChanged(node, pastBounds, futureBounds,
-                ChangeFlags::GEOMETRY_CHANGED |
-                    (test(changeFlags, ChangeFlags::DELETED) ?
-                        ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
-
-            // TODO: This is in the wrong place
-            // TODO: move down, must also call if deleted
-        }
-    }
-    else
-    {
-        // TODO: We need to prevent a changed node that is not a feature
-        //  from being written into the TES
-        //  There is probably a better way to do this
-        //  --> If we don't push it to the changedNodes stack,
-        //      why would ChangeWriter write it to the TES??
-        //      (because it is referenced by a way -- but check)
-        changeFlags &= ~(ChangeFlags::TAGS_CHANGED | ChangeFlags::GEOMETRY_CHANGED);
-        node->setRef(node->ref() == CRef::MISSING ?
-            CRef::MISSING : CRef::ANONYMOUS_NODE);
-    }
-
-    bool wasFeature = !pastNode.isNull();
-    if (willBeFeature != wasFeature)    [[unlikely]]
-    {
-        // If a node's feature status has changed, all ways that
-        // contain this node need to update their node tables
-
-        if (!test(changeFlags, ChangeFlags::GEOMETRY_CHANGED))
-        {
-            // Only do this if the node hasn't moved (for nodes that
-            // moved, the TileChangeAnalyzer has already marked their
-            // implicitly changed parent ways
-
-            if (willBeFeature || (pastFeatureFlags & FeatureFlags::WAYNODE) != 0)
-            {
-                // Only do this if an anonymous node (which is always a waynode)
-                // turn feature node, or a waynode-flagged feature node turns
-                // anonymous
-
-                wayNodeFeatureStatusChanged(node->xy(), pastNode);
-            }
-        }
-    }
-    changeFlags |= ChangeFlags::PROCESSED;
-    node->setFlags(changeFlags);
-
-    // TODO: If node changes tiles and is exported, it must notify
-    //  its parent ways so the node table can be updated
-    //  (or do we do this already whenever geom is changed?)
-}
-
-// TODO: move to ChangeModel
+// TODO: move to ChangeModel -- no, relies on TileCatalog
 void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
 {
     ParentWaysQuery query(store(), xy, node);
@@ -587,29 +231,23 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
 }
 
 
-void ChangeManager::addDeleted(Tip tip, ChangedFeatureStub* feature)
-{
-    assert(feature->type() != FeatureType::NODE);
-    ChangedTile* tile = getChangedTile(tip);
-    (feature->type() == FeatureType::WAY ?
-        tile->deletedWays() : tile->deletedRelations()).push(feature);
-    // TODO: Need to remove any TEX
-}
-
+/*
+// TODO: remove
 void ChangeManager::processDeletedFeature(ChangedFeature2D* deleted)
 {
     Tip tip = deleted->ref().tip();
-    if(!tip.isNull()) addDeleted(tip, deleted);
+    if(!tip.isNull()) remove(deleted, false);
         // TIP could be null if feature does not exist
         // (already deleted)
     tip = deleted->refSE().tip();
-    if(!tip.isNull()) addDeleted(tip, model_.copy(deleted));
+    if(!tip.isNull()) remove(deleted, true);
     deleted->setRef(CRef::MISSING);
     deleted->setRefSE(CRef::MISSING);
     deleted->addFlags(ChangeFlags::PROCESSED);
+        // TODO: Don't set flag here
 }
 
-
+// TODO: remove
 void ChangeManager::processMembershipChanges(ChangedFeatureBase* feature)
 {
     // TODO: Do we need to guard against the reltable already
@@ -626,6 +264,7 @@ void ChangeManager::processMembershipChanges(ChangedFeatureBase* feature)
         feature->setParentRelations(model_.getRelationTable(ref, changes));
     }
 }
+
 
 // TODO: What if way refers to deleted node?? (pathological)
 // TODO: We must always scan the way's nodes, to
@@ -824,6 +463,9 @@ void ChangeManager::processWay(ChangedFeature2D* way)
         ChangeFlags::PROCESSED);
 }
 
+*/
+
+
 /// Past bounds must be set
 ///
 /// @param changed
@@ -835,7 +477,7 @@ void ChangeManager::processWay(ChangedFeature2D* way)
 //  the topLeft/bottomRight coordinate; in reality, the
 //  true twin-tile may be at a lower zoom level, we need to
 //  look at the bounds of the feature to determine its level
-int ChangeManager::normalizeRefs(CFeature* feature)
+int ChangeManager::normalizeRefs(CFeature* feature) const
 {
     // For twin-tile features, we may have only one of the twins.
     // If the one ref is MISSING, we will set it to either UNRESOLVED
@@ -907,6 +549,8 @@ int ChangeManager::normalizeRefs(CFeature* feature)
     }
     return 1;
 }
+
+/*
 
 CRef ChangeManager::deduceTwinRef(CRef ref) const
 {
@@ -1127,6 +771,9 @@ void ChangeManager::cascadeBoundsChange(FeaturePtr feature, const Box& futureBou
     }
 }
 
+*/
+
+/*
 
 bool ChangeManager::tryProcessRelation(ChangedFeature2D* rel)
 {
@@ -1255,10 +902,6 @@ bool ChangeManager::tryProcessRelation(ChangedFeature2D* rel)
                 if(member->type() != FeatureType::NODE &&
                     member->refSE() == CRef::UNKNOWN)
                 {
-                    /*
-                    LOGS << "Deducing SE ref for " << member->typedId() <<
-                        " based on NW ref " << member->ref();
-                    */
                     member->setRefSE(deduceTwinRef(member->ref()));
                 }
             }
@@ -1524,10 +1167,6 @@ int ChangeManager::processRelation(ChangedFeature2D* rel) // NOLINT recursive
                 if(member->type() != FeatureType::NODE &&
                     member->refSE() == CRef::UNKNOWN)
                 {
-                    /*
-                    LOGS << "Deducing SE ref for " << member->typedId() <<
-                        " based on NW ref " << member->ref();
-                    */
                     member->setRefSE(deduceTwinRef(member->ref()));
                 }
             }
@@ -1640,6 +1279,9 @@ int ChangeManager::processRelation(ChangedFeature2D* rel) // NOLINT recursive
     return 1;
 }
 
+*/
+
+/*
 
 void ChangeManager::assignToTiles(ChangedFeature2D* feature)
 {
@@ -1681,6 +1323,7 @@ void ChangeManager::assignToTiles(ChangedFeature2D* feature)
     }
 }
 
+*/
 
 // TODO: reltables of members need to be updated if parent moved tiles
 //  (i.e. flag RELTABLE_LOADED & RELTABLE_CHANGED)
@@ -1858,12 +1501,27 @@ ChangedTile* ChangeManager::getChangedTile(Tip tip)
     return changedTile;
 }
 
-
-void ChangeManager::resolve(CFeature* feature)
+void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE)
 {
-    // TODO
-}
+    CRef ref = feature->ref(fromSE);
+    Tip tip = ref.tip();
+    assert(!tip.isNull());
+    ChangedTile* tile = getChangedTile(tip);
 
+    // Unless deleted and in NW, make a copy
+    // TODO: Always make a copy so we don't need this check?
+    ChangedFeatureStub* maybeCopy = feature;
+    if (!feature->isDeleted() || fromSE)
+    {
+        maybeCopy = model_.copy(feature);
+    }
+
+    tile->deletedFeatures(feature->type()).push(maybeCopy);
+    if (ref.mayHaveTex())
+    {
+        texChange(feature, fromSE, false);
+    }
+}
 
 void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
 {

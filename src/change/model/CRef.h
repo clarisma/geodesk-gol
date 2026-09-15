@@ -161,6 +161,8 @@ public:
     }
 
     // TODO: Clarify: UNRESOLVED may also have a TEX!
+    //  --> Is this true? Doesn't UNRESOLVED mean we know
+    //  the feature's tile, but not where it is located in the tile?
     bool mayHaveTex() const
     {
         return data_ & 1;

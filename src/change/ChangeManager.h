@@ -45,14 +45,11 @@ private:
 	void preProcessRelations();
 	void processRelations();
 	void assignToTiles(ChangedFeature2D* feature);
-	void processNode(ChangedNode* node);
-	void processPastCoincidentNode(ChangedNode* node, NodePtr pastNode);
 	void processWay(ChangedFeature2D* way);
 	bool tryProcessRelation(ChangedFeature2D* rel);
 	int processRelation(ChangedFeature2D* rel);
 	void processDeletedFeature(ChangedFeature2D* deleted);
 	void processMembershipChanges(ChangedFeatureBase* feature);
-	void addDeleted(Tip tip, ChangedFeatureStub* feature);
 	void updateBounds(ChangedFeature2D* future, const Box& bounds);
 	void updateTiles(ChangedFeature2D* feature, TilePair futureTiles);
 	void checkMemberExports(ChangedFeature2D* rel);
@@ -61,7 +58,7 @@ private:
 	void cascadeNodeCoordinateChange(NodePtr node, Coordinate futureXY);
 	void cascadeBoundsChange(FeaturePtr feature, const Box& futureBounds);
 	CRef getRef(FeaturePtr feature) const;
-	int normalizeRefs(CFeature* feature);
+	int normalizeRefs(CFeature* feature) const;
 	CRef deduceTwinRef(CRef ref) const;
 	ChangedNode* findUniqueLocationNode(Tip tip, Coordinate xy);
 	void wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node);
@@ -83,16 +80,7 @@ private:
 		return false;
 	}
 
-	void ensureResolved(CFeature* feature)
-	{
-		if (!isResolved(feature)) [[unlikely]]
-		{
-			resolve(feature);
-		}
-	}
-
-	void resolve(CFeature* feature);
-
+	void remove(ChangedFeatureBase* feature, bool fromSE);
 	void texChange(CFeature* feature, bool inSE, bool texNeeded);
 
 	ChangeModel model_;
@@ -107,5 +95,9 @@ private:
 	const CTagTable* orphanNodeTags_ = nullptr;
 	const CTagTable* duplicateOrphanNodeTags_ = nullptr;
 
-	friend class NodeChangeProcessor;
+	friend class FeatureProcessor;
+	friend class Feature2dProcessor;
+	friend class NodeProcessor;
+	friend class WayProcessor;
+	friend class RelationProcessor;
 };

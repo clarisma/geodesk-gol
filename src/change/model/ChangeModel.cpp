@@ -603,6 +603,9 @@ void ChangeModel::prepareNodes()
                 node->addFlags(ChangeFlags::FLAGGED_SHARED_LOCATION);
                 // We don't set FLAGS_CHANGED here, because the nodes
                 //  may already be flagged as SHARED_LOCATION
+                //  NodeChangeProcessor::resolveCoincidentLocation()
+                //  compares the before and after state and sets flags
+                //  accordingly
             }
             else
             {
@@ -638,33 +641,6 @@ void ChangeModel::prepareWays()
     }
 }
 
-/*
-bool ChangeModel::willBeRelationMember(FeaturePtr past, ChangedFeatureBase* future)
-{
-    ChangeFlags changeFlags = future->flags();
-    if(test(changeFlags, ChangeFlags::ADDED_TO_RELATION)) return true;
-    if(past.isNull() || !past.isRelationMember()) return false;
-    if(!test(changeFlags, ChangeFlags::REMOVED_FROM_RELATION)) return true;
-    int removeCount = 0;
-    const ChangeAction* membershipChange = future->membershipChanges();
-    while(membershipChange)
-    {
-        assert(membershipChange->action == ChangeAction::RELATION_MEMBER_DROPPED);
-        removeCount++;
-        membershipChange = membershipChange->next;
-    }
-    assert(removeCount > 0);
-    MemberTableIterator iter(0, past.relationTableFast());
-        // It's ok to use a dummy handle here since we are not going
-        // to fetch the parent relations, we're only counting them
-        // to see if the feature will be removed from all relations
-    while(iter.next())
-    {
-        if(--removeCount < 0) return true;
-    }
-    return false;
-}
-*/
 
 std::span<CFeatureStub*> ChangeModel::loadWayNodes(Tip tip, DataPtr pTile, WayPtr way)
 {

@@ -2,18 +2,49 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
-#include "ChangeManager.h"
-#include "change/model/ChangedTile.h"
-#include "geodesk/query/ParentWaysQuery.h"
+#include "FeatureProcessor.h"
 
-using namespace geodesk;
+// TODO: A feature staus change is a tile change, makes
+//  cascading logic easier: cascade geometry, tiles
+// TODO: But don't cascade new nodes; cascades are only
+//  for existing nodes
 
-class NodeChangeProcessor
+// old todos, review:
+
+// TODO: Check if shared_location flag changes; if so, set FLAGS_CHANGED
+
+// TODO: if an anon node becomes a feature (get tags, added to relation,
+//  becomes a duplicate), its parent ways will need to be updated
+//  (node-table changed = technical change);
+//  likewise, feature node to anon (loses tags and removed from all rels,
+//  or duplicate becomes unique), need to update parent ways
+
+// TODO: Now we have chicken/egg problem: ways need all processed nodes,
+//  but an implicit delete of a way (invalid, or missing nodes) may
+//  turn its nodes into orphans
+//  Solution: never implicitly delete a way, try to fix it instead
+//   by removing missing nodes, or interpolating
+//   Only discard a way if *all* of its nodes are missing
+//   This differs from gol build, which currently discards all ways
+//   with *any* missing nodes
+
+// TODO: when/how do we determine if a node's geometry changed?
+
+// TODO: Cascade node move to parent relations
+
+// TODO: If feature status change, need to implicitly change ways
+//  (their node table must be updated)
+
+// TODO: what happens if a node moves AND is deleted?
+
+// TODO: getParentRelations() can mutate flags, which
+//  we then clobber when we set changeFlags!!!
+
+class NodeProcessor : public FeatureProcessor
 {
 public:
-	NodeChangeProcessor(ChangeManager& mgr, ChangedNode& node) :
-		mgr_(mgr),
-		node_(node),
+	NodeProcessor(ChangeManager& mgr, ChangedNode& node) :
+		FeatureProcessor(mgr, node),
 		pastRef_(node.ref()),
 		pastTip_(pastRef_.tip()),
 		pastNode_(node.getFeature(mgr.store())),
@@ -33,18 +64,15 @@ public:
 
 	void process()
 	{
-		mgr_.processMembershipChanges(&node_);
-		changeFlags_ = node_.flags();
-
-		if(node_.isDeleted())
+		processMembershipChanges();
+		if(is(ChangeFlags::DELETED))
 		{
 			if(!pastTip_.isNull())
 			{
-				// TODO: A deleted node always loses any TEX
-				mgr_.getChangedTile(pastTip_)->deletedNodes().push(&node_);
+				remove(false);
 			}
-			node_.setRef(CRef::MISSING);
-			node_.addFlags(ChangeFlags::PROCESSED);
+			node().setRef(CRef::MISSING);
+			addFlags(ChangeFlags::PROCESSED);
 			return;
 
 			// TODO: If node was a feature, a delete has to be modify
@@ -54,20 +82,21 @@ public:
 			//  respects referential integrity)
 		}
 
-		if (node_.xy().isNull())    [[unlikely]]
+		if (node().xy().isNull())    [[unlikely]]
 		{
 			// TODO: Can we just avoid this scenario that CRef is
 			//  set but x/y is not, so we don't have to fix it here?
 
 			if (!pastNode_.isNull())
 			{
-				node_.setXY(pastNode_.xy());
+				node().setXY(pastNode_.xy());
 			}
-			if (node_.xy().isNull())
+			if (node().xy().isNull())
 			{
-				node_.setRef(CRef::MISSING);
+				node().setRef(CRef::MISSING);
 				return;
 			}
+			// TODO: still need to propagate
 		}
 
 		resolveTags();
@@ -78,7 +107,7 @@ public:
 		resolveFeatureStatus();
 		resolveTileChange();
 		propagateFeatureStatusChangeToWays();
-		applyFlags();
+		addFlags(ChangeFlags::PROCESSED);
 
 		// TODO: If node changes tiles and is exported, it must notify
 		//  its parent ways so the node table can be updated
@@ -88,10 +117,10 @@ public:
 private:
 	void resolveTags()
 	{
-		if (test(changeFlags_, ChangeFlags::TAGS_CHANGED))
+		if (is(ChangeFlags::TAGS_CHANGED))
 		{
-			assert(node_.tagTable());
-			willHaveTags_ = node_.tagTable() != &CTagTable::EMPTY;
+			assert(node().tagTable());
+			willHaveTags_ = node().tagTable() != &CTagTable::EMPTY;
 		}
 		else
 		{
@@ -107,10 +136,10 @@ private:
 
 	void resolveMemberStatus()
 	{
-		if(testAny(changeFlags_, ChangeFlags::ADDED_TO_RELATION |
+		if(isAny(ChangeFlags::ADDED_TO_RELATION |
 			ChangeFlags::REMOVED_FROM_RELATION))
 		{
-			willBeRelationMember_ = node_.peekParentRelations() != nullptr;
+			willBeRelationMember_ = node().peekParentRelations() != nullptr;
 		}
 		else if (!pastNode_.isNull())
 		{
@@ -122,16 +151,16 @@ private:
 	{
 		hasBelongedToWay_ = pastRef_ == CRef::ANONYMOUS_NODE ||
 			(pastFeatureFlags_ & FeatureFlags::WAYNODE);
-		willBelongToWay_ = node_.isFutureWaynode();
+		willBelongToWay_ = node().isFutureWaynode();
 		if (!willBelongToWay_)
 	    {
-	        if (test(changeFlags_, ChangeFlags::REMOVED_FROM_WAY))
+	        if (is(ChangeFlags::REMOVED_FROM_WAY))
 	        {
 	            // If the node has been removed from a way, we now need
 	            // to check if it still belongs to at least one way
 	            // We assume the answer is "no"
 
-	        	ParentWaysQuery query(mgr_.store(), node_.xy(), pastNode_);
+	        	ParentWaysQuery query(mgr_.store(), node().xy(), pastNode_);
 	            for (;;)
 	            {
 	                WayPtr way = query.next();
@@ -165,17 +194,17 @@ private:
 	        }
 	    }
 
-	    changeFlags_ |= willBelongToWay_ ?
+		ChangeFlags flagsToAdd = willBelongToWay_ ?
 			ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
-	    changeFlags_ |= (hasBelongedToWay_ != willBelongToWay_) ?
+	    flagsToAdd |= (hasBelongedToWay_ != willBelongToWay_) ?
 	        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE;
+		addFlags(flagsToAdd);
 	}
 
 	void resolveCoincidentLocation()
 	{
 	    wasCoincident_ = pastFeatureFlags_ & FeatureFlags::SHARED_LOCATION;
-		willBeCoincident_ = test(changeFlags_,
-			ChangeFlags::FLAGGED_SHARED_LOCATION);
+		willBeCoincident_ = is(ChangeFlags::FLAGGED_SHARED_LOCATION);
 
 	    if (wasCoincident_) [[unlikely]]
 	    {
@@ -194,32 +223,34 @@ private:
 	        	pastTip_, pastNode_.xy());
 	        if (!willBeCoincident_)
 	        {
-	            if (test(changeFlags_, ChangeFlags::GEOMETRY_CHANGED))
+	            if (is(ChangeFlags::GEOMETRY_CHANGED))
 	            {
 	                // If the formerly coincident node moved, and it is
 	                // not coincident at its new location, it loses its
 	                // SHARED_LOCATION flag (already cleared, but we
 	                // need to mark the flag change so the node will be
 	                // updated)
-	                changeFlags_ |= ChangeFlags::FLAGS_CHANGED;
+	                addFlags(ChangeFlags::FLAGS_CHANGED);
 	            }
 	            else
 	            {
 	                // If the node is not explicitly marked as being coincident
 	                // in the future, it will stay coincident if it is not
 	                // the unique node at its location
-	                if (uniqueNode != &node_)
+	                if (uniqueNode != &node())
 	                {
 	                    willBeCoincident_ = true;
 	                }
 	                else
 	                {
-	                    // SHARED_LOCATION already cleared, mark the flag change
-	                    changeFlags_ |= ChangeFlags::FLAGS_CHANGED;
+	                    // SHARED_LOCATION already cleared,
+	                    // the flag change will be marked below
 	                }
 	            }
 	        }
 	    }
+		addFlags(wasCoincident_ != willBeCoincident_ ?
+			ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE);
 	}
 
 	/// Needs:
@@ -241,17 +272,17 @@ private:
 			FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == FeatureFlags::EXCEPTION_NODE;
 		willBeOrphan_ = !willHaveTags_ && !willBeRelationMember_ && !willBelongToWay_;
 
-		changeFlags_ |= (willBeDuplicate_ || willBeOrphan_) ?
-			ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE;
+		addFlags(willBeDuplicate_ || willBeOrphan_ ?
+			ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE);
 
 		if (wasDuplicate_ != willBeDuplicate_ || wasOrphan_ != willBeOrphan_) [[unlikely]]
 		{
-			changeFlags_ |= ChangeFlags::FLAGS_CHANGED;
+			addFlags(ChangeFlags::FLAGS_CHANGED);
 			if (willBeOrphan_ || willBeDuplicate_)
 			{
-				node_.setTagTable(mgr_.getExceptionNodeTags(
+				node().setTagTable(mgr_.getExceptionNodeTags(
 					willBeDuplicate_, willBeOrphan_));
-				changeFlags_ |= ChangeFlags::TAGS_CHANGED;
+				addFlags(ChangeFlags::TAGS_CHANGED);
 			}
 		}
 	}
@@ -266,7 +297,7 @@ private:
 	/// - willBeFeature_ resolved
 	void resolveTileChange()
 	{
-	    Tip futureTip = mgr_.tileCatalog_.tipOfCoordinateSlow(node_.xy());
+	    Tip futureTip = mgr_.tileCatalog_.tipOfCoordinateSlow(node().xy());
 	    futureTip = willBeFeature_ ? futureTip : Tip();
 
 		// TODO: Check this, we need the future TIP for indexing
@@ -276,42 +307,39 @@ private:
 	    {
 	        if(!pastTip_.isNull())
 	        {
-	            ChangedTile* pastTile = mgr_.getChangedTile(pastTip_);
-	            pastTile->deletedNodes().push(model().copy(&node_));
-	            // LOGS << "Deleted " << node->typedId() <<", future TIP = " << futureTip;
-	            // TODO: drop TEX, if any
+	        	remove(false);
 	        }
 	        if(!futureTip.isNull())
 	        {
-	            node_.setRef(CRef::ofNew(futureTip));
-	            changeFlags_ |= ChangeFlags::NEW_TO_NORTHWEST | ChangeFlags::TILES_CHANGED;
+	            node().setRef(CRef::ofNew(futureTip));
+	            addFlags(ChangeFlags::NEW_TO_NORTHWEST | ChangeFlags::TILES_CHANGED);
 	            // If node moves to another tile, we will need to write its tags
 	            //  and rels
-	            if (!node_.tagTable())
+	            if (!node().tagTable())
 	            {
 	                const CTagTable* tags = pastRef_.tip().isNull() ?
 	                    &CTagTable::EMPTY : model().getTagTable(pastRef_);
 	                assert(tags);
-	                node_.setTagTable(tags);
+	                node().setTagTable(tags);
 	            }
-	            if (!node_.peekParentRelations())
+	            if (!node().peekParentRelations())
 	            {
-	                node_.setParentRelations(model().getRelationTable(pastRef_));
+	                node().setParentRelations(model().getRelationTable(pastRef_));
 	            }
 	        }
 	        else
 	        {
-	            if(node_.isFutureWaynode())
+	            if(node().isFutureWaynode())
 	            {
-	                node_.setRef(CRef::ANONYMOUS_NODE);
+	                node().setRef(CRef::ANONYMOUS_NODE);
 	            }
 	        }
 	    }
 	    if(!futureTip.isNull())
 	    {
 	        ChangedTile* futureTile = mgr_.getChangedTile(futureTip);
-	        futureTile->changedNodes().push(&node_);
-	        if (test(changeFlags_, ChangeFlags::GEOMETRY_CHANGED))
+	        futureTile->changedNodes().push(&node());
+	        if (is(ChangeFlags::GEOMETRY_CHANGED))
 	        {
 	            // If node is (and was) a feature node and has moved,
 	            // its parent relations (if any) may implicitly change
@@ -321,10 +349,10 @@ private:
 	            // model_.cascadeMemberChange(pastNode, node);
 
 	            Box pastBounds = pastXY_;
-	            Box futureBounds = node_.xy();
-	            model().memberChanged(&node_, pastBounds, futureBounds,
+	            Box futureBounds = node().xy();
+	            model().memberChanged(&node(), pastBounds, futureBounds,
 	                ChangeFlags::GEOMETRY_CHANGED |
-	                    (test(changeFlags_, ChangeFlags::DELETED) ?
+	                    (is(ChangeFlags::DELETED) ?
 	                        ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
 
 	            // TODO: This is in the wrong place
@@ -339,8 +367,8 @@ private:
 	        //  --> If we don't push it to the changedNodes stack,
 	        //      why would ChangeWriter write it to the TES??
 	        //      (because it is referenced by a way -- but check)
-	        changeFlags_ &= ~(ChangeFlags::TAGS_CHANGED | ChangeFlags::GEOMETRY_CHANGED);
-	        node_.setRef(node_.ref() == CRef::MISSING ?
+	        clearFlags(ChangeFlags::TAGS_CHANGED | ChangeFlags::GEOMETRY_CHANGED);
+	        setRef(node().ref() == CRef::MISSING ?
 	            CRef::MISSING : CRef::ANONYMOUS_NODE);
 	    }
 	}
@@ -353,7 +381,7 @@ private:
 			// If a node's feature status has changed, all ways that
 			// contain this node need to update their node tables
 
-			if (!test(changeFlags_, ChangeFlags::GEOMETRY_CHANGED))
+			if (!is(ChangeFlags::GEOMETRY_CHANGED))
 			{
 				// Only do this if the node hasn't moved (for nodes that
 				// moved, the TileChangeAnalyzer has already marked their
@@ -365,47 +393,24 @@ private:
 					// turn feature node, or a waynode-flagged feature node turns
 					// anonymous
 
-					mgr_.wayNodeFeatureStatusChanged(node_.xy(), pastNode_);
+					mgr_.wayNodeFeatureStatusChanged(node().xy(), pastNode_);
 				}
 			}
 		}
 	}
 
-	void applyFlags()
+	ChangedNode& node() const
 	{
-		changeFlags_ |= ChangeFlags::PROCESSED;
-
-		constexpr ChangeFlags PROCESSED_FLAGS =
-			ChangeFlags::TAGS_CHANGED |
-			ChangeFlags::GEOMETRY_CHANGED |
-			ChangeFlags::BOUNDS_CHANGED |
-			ChangeFlags::TILES_CHANGED |
-			ChangeFlags::FLAGS_CHANGED |
-			ChangeFlags::FLAGGED_SHARED_LOCATION |
-			ChangeFlags::FLAGGED_EXCEPTION_NODE |
-			ChangeFlags::FLAGGED_WAYNODE |
-			ChangeFlags::NEW_TO_NORTHWEST |
-			ChangeFlags::PROCESSED;
-
-		node_.setFlags((node_.flags() & ~PROCESSED_FLAGS) |
-			(changeFlags_ & PROCESSED_FLAGS));
-
-		// We have to recover the RELTABLE_LOADED flag
-		// because it may be set by getParentRelations;
-		// cleanest way is to set/clear only the flags
-		// we're processing in this class
+		return static_cast<ChangedNode&>(feature_);
+		// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+		// cast is safe
 	}
 
-	ChangeModel& model() const { return mgr_.model(); }
-
-	ChangeManager& mgr_;
-	ChangedNode& node_;
 	CRef pastRef_;
 	Tip pastTip_;
-	ChangeFlags changeFlags_ = ChangeFlags::NONE;
-    NodePtr pastNode_;
-	Coordinate pastXY_;
 	uint32_t pastFeatureFlags_ = 0;
+	NodePtr pastNode_;
+	Coordinate pastXY_;
 	bool willHaveTags_ = false;
 	bool willBeRelationMember_ = false;
 	bool hasBelongedToWay_ = false;

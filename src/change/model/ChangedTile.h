@@ -30,9 +30,22 @@ public:
     LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
     LinkedStack<ChangedFeatureStub>& changedWays() { return changedWays_; };
     LinkedStack<ChangedFeatureStub>& changedRelations() { return changedRelations_; };
-    LinkedStack<ChangedFeatureStub>& deletedNodes() { return deletedNodes_; };
-    LinkedStack<ChangedFeatureStub>& deletedWays() { return deletedWays_; };
-    LinkedStack<ChangedFeatureStub>& deletedRelations() { return deletedRelations_; };
+    LinkedStack<ChangedFeatureStub>& deletedFeatures(FeatureType type)
+    {
+        return deleted_[static_cast<int>(type)];
+    }
+    LinkedStack<ChangedFeatureStub>& deletedNodes()
+    {
+        return deletedFeatures(FeatureType::NODE);
+    }
+    LinkedStack<ChangedFeatureStub>& deletedWays()
+    {
+        return deletedFeatures(FeatureType::WAY);
+    }
+    LinkedStack<ChangedFeatureStub>& deletedRelations()
+    {
+        return deletedFeatures(FeatureType::RELATION);
+    }
 
     void addChanged(ChangedFeatureStub* feature)
     {
@@ -125,9 +138,7 @@ private:
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeatureStub> changedWays_;
     LinkedStack<ChangedFeatureStub> changedRelations_;
-    LinkedStack<ChangedFeatureStub> deletedNodes_;
-    LinkedStack<ChangedFeatureStub> deletedWays_;
-    LinkedStack<ChangedFeatureStub> deletedRelations_;
+    LinkedStack<ChangedFeatureStub> deleted_[3];
     // ArenaBag<CFeatureStub*,16> mayGainTex_;
     Tip tip_;
     Tile tile_;
