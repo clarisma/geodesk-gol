@@ -248,50 +248,6 @@ CFeature* ChangeModel::peekFeature(TypedFeatureId typedId) const
 }
 
 
-// TODO: replace previous change?
-
-/*
-ChangedNode* ChangeModel::createChangedNode(
-    uint64_t id, ChangeFlags flags, uint32_t version, Coordinate xy)
-{
-    ChangedNode* changed = arena_.create<ChangedNode>(id, flags, version, xy);
-    changedNodes_.push(changed);
-    CFeatureStub* current = changed;
-    TypedFeatureId typedId = TypedFeatureId::ofNode(id);
-    auto it = features_.find(typedId);
-    if(it != features_.end())
-    {
-        // Node exists already
-        current = it->second;
-        if(!it->second->isBasic())
-        {
-            ChangedNode* prevChanged;
-            if(current->isReplaced())
-            {
-                // If node has been replaced, this means it has changed
-                prevChanged = reinterpret_cast<ChangedNode*>(current->getReplaced());
-                assert(prevChanged->isChanged());
-                assert(prevChanged->typedId() == typedId);
-            }
-            else
-            {
-                assert(current->isChanged());
-                prevChanged = reinterpret_cast<ChangedNode*>(current);
-            }
-            if(prevChanged->version() < version ||
-                (prevChanged->version() == version &&
-                    (flags & ChangeFlags::DELETED) == ChangeFlags::DELETED))
-            {
-                changed->addFlags(prevChanged->flags() & ChangeFlags::CREATED);
-                current->replaceWith(changed);
-            }
-        }
-    }
-    features_[typedId] = current;
-    return changed;
-}
-*/
-
 ChangedNode* ChangeModel::getChangedNode(uint64_t id, CFeatureStub* existing)
 {
     if(existing && !existing->isBasic())
@@ -323,55 +279,6 @@ ChangedNode* ChangeModel::getChangedNode(uint64_t id, CFeatureStub* existing)
     return changed;
 }
 
-/*
-ChangedNode* ChangeModel::getChangedNode(uint64_t id)
-{
-    ChangedNode* changed = arena_.create<ChangedNode>(id);
-    TypedFeatureId typedId = TypedFeatureId::ofNode(id);
-    auto it = features_.find(typedId);
-    if(it != features_.end())
-    {
-        // Node exists already
-        CFeatureStub* existing = it->second;
-        assert(existing->type() == FeatureType::NODE);
-        if(!existing->isBasic())
-        {
-            // If node has been replaced, this means it has changed
-            arena_.freeLastAlloc(changed);
-            if(existing->isReplaced()) existing = existing->getReplaced();
-            return ChangedNode::cast(existing);
-        }
-        auto existingNode = CFeature::cast(existing);
-        changed->setRef(existingNode->ref());
-        changed->setXY(existingNode->xy());
-        existing->replaceWith(changed);
-            // (copies flags to changed)
-        assert(changed->isFutureWaynode() == existingNode->isFutureWaynode());
-        assert(changed->isFutureForeign() == existingNode->isFutureForeign());
-    }
-    features_[typedId] = changed;
-    changedNodes_.push(changed);
-    return changed;
-}
-
-// TODO: unify with above
-ChangedNode* ChangeModel::getChangedNode(CFeatureStub* nodeStub)
-{
-    assert(nodeStub->type() == FeatureType::NODE);
-    if(!nodeStub->isBasic())
-    {
-        // If node has been replaced, this means it has changed
-        if(nodeStub->isReplaced()) nodeStub = nodeStub->getReplaced();
-        return ChangedNode::cast(nodeStub);
-    }
-    auto node = CFeature::cast(nodeStub);
-    ChangedNode* changed = arena_.create<ChangedNode>(node->id());
-    changed->setRef(node->ref());
-    changed->setXY(node->xy());
-    node->replaceWith(changed);
-    return changed;
-}
-*/
 
 ChangedFeature2D* ChangeModel::getChangedFeature2D(TypedFeatureId typedId, CFeatureStub* existing)
 {
@@ -405,60 +312,6 @@ ChangedFeature2D* ChangeModel::getChangedFeature2D(TypedFeatureId typedId, CFeat
     return changed;
 }
 
-/*
-ChangedFeature2D* ChangeModel::getChangedFeature2D(CFeatureStub* stub)
-{
-    if(!stub->isBasic())
-    {
-        // If feature has been replaced, this means it has changed
-        if(stub->isReplaced()) stub = stub->getReplaced();
-        return ChangedFeature2D::cast(stub);
-    }
-    ChangedFeature2D* changed = arena_.create<ChangedFeature2D>(stub->type(), stub->id());
-    auto feature = CFeature::cast(stub);
-    changed->setRef(feature->ref());
-    changed->setRefSE(feature->refSE());
-    feature->replaceWith(changed);
-    return changed;
-}
-
-// TODO: unify with above
-ChangedFeature2D* ChangeModel::getChangedFeature2D(FeatureType type, uint64_t id)
-{
-    ChangedFeature2D* changed = arena_.create<ChangedFeature2D>(type, id);
-    // assert(_CrtCheckMemory());
-    TypedFeatureId typedId = TypedFeatureId::ofTypeAndId(type, id);
-    auto it = features_.find(typedId);
-    if(it != features_.end())
-    {
-        // Feature exists already
-        CFeatureStub* existing = it->second;
-        assert(existing->type() == type);
-        if(!existing->isBasic())
-        {
-            // If node has been replaced, this means it has changed
-            arena_.freeLastAlloc(changed);
-            if(existing->isReplaced()) existing = existing->getReplaced();
-            return ChangedFeature2D::cast(existing);
-        }
-        auto existingFeature = CFeature::cast(existing);
-        changed->setRef(existingFeature->ref());
-        changed->setRefSE(existingFeature->refSE());
-        existing->replaceWith(changed);
-            // (copies flags to changed)
-        assert(!changed->isFutureWaynode());
-        assert(!existingFeature->isFutureWaynode());
-        assert(changed->isFutureForeign() == existingFeature->isFutureForeign());
-    }
-    features_[typedId] = changed;
-        // TODO: This messes up CRelationTable, which relies on stable
-        //  pointers. Insert new changes only, otherwise keep the stub
-        //  This would save a lookup here, at the cost of an extra
-        //  indirection whenever the feature is looked up via index
-    (type == FeatureType::WAY ? changedWays_ : changedRelations_).push(changed);
-    return changed;
-}
-*/
 
 ChangedFeatureBase* ChangeModel::getChanged(TypedFeatureId typedId)
 {
@@ -522,55 +375,6 @@ void ChangeModel::setMembers(ChangedFeature2D* changed, CFeatureStub** members,
     }
     changed->setMembers(std::span(dest, memberCount));
 }
-
-/*
-// TODO: replace previous change?
-
-ChangedFeature2D* ChangeModel::createChangedFeature2D(
-    FeatureType type, uint64_t id, ChangeFlags flags,
-    uint32_t version, int memberCount)
-{
-    assert(type == FeatureType::WAY || type == FeatureType::RELATION);
-    ChangedFeature2D* changed = reinterpret_cast<ChangedFeature2D*>(
-        arena_.alloc(ChangedFeature2D::size(
-            type, memberCount), alignof(ChangedFeature2D)));
-    new(changed)ChangedFeature2D(type, id, flags, version, memberCount);
-    (type == FeatureType::WAY ? changedWays_ : changedRelations_).push(changed);
-    CFeatureStub* current = changed;
-    TypedFeatureId typedId = TypedFeatureId::ofTypeAndId(type, id);
-    auto it = features_.find(typedId);
-    if(it != features_.end())
-    {
-        // Feature exists already
-        current = it->second;
-        if(!current->isBasic())
-        {
-            ChangedFeature2D* prevChanged;
-            if(current->isReplaced())
-            {
-                // If feature has been replaced, this means it has changed
-                prevChanged = reinterpret_cast<ChangedFeature2D*>(current->getReplaced());
-                assert(prevChanged->isChanged());
-                assert(prevChanged->typedId() == typedId);
-            }
-            else
-            {
-                assert(current->isChanged());
-                prevChanged = reinterpret_cast<ChangedFeature2D*>(current);
-            }
-            if(prevChanged->version() < version ||
-                (prevChanged->version() == version &&
-                    (flags & ChangeFlags::DELETED) == ChangeFlags::DELETED))
-            {
-                changed->addFlags(prevChanged->flags() & ChangeFlags::CREATED);
-                current->replaceWith(changed);
-            }
-        }
-    }
-    features_[typedId] = current;
-    return changed;
-}
-*/
 
 
 void ChangeModel::dump()
