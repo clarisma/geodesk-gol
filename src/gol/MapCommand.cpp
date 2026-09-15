@@ -111,6 +111,8 @@ int MapCommand::setLink(std::string_view s)
 int MapCommand::setMap(std::string_view s)
 {
     basemapUrl_ = s;
+    useRequestedWithHeaders_ = false;
+        // For now, disable X-Requested-With for custom map styles
     return 1;
 }
 
@@ -154,6 +156,7 @@ int MapCommand::run(char* argv[])
     LeafletSettings settings;
     settings.attribution = attribution_;
     settings.basemapUrl = basemapUrl_;
+    settings.useRequestedWithHeader = useRequestedWithHeaders_;
     settings.appId = "geodesk-gol/" GEODESK_GOL_VERSION;
     leaflet.writeHeader(out, settings, hasLayers ?
         ".leaflet-popup-content-wrapper {border-radius: 0; padding: 6px 0px 0px 0px; max-height: 90vh; background-color: #f0f0ff; }\n"

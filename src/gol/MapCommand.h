@@ -40,6 +40,7 @@ private:
 
     Layer layers_[MAX_LAYERS];
     int layerCount_ = 0;
+    bool useRequestedWithHeaders_ = true;
     std::string_view basemapUrl_ = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
     std::string_view attribution_ = "Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors";
     int minZoom_ = 0;
