@@ -17,7 +17,16 @@ public:
 	{
 		if (!is(ChangeFlags::PROCESSED))
 		{
-			if (!tryProcess()) return;
+			if (!tryProcess())
+			{
+				// Need to defer because we need to search
+				// for members whose location is unknown
+				model().changedRelations().push(&relation());
+				return;
+			}
+
+			// TODO: May attempt to process multiple times,
+			//  need a way to flag
 		}
 
 		// We only assign a relation to one or more ChangedTiles
@@ -49,7 +58,7 @@ private:
 			if (isAny(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::BOUNDS_CHANGED))
 			{
 				if (!computeBounds()) return false;
-				if (futureBounds_ == pastBounds_)
+				if (futureBounds_ != pastBounds_)
 				{
 					updateBounds();
 				}

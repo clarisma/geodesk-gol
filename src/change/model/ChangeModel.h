@@ -47,17 +47,40 @@ public:
     const CRelationTable* getParentRelations(ChangedFeatureBase* feature);
 
     CFeatureStub* getFeatureStub(TypedFeatureId typedId);
-    ChangedNode* getChangedNode(uint64_t id);
-    ChangedFeature2D* getChangedFeature2D(FeatureType type, uint64_t id);
+    ChangedNode* getChangedNode(uint64_t id)
+    {
+        TypedFeatureId typedId = TypedFeatureId::ofNode(id);
+        auto it = features_.find(typedId);
+        return getChangedNode(id,
+            it == features_.end() ? nullptr : it->second);
+    }
+    ChangedNode* getChangedNode(CFeatureStub* feature)
+    {
+        assert(feature);
+        return getChangedNode(feature->id(), feature);
+    }
+
     ChangedFeature2D* getChangedFeature2D(TypedFeatureId typedId)
     {
-        return getChangedFeature2D(typedId.type(), typedId.id());
-        // TODO: which signature should be preferred?
+        auto it = features_.find(typedId);
+        return getChangedFeature2D(typedId,
+            it == features_.end() ? nullptr : it->second);
     }
+
+    ChangedFeature2D* getChangedFeature2D(FeatureType type, uint64_t id)
+    {
+        return getChangedFeature2D(TypedFeatureId::ofTypeAndId(type, id));
+    }
+
+    ChangedFeature2D* getChangedFeature2D(CFeatureStub* feature)
+    {
+        assert(feature);
+        return getChangedFeature2D(feature->typedId(), feature);
+    }
+
     ChangedFeatureBase* getChanged(TypedFeatureId typedId);
     ChangedFeatureBase* getChanged(CFeatureStub* feature);
-    ChangedNode* getChangedNode(CFeatureStub* feature);
-    ChangedFeature2D* getChangedFeature2D(CFeatureStub* feature);
+
     ChangedFeatureBase* changeImplicitly(FeaturePtr feature, CRef ref, bool isRefSE);
     void setMembers(ChangedFeature2D* changed, CFeatureStub** members,
         int memberCount, CFeature::Role* roles);
@@ -182,14 +205,13 @@ public:
     // static bool willBeRelationMember(FeaturePtr past, ChangedFeatureBase* future);
 
 private:
+    ChangedNode* getChangedNode(uint64_t id, CFeatureStub* existing);
+    ChangedFeature2D* getChangedFeature2D(TypedFeatureId typedId, CFeatureStub* existing);
     uint32_t getTagValue(const TagTableModel::Tag& tag);
     template<typename Iter>
     CFeature* readFeature(Iter& iter, Tip tip, DataPtr pTile);
+
     // void readParentRelations(FeaturePtr feature, Tip tip);
-    void cascadeMemberChange(FeaturePtr past,
-        ChangedFeatureBase* future, const Box& futureBounds);
-    void memberBoundsChanged(CFeature* relation,
-        FeaturePtr pastMember, const Box& futureMemberBounds);
     static bool parentBoundsMayChange(const Box& parent,
         const Box& pastMember, const Box& futureMember) noexcept;
 

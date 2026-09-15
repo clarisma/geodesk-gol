@@ -292,6 +292,38 @@ ChangedNode* ChangeModel::createChangedNode(
 }
 */
 
+ChangedNode* ChangeModel::getChangedNode(uint64_t id, CFeatureStub* existing)
+{
+    if(existing && !existing->isBasic())
+    {
+        // The stub is a changed node, or has been replaced by one
+        if(existing->isReplaced())
+        {
+            // If node has been replaced, this means it has changed
+            existing = existing->getReplaced();
+        }
+        return ChangedNode::cast(existing);
+    }
+    ChangedNode* changed = arena_.create<ChangedNode>(id);
+    if(existing)
+    {
+        assert(existing->type() == FeatureType::NODE);
+
+        auto* node = CFeature::cast(existing);
+
+        changed->setRef(node->ref());
+        changed->setXY(node->xy());
+        node->replaceWith(changed);
+            // (copies flags to changed)
+        assert(changed->isFutureWaynode() == node->isFutureWaynode());
+        assert(changed->isFutureForeign() == node->isFutureForeign());
+    }
+    features_[TypedFeatureId::ofNode(id)] = changed;
+    changedNodes_.push(changed);
+    return changed;
+}
+
+/*
 ChangedNode* ChangeModel::getChangedNode(uint64_t id)
 {
     ChangedNode* changed = arena_.create<ChangedNode>(id);
@@ -339,8 +371,41 @@ ChangedNode* ChangeModel::getChangedNode(CFeatureStub* nodeStub)
     node->replaceWith(changed);
     return changed;
 }
+*/
 
+ChangedFeature2D* ChangeModel::getChangedFeature2D(TypedFeatureId typedId, CFeatureStub* existing)
+{
+    if(existing && !existing->isBasic())
+    {
+        // The stub is a changed node, or has been replaced by one
+        if(existing->isReplaced())
+        {
+            // If node has been replaced, this means it has changed
+            existing = existing->getReplaced();
+        }
+        return ChangedFeature2D::cast(existing);
+    }
+    FeatureType type = typedId.type();
+    ChangedFeature2D* changed = arena_.create<ChangedFeature2D>(
+        type, typedId.id());
+    if(existing)
+    {
+        assert(existing->type() != FeatureType::NODE);
+        auto* wayOrRelation = CFeature::cast(existing);
+        changed->setRef(wayOrRelation->ref());
+        changed->setRefSE(wayOrRelation->refSE());
+        existing->replaceWith(changed);
+            // (copies flags to changed)
+        assert(!changed->isFutureWaynode());
+        assert(!wayOrRelation->isFutureWaynode());
+        assert(changed->isFutureForeign() == wayOrRelation->isFutureForeign());
+   }
+    features_[typedId] = changed;
+    (type == FeatureType::WAY ? changedWays_ : changedRelations_).push(changed);
+    return changed;
+}
 
+/*
 ChangedFeature2D* ChangeModel::getChangedFeature2D(CFeatureStub* stub)
 {
     if(!stub->isBasic())
@@ -393,6 +458,7 @@ ChangedFeature2D* ChangeModel::getChangedFeature2D(FeatureType type, uint64_t id
     (type == FeatureType::WAY ? changedWays_ : changedRelations_).push(changed);
     return changed;
 }
+*/
 
 ChangedFeatureBase* ChangeModel::getChanged(TypedFeatureId typedId)
 {

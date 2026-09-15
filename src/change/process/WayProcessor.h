@@ -54,6 +54,12 @@ public:
 				{
 					updateBounds();
 				}
+				ChangeFlags flags = way().flags();
+				model().memberChanged(&way(), pastBounds_, futureBounds_,
+				   ChangeFlags::GEOMETRY_CHANGED |
+					   (is(ChangeFlags::DELETED) ?
+						   ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE) |
+						(flags & ChangeFlags::BOUNDS_CHANGED));
 			}
 			assignToTiles();
 		}
