@@ -17,6 +17,9 @@
         <nd ref="4"/>
         <nd ref="5"/>
         <nd ref="6"/>
+        <tag k="name" v="Prospect Street"/>
+        <tag k="highway" v="residential"/>
+        <tag k="maxspeed" v="50"/>
     </way>
     <way id="3" version="1">
         <nd ref="7"/>

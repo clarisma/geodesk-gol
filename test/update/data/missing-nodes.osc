@@ -26,6 +26,9 @@ Verify that:
             <nd ref="4"/>
             <nd ref="555"/>
             <nd ref="666"/>
+            <tag k="maxspeed" v="50"/>
+            <tag k="highway" v="residential"/>
+            <tag k="name" v="Prospect Street"/>
         </way>
         <way id="3" version="2">
             <nd ref="777"/>
