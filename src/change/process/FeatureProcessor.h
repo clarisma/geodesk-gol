@@ -64,6 +64,13 @@ protected:
 	CRef getRef() const noexcept { return feature_.ref(); }
 	void setRef(CRef ref) const noexcept { feature_.setRef(ref); }
 
+	int getZoom() const
+	{
+		Tip tip = getRef().tip();
+		assert(!tip.isNull());
+		return mgr_.tileCatalog().tileOfTip(tip).zoom();
+	}
+
 	void remove(bool fromSE, bool useOriginal = false) const
 	{
 		mgr_.remove(&feature_, fromSE, useOriginal);

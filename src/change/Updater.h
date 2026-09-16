@@ -5,9 +5,9 @@
 #include <semaphore>
 #include <build/util/TileCatalog.h>
 #include <clarisma/thread/TaskEngine.h>
+#include <geodesk/feature/FeatureStore_Transaction.h>
 #include <geodesk/feature/Tip.h>
 #include "tile/tes/TesArchiveWriter.h"
-
 #include "ChangeManager.h"
 #include "ChangeWriter.h"
 #include "TileChangeAnalyzer.h"
@@ -144,6 +144,8 @@ private:
 	char displayBuffer_[2][32];
 	bool useAltDisplay_ = false;
 	int changeFileCount_ = 0;
+
+	FeatureStore::Transaction transaction_;
 
 #ifdef GOL_DIAGNOSTICS
 	std::filesystem::path dumpPath_;

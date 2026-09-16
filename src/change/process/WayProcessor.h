@@ -117,11 +117,6 @@ private:
 				{
 					node->setRef(CRef::MISSING);
 					missingNodes_++;
-					if (node->isChanged())
-					{
-						deletedNodes_ += ChangedNode::cast(node)->is(
-							ChangeFlags::DELETED) ? 1 : 0;
-					}
 				}
 				else
 				{
@@ -166,9 +161,41 @@ private:
 			ChangeFlags::WAYNODE_IDS_CHANGED);
 	}
 
+	void identifyPotentialTexChanges()
+	{
+		Tip wayTip = getRef().tip();
+		assert(!wayTip.isNull());
+		bool twinTileWay = getRefSE() != CRef::SINGLE_TILE;
+		for(CFeatureStub* nodeStub : members())
+		{
+			CFeature* node = nodeStub->get();
+			CRef nodeRef = node->ref();
+			Tip nodeTip = nodeRef.tip();
+			if (!nodeTip.isNull())
+			{
+				// feature node
+				if (twinTileWay || nodeTip != wayTip) [[unlikely]]
+				{
+					// node is foreign
+					node->markAsFutureForeign();
+					if (!nodeRef.isExported())
+					{
+						// node will need a TEX (though it may
+						// already have one)
+						mgr_.texChange(node, false, true);
+					}
+				}
+				else
+				{
+					// Node doesn't need a TEX
+					// Check if may have one,
+				}
+			}
+		}
+	}
+
 	ChangedFeature2D& way() const { return wayOrRelation(); }
 
 	int missingNodes_ = 0;
-	int deletedNodes_ = 0;
 	int featureNodes_ = 0;
 };

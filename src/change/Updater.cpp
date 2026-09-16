@@ -88,11 +88,12 @@ Updater::Updater(FeatureStore* store, UpdateSettings& settings) :
     changes_(store, settings),
     workCompleted_(0),
     updateFileName_(Strings::combine(
-        FilePath::withoutExtension(store->fileName()), "-update.tes")),
+        FilePath::withoutExtension(store->fileName()), "-update.gob")),
     workPerUnit_(0),
     phase_(Phase::SEARCH),
     phaseCompleted_(0),
-    targetRevision_(0)
+    targetRevision_(0),
+    transaction_(*store)
 {
     memcpy(displayBuffer_[0], READING_TASK_PREFIX, sizeof(READING_TASK_PREFIX) - 1);
     memcpy(displayBuffer_[1], READING_TASK_PREFIX, sizeof(READING_TASK_PREFIX) - 1);
@@ -138,7 +139,17 @@ void Updater::processTask(TileData& task)
     else
     {
         assert(phase_ == Phase::APPLY_UPDATE);
-        // TODO
+        try
+        {
+            // transaction_.putTile(task.tip(), {task.data(), task.size()});
+            transaction_.addBlob({task.data(), task.size()});
+            // TODO: For now, we just write the raw data into the file
+            //  because the generated tiles aren't valid yet
+        }
+        catch (std::exception& ex)
+        {
+            CliApplication::abort(ex.what());
+        }
     }
     taskCompleted();
 }
@@ -267,6 +278,10 @@ void Updater::update(std::string_view url, std::span<const char*> files)
         postWork(UpdaterTask(tiw.currentTip()));
     }
     while(tiw.next());
+
+    transaction_.begin();
+        // Good place to begin the tx here while we're waiting
+        // for the analysis to finish
     awaitPhaseCompletion();
     for (UpdaterWorker& worker: workContexts())
     {
@@ -290,6 +305,9 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     applyUpdate();
 
     end();
+    transaction_.commit();
+    transaction_.end();
+
     //assert(_CrtCheckMemory());
 
     // TODO: Different display if nothing updated?
