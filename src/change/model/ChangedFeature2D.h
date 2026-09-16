@@ -76,6 +76,11 @@ public:
     ///
     void setBounds(const Box& bounds)
     {
+        if (typedId() == TypedFeatureId::ofWay(1154460013))
+        {
+            LOGS << "Setting bounds of way/" << id() << " @"
+                 << this << " to " << bounds;
+        }
         assert(!bounds.isEmpty());
         assert(!(bounds.bottomLeft().isNull() && bounds.topRight().isNull()));
         bounds_ = bounds;

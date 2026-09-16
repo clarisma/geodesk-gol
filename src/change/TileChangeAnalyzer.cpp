@@ -95,7 +95,7 @@ void TileChangeAnalyzer::readNode(NodePtr node)
 
 void TileChangeAnalyzer::readWay(WayPtr way)
 {
-    if(231875725 == way.id())
+    if(1154460013 == way.id())
     {
         LOGS << "Analyzing way/" << way.id();
     }
@@ -121,7 +121,7 @@ void TileChangeAnalyzer::readWay(WayPtr way)
                     LOGS << "way/" << way.id() << "is changed (version " << changed->version() << ")";
                 }
 
-                // TODO: Do we need to capture the past bounds?
+                // Always initialize bounds with the past bounds
                 changed->setBounds(bounds);
                 compareWayNodes(changed, way);
                     // We call compareWayNodes() also for deleted ways,

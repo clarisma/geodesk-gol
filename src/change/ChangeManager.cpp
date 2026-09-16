@@ -215,9 +215,12 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
     {
         WayPtr way = query.next();
         if (way.isNull()) break;
+        if (way.id() == 1154460013)
+        {
+            LOGS << "!!!";
+        }
         ChangedFeature2D* changedWay =
             model_.getChangedFeature2D(FeatureType::WAY, way.id());
-        model_.ensureBounds(changedWay);
         CRef ref = getRef(way);
         if (!way.hasNorthwestTwin()) [[likely]]
         {
@@ -227,6 +230,7 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
         {
             changedWay->offerRefSE(ref);
         }
+        model_.ensureBounds(changedWay);
         changedWay->addFlags(ChangeFlags::MEMBERS_CHANGED);
     }
 }
@@ -656,12 +660,15 @@ ChangedNode* ChangeManager::findUniqueLocationNode(Tip tip, Coordinate xy)
         }
         soleRemainingNode = NodePtr(otherNode);
     }
-    node = model_.getChangedNode(soleRemainingNode.id());
-    node->setXY(xy);
-    TilePtr tile = model_.store()->fetchTile(tip);
-    node->offerRef(CRef::ofMaybeExported(
-        tip, tile.handleOf(soleRemainingNode)));
-    uniqueLocationNodes_[xy] = node;
+    if (!soleRemainingNode.isNull())
+    {
+        node = model_.getChangedNode(soleRemainingNode.id());
+        node->setXY(xy);
+        TilePtr tile = model_.store()->fetchTile(tip);
+        node->offerRef(CRef::ofMaybeExported(
+            tip, tile.handleOf(soleRemainingNode)));
+        uniqueLocationNodes_[xy] = node;
+    }
     return node;
 }
 
@@ -700,6 +707,10 @@ void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE, bool useOri
 {
     CRef ref = feature->ref(fromSE);
     Tip tip = ref.tip();
+    if (tip.isNull())
+    {
+        LOGS << "Attempt to remove missing " << feature->typedId();
+    }
     assert(!tip.isNull());
     ChangedTile* tile = getChangedTile(tip);
 

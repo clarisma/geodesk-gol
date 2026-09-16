@@ -338,12 +338,16 @@ ChangedFeature2D* ChangeModel::getChangedFeature2D(TypedFeatureId typedId, CFeat
 
 ChangedFeatureBase* ChangeModel::getChanged(TypedFeatureId typedId)
 {
+    if (typedId == TypedFeatureId::ofWay(1154460013))
+    {
+        LOGS << "getChanged !!!";
+    }
     FeatureType type = typedId.type();
     if(type == FeatureType::NODE) return getChangedNode(typedId.id());
     return getChangedFeature2D(type, typedId.id());
 }
 
-
+/*
 // TODO: "offer" refs instead of setting them, because
 //  the ChangedFeature may already have a "better" ref
 ChangedFeatureBase* ChangeModel::changeImplicitly(
@@ -379,7 +383,7 @@ ChangedFeatureBase* ChangeModel::changeImplicitly(
     }
     return changed;
 }
-
+*/
 
 void ChangeModel::setMembers(ChangedFeature2D* changed, CFeatureStub** members,
     int memberCount, CFeature::Role* roles)

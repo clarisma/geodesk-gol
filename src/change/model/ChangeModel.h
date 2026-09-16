@@ -64,6 +64,11 @@ public:
 
     ChangedFeature2D* getChangedFeature2D(TypedFeatureId typedId)
     {
+        if (typedId == TypedFeatureId::ofWay(1154460013))
+        {
+            LOGS << "getChangedFeature2D !!!";
+        }
+
         auto it = features_.find(typedId);
         return getChangedFeature2D(typedId,
             it == features_.end() ? nullptr : it->second);
@@ -76,6 +81,10 @@ public:
 
     ChangedFeature2D* getChangedFeature2D(CFeatureStub* feature)
     {
+        if (feature->typedId() == TypedFeatureId::ofWay(1154460013))
+        {
+            LOGS << "getChangedFeature2D !!!";
+        }
         assert(feature);
         return getChangedFeature2D(feature->typedId(), feature);
     }
@@ -83,7 +92,7 @@ public:
     ChangedFeatureBase* getChanged(TypedFeatureId typedId);
     ChangedFeatureBase* getChanged(CFeatureStub* feature);
 
-    ChangedFeatureBase* changeImplicitly(FeaturePtr feature, CRef ref, bool isRefSE);
+    // ChangedFeatureBase* changeImplicitly(FeaturePtr feature, CRef ref, bool isRefSE);
     void setMembers(ChangedFeature2D* changed, CFeatureStub** members,
         int memberCount, CFeature::Role* roles);
 
@@ -118,19 +127,27 @@ public:
 
     void addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel);
 
-    // TODO: Change signature, simply take CRef?
     std::span<CFeatureStub*> loadWayNodes(Tip tip, DataPtr pTile, WayPtr way);
 
-    /*      // TODO
     void ensureNodesLoaded(ChangedFeature2D* way)
     {
         if (way->memberCount() == 0)   [[unlikely]]
         {
-            way->setMembers(model.loadWayNodes(ref_.tip(), pTile, pastWay));
+            CRef ref = way->ref();
+            if (!ref.canGetFeature())   [[unlikely]]
+            {
+                ref = way->refSE();
+            }
+            Tip tip = ref.tip();
+            assert(!tip.isNull());
+            TilePtr pTile = store()->fetchTile(tip);
+            WayPtr pastWay(ref.getFeature(pTile));
+            way->setMembers(loadWayNodes(tip, pTile, pastWay));
         }
     }
-    */
 
+    // TODO: can member count be negative?
+    //  what about empty relations?
     void ensureMembersLoaded(ChangedFeature2D* rel)
     {
         assert(rel->type() == FeatureType::RELATION);

@@ -74,9 +74,9 @@ void UpdaterWorker::applyUpdate(int entryNumber)
     LOGS << "Updating Tile " << tip;
     compiler.modifyTile(tip, updater_->tileCatalog().tileOfTip(tip));
 
+    // TODO: Why not store data uncompressed for local updates?
     ByteBlock tesBlock = Zip::uncompressSealedChunk(updater_->tesData(entryNumber), entry.size);
     compiler.addChanges(tesBlock);
-    // compiler.addChanges(updater_->tesEntry(entryNumber), updater_->tesData(entryNumber));
     ByteBlock block = compiler.compile();
     uint32_t size = static_cast<uint32_t>(block.size());
     updater_->postOutput({tip, std::move(block.take()), size});

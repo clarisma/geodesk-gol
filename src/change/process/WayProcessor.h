@@ -17,13 +17,29 @@ public:
 	//  Collapse into FLAGGED_WAYNODE?
 	void process()
 	{
-		if (way().id() == 3)
+		if (way().id() == 320564300)
 		{
 			LOGS << "!!!";
 		}
 		processMembershipChanges();
-		normalizeRefs();
+		if (normalizeRefs() <= 0) [[unlikely]]
+		{
+			if (!way().isChangedExplicitly())
+			{
+				// Missing feature
+				addFlags(ChangeFlags::PROCESSED);
+				return;
+			}
+		}
+		/*
+		if (getRef() != CRef::MISSING && pastBounds_.isEmpty())
+		{
+			LOGS << "Bounds not set for way/" << way().id();
+		}
 		assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
+		*/
+		// It's ok for pastBounds to be uninitialized
+		//  in cases such as membership change
 
 		if (is(ChangeFlags::DELETED))	[[unlikely]]
 		{
@@ -34,7 +50,7 @@ public:
 			if (isAny(ChangeFlags::GEOMETRY_CHANGED |
 				ChangeFlags::WAYNODE_IDS_CHANGED | ChangeFlags::MEMBERS_CHANGED))
 			{
-				// TODO: ensure nodes loaded (needed if implicitly changed)
+				ensureNodesLoaded();
 				if (!computeBounds()) [[unlikely]]
 				{
 					// Need to defer because we need to search

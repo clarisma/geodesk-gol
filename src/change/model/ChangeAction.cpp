@@ -74,6 +74,10 @@ void MembershipChange::Removed::apply(ChangedFeatureBase* changed)
 
 void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* changed) const
 {
+    if(1154460013 == changed->id())
+    {
+        LOGS << "Action: Implicit geometry change for way/" << changed->id();
+    }
     ChangedFeature2D* way = ChangedFeature2D::cast(changed);
     assert(!ref_.tip().isNull());
     TilePtr pTile = model.store()->fetchTile(ref_.tip());
@@ -81,9 +85,8 @@ void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* ch
     WayPtr pastWay(ref_.getFeature(pTile));
     assert(!pastWay.isNull());
     way->setBounds(pastWay.bounds());
-        // TODO: why are setting the old bounds? They may change!
-        //  --> We need to always initialize the bounds of a ChangedFeature2D
-        //      with its old bounds
+        // We need to always initialize the bounds of a ChangedFeature2D
+        // with its old bounds
     if (way->memberCount() == 0)
     {
         way->setMembers(model.loadWayNodes(ref_.tip(), pTile, pastWay));

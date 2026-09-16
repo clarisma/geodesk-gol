@@ -86,6 +86,7 @@ public:
 
     bool isChangedExplicitly() const
     {
+        // TODO: Are we forcing version to 1 if not specified in .osc?
         return version_ != 0;
     }
 

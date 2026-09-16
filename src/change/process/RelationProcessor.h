@@ -42,7 +42,7 @@ public:
 		// We only assign a relation to one or more ChangedTiles
 		// when it is "its turn", so the stack linkage is preserved
 
-		if (!is(ChangeFlags::DELETED))	[[likely]]
+		if (!getRef().tip().isNull())	[[likely]]
 		{
 			assignToTiles();
 		}
@@ -51,9 +51,9 @@ public:
 private:
 	bool tryProcess()
 	{
-		if (relation().id() == 3)
+		if (relation().id() == 18344011)
 		{
-			LOGS << "!!!";
+			LOGS << feature_.typedId() << " (Version " << feature_.version() << ")";"!!!";
 		}
 		if (!is(ChangeFlags::RELTABLE_LOADED))
 		{
@@ -62,7 +62,15 @@ private:
 			// memberships to be processed)
 			processMembershipChanges();
 		}
-		normalizeRefs();
+		if (normalizeRefs() <= 0) [[unlikely]]
+		{
+			if (!relation().isChangedExplicitly())
+			{
+				// Missing feature
+				addFlags(ChangeFlags::PROCESSED);
+				return true;
+			}
+		}
 		assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
 
 		if (is(ChangeFlags::DELETED))	[[unlikely]]
@@ -196,7 +204,12 @@ private:
 						members[i] = nullptr;
 						continue;
 					}
+					model().ensureBounds(member2D);
+						// TODO: This could be avoided if we always
+						//  load the bounds when we create a ChangedFeature
+						//  for an existing way
 					memberBounds = member2D->bounds();
+					assert(!memberBounds.isEmpty());
 
 					// TODO: Do we need this?
 					//  memberTilesChanged |= member2D->is(
@@ -222,6 +235,7 @@ private:
 						memberBounds = member->getFeature(mgr_.store()).bounds();
 					}
 				}
+				assert(!memberBounds.isEmpty());
 				futureBounds_.expandToIncludeSimple(memberBounds);
 			}
 		}

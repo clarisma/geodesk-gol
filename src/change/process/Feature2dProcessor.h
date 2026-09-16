@@ -30,9 +30,16 @@ protected:
 	CRef getRefSE() const noexcept { return feature_.refSE(); }
 	void setRefSE(CRef ref) const noexcept { feature_.setRefSE(ref); }
 
-	void normalizeRefs() const
+	int normalizeRefs() const
 	{
-		mgr_.normalizeRefs(&wayOrRelation());
+		return mgr_.normalizeRefs(&wayOrRelation());
+	}
+
+	// TODO: move these to subclasses
+
+	void ensureNodesLoaded() const
+	{
+		model().ensureNodesLoaded(&wayOrRelation());
 	}
 
 	void ensureMembersLoaded() const
@@ -64,6 +71,10 @@ protected:
 
 	void updateBounds() const
 	{
+		if (futureBounds_.isEmpty())
+		{
+			LOGS << "Empty bounds for " << feature_.typedId() << " @" << (&feature_);
+		}
 		assert(!futureBounds_.isEmpty());
 		assert(futureBounds_ != pastBounds_);
 		wayOrRelation().setBounds(futureBounds_);
@@ -75,6 +86,10 @@ protected:
 
 	void assignToTiles() const
 	{
+		if (getRef().tip().isNull())
+		{
+			LOGS << feature_.typedId() << " has ref " << getRef();
+		}
 		assert(!getRef().tip().isNull());
 		assert(getRef().tip() != getRefSE().tip());
 
@@ -113,8 +128,11 @@ private:
 	            tileChanges |= ChangeFlags::NEW_TO_NORTHWEST;
 	            if (pastTipNW != futureTipSE)
 	            {
-	            	// remove from past NW tile
-	                remove(false);
+	            	if (!pastTipNW.isNull())
+	            	{
+	            		// remove from past NW tile
+	            		remove(false);
+	            	}
 	            }
 	            setRef(CRef::ofNew(futureTipNW));
 	        }
