@@ -12,7 +12,7 @@ Verify that:
 - way/3 is deleted (all nodes missing)
 - rel/1 has geom change
 - rel/2 has geom change
-- rel/3 is deleted (its sole member way has been deleted)
+- rel/3 is deleted (its sole member way/3 has been deleted)
 -->
 
 <osmChange version="0.6" generator="geodesk-gol-test">

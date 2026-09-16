@@ -64,14 +64,21 @@ protected:
 	CRef getRef() const noexcept { return feature_.ref(); }
 	void setRef(CRef ref) const noexcept { feature_.setRef(ref); }
 
-	void remove(bool fromSE) const
+	void remove(bool fromSE, bool useOriginal = false) const
 	{
-		mgr_.remove(&feature_, fromSE);
+		mgr_.remove(&feature_, fromSE, useOriginal);
 	}
 
 	void setLocalTag(std::string_view k, TagValueType type, uint32_t v) const
 	{
 		model().setLocalTag(&feature_, k, type, v);
+	}
+
+	void setLocalTagWithNumber(std::string_view k, int number) const
+	{
+		// TODO: assert that number fits
+		setLocalTag(k, TagValueType::NARROW_NUMBER,
+			TagValues::narrowNumber(Decimal(number, 0)));
 	}
 
 	ChangedFeatureBase& feature_;

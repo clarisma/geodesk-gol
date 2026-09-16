@@ -80,7 +80,7 @@ private:
 		return false;
 	}
 
-	void remove(ChangedFeatureBase* feature, bool fromSE);
+	void remove(ChangedFeatureBase* feature, bool fromSE, bool useOriginal = false);
 	void texChange(CFeature* feature, bool inSE, bool texNeeded);
 
 	ChangeModel model_;

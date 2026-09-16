@@ -42,6 +42,16 @@ protected:
 
 	void processDeleted() const
 	{
+		model().getParentRelations(&feature_);
+			// We need to ensure that the reltable is
+			// loaded for a feature that has been deleted
+			// without being removed from its parent relations,
+			// so we can cascade
+			// (Once we clear refs, we can no longer fetch
+			// the original table)
+		// TODO: This currently creates stub copies for all
+		//  deletions (for ways, we could use the original
+		//  for NW deletion)
 		Tip tip = getRef().tip();
 		if(!tip.isNull()) remove(false);
 		// TIP could be null if feature does not exist

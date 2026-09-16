@@ -4,6 +4,16 @@
 #pragma once
 #include "Feature2dProcessor.h"
 
+// TODO: Deletes must always create copies, because relations
+//  may be processed out of order, which means we cannot
+//  break linkage (ChangeManager::processRelations() uses
+//  `next` to maintain its stack of pending relations)
+//  Usually, deleted relations will not be processed out
+//  of order (since they no longer have parents referencing
+//  them), but we cannot be guaranteed that .osc files
+//  maintain referential integrity (a relation may contain
+//  another relation that has been deleted)
+
 class RelationProcessor : public Feature2dProcessor
 {
 public:
@@ -41,6 +51,10 @@ public:
 private:
 	bool tryProcess()
 	{
+		if (relation().id() == 3)
+		{
+			LOGS << "!!!";
+		}
 		if (!is(ChangeFlags::RELTABLE_LOADED))
 		{
 			// Only process membership changes if the
@@ -49,6 +63,8 @@ private:
 			processMembershipChanges();
 		}
 		normalizeRefs();
+		assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
+
 		if (is(ChangeFlags::DELETED))	[[unlikely]]
 		{
 			processDeleted();
@@ -59,6 +75,30 @@ private:
 			{
 				ensureMembersLoaded();
 				if (!computeBounds()) return false;
+				if (missingMembers_)	[[unlikely]]
+				{
+					if (missingMembers_ < members().size())	[[likely]]
+					{
+						addFlags(ChangeFlags::MEMBERS_CHANGED);
+						setLocalTagWithNumber(
+							"geodesk:missing_members", missingMembers_);
+					}
+					else
+					{
+						// All members missing => delete relation
+						addFlags(ChangeFlags::DELETED);
+						processDeleted();
+						futureBounds_ = pastBounds_;
+						// avoids possible tile assignment
+					}
+				}
+				if (relation().removedRefcyleCount())	[[unlikely]]
+				{
+					addFlags(ChangeFlags::MEMBERS_CHANGED);
+						// TODO: Flag change needed? Done earlier?
+					setLocalTagWithNumber("geodesk:removed_refcycles",
+						relation().removedRefcyleCount());
+				}
 				if (futureBounds_ != pastBounds_)
 				{
 					updateBounds();
@@ -83,7 +123,6 @@ private:
 
 	bool computeBounds()
 	{
-		int omittedMembersCount = 0;
 		bool defer = false;
 		auto members = relation().members();
 		for(int i=0; i<members.size(); i++)
@@ -92,7 +131,7 @@ private:
 			{
 				// The member has been determined missing in an
 				// earlier attempt, and replaced with null
-				omittedMembersCount++;
+				missingMembers_++;
 				continue;
 			}
 			CFeature* member = members[i]->get();
@@ -106,7 +145,7 @@ private:
 					if(ref == CRef::MISSING || mgr_.memberSearchCompleted_)
 					{
 						member->setRef(CRef::MISSING);
-						omittedMembersCount++;
+						missingMembers_++;
 						members[i] = nullptr;
 					}
 					else
@@ -151,6 +190,12 @@ private:
 							continue;
 						}
 					}
+					if(member2D->ref() == CRef::MISSING)	[[unlikely]]
+					{
+						missingMembers_++;
+						members[i] = nullptr;
+						continue;
+					}
 					memberBounds = member2D->bounds();
 
 					// TODO: Do we need this?
@@ -168,7 +213,7 @@ private:
 						}
 						else
 						{
-							omittedMembersCount++;
+							missingMembers_++;
 							members[i] = nullptr;
 						}
 					}
@@ -184,4 +229,6 @@ private:
 	}
 
 	ChangedFeature2D& relation() const { return wayOrRelation(); }
+
+	int missingMembers_ = 0;
 };

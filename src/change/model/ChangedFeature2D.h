@@ -82,6 +82,8 @@ public:
         // don't set BOUNDS_CHANGED
     }
 
+    int removedRefcyleCount() const { return removedRefcyleCount_; }
+
 protected:
     Box bounds_;
     int memberCount_;

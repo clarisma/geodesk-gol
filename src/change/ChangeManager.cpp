@@ -696,17 +696,16 @@ ChangedTile* ChangeManager::getChangedTile(Tip tip)
     return changedTile;
 }
 
-void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE)
+void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE, bool useOriginal)
 {
     CRef ref = feature->ref(fromSE);
     Tip tip = ref.tip();
     assert(!tip.isNull());
     ChangedTile* tile = getChangedTile(tip);
 
-    // Unless deleted and in NW, make a copy
     // TODO: Always make a copy so we don't need this check?
     ChangedFeatureStub* maybeCopy = feature;
-    if (!feature->isDeleted() || fromSE)
+    if (!useOriginal)
     {
         maybeCopy = model_.copy(feature);
     }

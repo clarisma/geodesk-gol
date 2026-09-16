@@ -70,7 +70,15 @@ public:
 			// TODO: Deleting a missing node is a no-op
 			if(!pastTip_.isNull())
 			{
-				remove(false);
+				model().getParentRelations(&node());
+				// We need to ensure that the reltable is
+				// loaded for a feature that has been deleted
+				// without being removed from its parent relations,
+				// so we can cascade
+				// (Once we clear refs, we can no longer fetch
+				// the original table)
+
+				remove(false, true);
 			}
 			node().setRef(CRef::MISSING);
 			addFlags(ChangeFlags::PROCESSED);

@@ -17,8 +17,14 @@ public:
 	//  Collapse into FLAGGED_WAYNODE?
 	void process()
 	{
+		if (way().id() == 3)
+		{
+			LOGS << "!!!";
+		}
 		processMembershipChanges();
 		normalizeRefs();
+		assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
+
 		if (is(ChangeFlags::DELETED))	[[unlikely]]
 		{
 			processDeleted();
@@ -116,7 +122,7 @@ private:
 		return !defer;
 	}
 
-	void fixIncompleteWay()
+	void fixIncompleteWay() const
 	{
 		std::span<CFeatureStub*> nodes = members();
 		auto originalNodeCount = way().memberCount();
@@ -139,14 +145,7 @@ private:
 			validNodeCount++;
 		}
 		way().setMembers({nodes.data(), validNodeCount});
-		setLocalTag("geodesk:missing_nodes",
-			TagValueType::NARROW_NUMBER, TagValues::narrowNumber(
-				Decimal(missingNodes_, 0)));
-
-		// TODO: Ugly -- this should read:
-		// setLocalTag("geodesk:missing_nodes",
-		//     TagModel::Value::number(missingNodes_);
-
+		setLocalTagWithNumber("geodesk:missing_nodes", missingNodes_);
 		addFlags(ChangeFlags::MEMBERS_CHANGED |
 			ChangeFlags::WAYNODE_IDS_CHANGED);
 	}
