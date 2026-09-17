@@ -146,7 +146,7 @@ public:
 
     /// Returns the relation table of this changed feature,
     /// which can be `nullptr` if it has never been loaded
-    /// (i.e. it doe snot process or retrieve it)
+    /// (i.e. it does not process or retrieve it)
     ///
     const CRelationTable* peekParentRelations() const
     {

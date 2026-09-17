@@ -591,7 +591,7 @@ std::span<CFeatureStub*> ChangeModel::loadWayNodes(Tip tip, DataPtr pTile, WayPt
 
 
 template<typename Iter>
-CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, DataPtr pTile)
+CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
 {
     FeaturePtr pastFeature = iter.next();
     if (pastFeature.isNull()) return nullptr;
@@ -601,7 +601,7 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, DataPtr pTile)
 
     CRef ref = iter.isForeign() ?
         CRef::ofExported(iter.tip(), iter.tex()) :
-        CRef::ofMaybeExported(tip, pastFeature.ptr() - pTile);
+        CRef::ofMaybeExported(tip, pTile.handleOf(pastFeature));
 
     if (f->type() == FeatureType::NODE)
     {
@@ -618,7 +618,7 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, DataPtr pTile)
         {
             // Differs from nodes, because NW and SE tiles may swap
             // position if a dual-tile feature moves to an adjacent tile,
-            // so we cannot safely offer
+            // so we cannot safely offer if processed
 
             if (pastFeature.hasNorthwestTwin()) [[unlikely]]
             {
@@ -627,6 +627,9 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, DataPtr pTile)
             else
             {
                 f->offerRef(ref);
+                // Note: We can't assume this is a single-tile
+                // feature without checking if its bounds exceed
+                // the tile bounds
             }
         }
     }
@@ -855,7 +858,7 @@ void ChangeModel::loadMembers(ChangedFeature2D* rel)
         hasChildRelations |= member->type() == FeatureType::RELATION;
         tempMembers_.emplace_back(member, role);
     }
-    assert(tempMembers_.size() > 0);
+    assert(!tempMembers_.empty());
 
     CFeatureStub** pMembers = reinterpret_cast<CFeatureStub**>(arena_.alloc(
         (sizeof(CFeatureStub*) + sizeof(CFeature::Role)) * tempMembers_.size(),

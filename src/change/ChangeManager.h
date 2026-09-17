@@ -68,8 +68,10 @@ private:
 		return false;
 	}
 
+	void ensureResolved(const CRelationTable* rels);
 	void remove(ChangedFeatureBase* feature, bool fromSE, bool useOriginal = false);
 	void texChange(CFeature* feature, bool inSE, bool texNeeded);
+	void confirmTexLoss(ChangedFeatureBase* feature);
 
 	ChangeModel model_;
 	TileCatalog tileCatalog_;

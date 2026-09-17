@@ -441,7 +441,7 @@ void ChangeManager::processWay(ChangedFeature2D* way)
 
 /// Past bounds must be set
 ///
-/// @param changed
+/// @param feature
 /// @return  1   if at least one ref has been resolved
 ///          0   if feature is missing
 ///         -1   if feature refs are unknown (search required)
@@ -830,3 +830,49 @@ void Updater::mayGainOrLoseTex(CFeature* member, ChangedFeature2D* parent)
 /// Marked "dropped from way":
 ///   still member of any ways  --> not an orphan
 /// else:                  --> orphan
+///
+///
+
+void ChangeManager::confirmTexLoss(ChangedFeatureBase* feature)
+{
+    if (feature->isFutureForeign())
+    {
+        // Feature will be foreign -> it definitely keeps its TEX
+        return;
+    }
+    CRef ref = feature->ref();
+    Tip tip = ref.tip();
+    assert(!tip.isNull());
+    if (!ref.mayHaveTex())
+    {
+        // Feature already lost its TEX
+        // TODO: How about unresolved?
+        return;
+    }
+    const CRelationTable* rels = model_.getParentRelations(feature);
+    if (rels)
+    {
+        for (CFeatureStub* relStub : rels->relations())
+        {
+            CFeature* rel = relStub->get();
+            if (tip != rel->ref().tip())
+            {
+                // TODO
+            }
+        }
+    }
+
+    // TODO
+}
+
+
+void ChangeManager::ensureResolved(const CRelationTable* rels)
+{
+    for (CFeatureStub* relStub : rels->relations())
+    {
+        CFeature* rel = relStub->get();
+        int result = normalizeRefs(rel);
+        assert(result > 0);
+
+    }
+}

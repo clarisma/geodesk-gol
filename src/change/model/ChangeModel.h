@@ -255,7 +255,7 @@ private:
     uint32_t getTagValue(const TagTableModel::Tag& tag);
     void gatherTag(bool isLocalKey, const CTagTable::Tag tag);
     template<typename Iter>
-    CFeature* readFeature(Iter& iter, Tip tip, DataPtr pTile);
+    CFeature* readFeature(Iter& iter, Tip tip, TilePtr pTile);
     void loadMembers(ChangedFeature2D* rel);
 
     // void readParentRelations(FeaturePtr feature, Tip tip);

@@ -4,6 +4,15 @@
 #pragma once
 #include "Feature2dProcessor.h"
 
+// TODO: If a relation changes tiles, all its members need to
+//  update their reltables. But we've already processed
+//  all its members at this point and assigned them to tiles
+//
+
+// TODO: We don't always have both twins of an unchanged relation
+//  That can cause problems when the reltable of a twin-tile
+//  feature is updated
+
 // TODO: Deletes must always create copies, because relations
 //  may be processed out of order, which means we cannot
 //  break linkage (ChangeManager::processRelations() uses
@@ -110,6 +119,11 @@ private:
 				if (futureBounds_ != pastBounds_)
 				{
 					updateBounds();
+					if (is(ChangeFlags::TILES_CHANGED))
+					{
+						// TODO: If this relation changes tiles, all its
+						//  members must update their reltables
+					}
 				}
 				else
 				{

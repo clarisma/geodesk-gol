@@ -707,6 +707,9 @@ void ChangeWriter::writeRelationTable(const CRelationTable* relTable)
             Tip tipSE = rel->refSE().tip();
             if (!tipSE.isNull())      [[unlikely]]
             {
+                // TODO: Should we specifically check for tipSE != SINGLE_TILE?
+                //  and assert that the SE twin isn't missing/unresolved?
+
                 // If the parent relation is dual-tile
                 if (tileCatalog_.tileOfTip(tipSE).bounds().contains(
                     tileBottomLeft_))
