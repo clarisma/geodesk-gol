@@ -768,7 +768,7 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
         {
             assert (feature->type() != FeatureType::NODE);
             // We cannot perform alt-tile resolution
-            // for nodes, because ndoes are single-tile
+            // for nodes, because nodes are single-tile
             CRef otherRef = feature->ref(!inSE);
             Tip otherTip = otherRef.tip();
             assert(!otherTip.isNull());

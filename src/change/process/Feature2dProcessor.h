@@ -127,6 +127,11 @@ private:
 
 	    if (pastTipNW != futureTipNW)
 	    {
+	    	// If tile change, always ensure reltable is loaded
+	    	// (We'll need it in the new tile); once the ref
+	    	// is updated, we're no longer able to get the feature
+	    	// (which we need in order to load the reltable)
+			ensureReltableLoaded();
 	        tileChanges |= ChangeFlags::TILES_CHANGED;
 	        if (futureTipNW != pastTipSE)
 	        {

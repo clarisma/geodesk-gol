@@ -88,6 +88,11 @@ protected:
 			TagValues::narrowNumber(Decimal(number, 0)));
 	}
 
+	void ensureReltableLoaded() const
+	{
+		model().getParentRelations(&feature_);
+	}
+
 	ChangedFeatureBase& feature_;
 	ChangeManager& mgr_;
 };

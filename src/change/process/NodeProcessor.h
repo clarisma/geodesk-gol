@@ -316,6 +316,7 @@ private:
 	    {
 	        if(!pastTip_.isNull())
 	        {
+	        	ensureReltableLoaded();
 	        	remove(false);
 	        }
 	        if(!futureTip.isNull())
