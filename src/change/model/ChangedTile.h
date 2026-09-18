@@ -69,38 +69,14 @@ public:
     ///
     void texChange(int32_t handle, CFeature* feature)
     {
+        if (handle == 0)
+        {
+            // TODO !!!!
+        }
         texChanges_[handle] = feature;
+        // TODO: does not work for new features, they don't
+        // have a handle!
     }
-
-    // TODO: remove
-    void mayGainTex(CFeatureStub* feature)
-    {
-        // TODO
-
-        assert(feature);
-        // mayGainTex_.add(feature);
-        // hasTexChanges_ = true;
-
-        // TODO: Unless the feature is marked may_have_tex,
-        //  it will definitely need a TEX, hence we could
-        //  flag the tile differently to avoid scanning
-        //  its exported features to see if any in mayGainTex_
-        //  already have a TEX
-
-        // TODO: Idea: use a flag that indicates *all*
-        //  features in mayGainTex definitely need a tex,
-        //  so we can skip the scan of the export table
-        //  to check which features already have a tex
-    }
-
-    // bool hasTexChanges() const { return hasTexChanges_; }
-
-    /*
-    const ArenaBag<CFeatureStub*,16>& mayGainTex() const
-    {
-        return mayGainTex_;
-    }
-    */
 
     void resolveExports(TilePtr pTile);
     void writeChanges(clarisma::BufferWriter& out);
@@ -133,17 +109,13 @@ private:
 
     static constexpr uint32_t EXPORTS_UNCHANGED = 0xffff'ffff;
 
-    void recordTexChange(CFeature* feature, bool willHaveTex);
-
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeatureStub> changedWays_;
     LinkedStack<ChangedFeatureStub> changedRelations_;
     LinkedStack<ChangedFeatureStub> deleted_[3];
-    // ArenaBag<CFeatureStub*,16> mayGainTex_;
     Tip tip_;
     Tile tile_;
     TilePtr tilePtr_;
-    // bool hasTexChanges_ = false;
 
     clarisma::HashMap<int32_t,CFeatureStub*> texChanges_;
         // Contains features that will need a TEX (though they

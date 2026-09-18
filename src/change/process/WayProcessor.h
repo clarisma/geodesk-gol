@@ -77,6 +77,10 @@ public:
 				{
 					updateBounds();
 				}
+				if(isAny(ChangeFlags::TILES_CHANGED | ChangeFlags::MEMBERS_CHANGED))
+				{
+					identifyPotentialTexChanges();
+				}
 			}
 			if (!is(ChangeFlags::DELETED))	[[likely]]
 			{
@@ -161,7 +165,7 @@ private:
 			ChangeFlags::WAYNODE_IDS_CHANGED);
 	}
 
-	void identifyPotentialTexChanges()
+	void identifyPotentialTexChanges() const
 	{
 		Tip wayTip = getRef().tip();
 		assert(!wayTip.isNull());
@@ -187,8 +191,8 @@ private:
 				}
 				else
 				{
-					// Node doesn't need a TEX
-					// Check if may have one,
+					// TODO: Node doesn't need a TEX
+					//  Check if it may have one, add to CM
 				}
 			}
 		}

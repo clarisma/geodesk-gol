@@ -62,13 +62,20 @@ public:
                 LOGS << "TableEncoder: " << member->typedId() << " is unresolved.";
             }
             assert(!ref.tip().isNull());
-
+            if (!ref.isExported())
+            {
+                LOGS << "TableEncoder: " << member->typedId()
+                    << " is missing TEX: " << ref;
+            }
+            assert(ref.isExported());
+            /*
             // TODO: dummy code since we're not assigning TEXes yet...
             //  All foreign members must have a TEX at this point
             if(!ref.isExported())
             {
                 ref = CRef::ofExported(ref.tip(), 333);    // TODO: dummy code
             }
+            */
 
             constexpr int ForeignFlagCount = 1 + (ForeignFlag ? 1 : 0) + (RoleFlag ? 1 : 0);
 

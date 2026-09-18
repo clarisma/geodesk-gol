@@ -16,6 +16,12 @@
 #include "ChangeReader.h"
 #include "tile/compiler/TileCompiler.h"
 
+// TODO: Need to commit tx if different replication URL has been set,
+//  even if no changes were available
+//  Need a way to mark tx as "dirty"
+
+// TODO: What happens to GOL's revision if updating from local files?
+
 static const char READING_TASK_PREFIX[] = "Reading ";
 
 UpdaterWorker::UpdaterWorker(Updater* updater) :
@@ -202,17 +208,26 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     std::string shortName(FilePath::name(store->fileName()));
     if(!store->hasWaynodeIds())
     {
+        // TODO: Different exception class?
         throw IOException("Cannot update %s since it does not store waynode IDs "
             "(Must be built with option -w)", shortName.c_str());
     }
 
+    if (url.empty() && files.empty())
+    {
+        url = store->replicationUrl();
+        if (url.empty())
+        {
+            // TODO: Different exception class?
+            throw IOException("Specify a replication URL or at least one .osc file");
+        }
+    }
     LOGS << "Current revision: " << store->revision();
 
     ConsoleWriter out;
     out << "Updating "
         << Console::FAINT_LIGHT_BLUE << shortName << Console::DEFAULT;
 
-    // TODO: take default URL from GOL
     if (!url.empty())
     {
         out << " via "
@@ -282,6 +297,13 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     transaction_.begin();
         // Good place to begin the tx here while we're waiting
         // for the analysis to finish
+        // TODO: We need to lock the store for writing earlier,
+        //  so we can detect any lock conflicts before doing
+        //  any work
+    if (!url.empty())
+    {
+        transaction_.setReplicationUrl(url);
+    }
     awaitPhaseCompletion();
     for (UpdaterWorker& worker: workContexts())
     {

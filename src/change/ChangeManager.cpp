@@ -148,7 +148,8 @@ void ChangeManager::postProcess()
 {
     LOGS << "Processing changes...";
 
-    model_.determineTexLosers();
+    // model_.determineTexLosers();
+    resolveExports();
 
     // TODO: process nodes, ways, relations whose reltables need to be
     //  updated because their parent relations have moved tiles
@@ -730,12 +731,23 @@ void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE, bool useOri
 
 void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
 {
+    if (feature->typedId() == TypedFeatureId::ofWay(1339781319))
+    {
+        LOGS << "!!!";
+    }
+    LOGS << feature->typedId() << (texNeeded ? " will need TEX" :
+        " will not need TEX");
     assert(feature->type() != FeatureType::NODE || !inSE);
         // Nodes are single-tile and hence can only be in a NW tile
 
     int32_t handle;
     CRef ref = feature->ref(inSE);
     Tip tip = ref.tip();
+    if (tip.isNull())
+    {
+        LOGS << "Bad ref for " << feature->typedId() << ": " << ref
+            << (inSE ? " (SE tile)" : " (NW tile)");
+    }
     assert(!tip.isNull());
     ChangedTile* changedTile = getChangedTile(tip);
     if (ref.isNew())
@@ -751,7 +763,7 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
         TilePtr pTile = store()->fetchTile(tip);
         assert(pTile);
         // TODO: What happens if the tile is not loaded?
-        FeaturePtr fp = ref.getFeature(pTile);
+        FeaturePtr fp = ref.tryGetFeature(pTile);
         if (fp.isNull())    [[unlikely]]
         {
             assert (feature->type() != FeatureType::NODE);
@@ -948,5 +960,18 @@ void ChangeManager::ensureResolved(const CRelationTable* rels)
         int result = normalizeRefs(rel);
         assert(result > 0);
 
+    }
+}
+
+
+void ChangeManager::resolveExports()
+{
+    // TODO: Determine which features at risk of losing their TEXes
+    //  actually do lose them
+
+    for(const auto& [tip,changedTile] : changedTiles_)
+    {
+        TilePtr pTile = store()->fetchTile(tip);
+        changedTile->resolveExports(pTile);
     }
 }

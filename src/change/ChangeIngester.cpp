@@ -72,21 +72,30 @@ void ChangeIngester::performDownload()
 
         LOGS << "Latest revision on server: " << target.revision;
 
-        // TODO: If URL is same as used for previous update,
-        //  can you use the current revision
-        // uint32_t seq = store->revision();
-        // Otherwise, determine the current revision based on timestamp
-
-        ReplicationClient::State current = client.findCurrentState(
+        uint32_t seq;
+        DateTime currentTimestamp;
+        if (url_ == store->replicationUrl())
+        {
+            // If URL is same as used for previous update,
+            // use the current revision
+            seq = store->revision();
+            currentTimestamp = store->revisionTimestamp();
+        }
+        else
+        {
+            // Otherwise, determine the current revision based on timestamp
+            ReplicationClient::State current = client.findCurrentState(
             store->revisionTimestamp(), target);
-        uint32_t seq = current.revision;
+            seq = current.revision;
+            currentTimestamp = current.timestamp;
+        }
         currentRevision_ = seq;
 
         if (seq >= target.revision) return;       // No changes
 
         status_ = Status::PARTIALLY_FETCHED;
 
-        updater_.beginUpdate(current.revision, current.timestamp,
+        updater_.beginUpdate(seq, currentTimestamp,
             target.revision, target.timestamp);
 
         do

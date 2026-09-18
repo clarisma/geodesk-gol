@@ -72,6 +72,7 @@ private:
 	void remove(ChangedFeatureBase* feature, bool fromSE, bool useOriginal = false);
 	void texChange(CFeature* feature, bool inSE, bool texNeeded);
 	void confirmTexLoss(ChangedFeatureBase* feature);
+	void resolveExports();
 
 	ChangeModel model_;
 	TileCatalog tileCatalog_;

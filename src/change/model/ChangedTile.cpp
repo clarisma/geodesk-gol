@@ -84,9 +84,8 @@ void ChangedTile::resolveExports(TilePtr pTile)
         }
     }
 
-    if (!tableChanged)
+    if (!tableChanged && texChanges_.empty())
     {
-        assert(texChanges_.empty());
         return;
     }
 
@@ -101,7 +100,14 @@ void ChangedTile::resolveExports(TilePtr pTile)
     std::vector<SortedFeature> sorted;
     for (const auto& [handle, stub] : texChanges_)
     {
-        assert(stub);   // TEX losers should be gone at this point
+        if (stub == nullptr)
+        {
+            // A null stub at this point means that a feature
+            // may have had a TEX that it needed to lose, but it
+            // turned up it wasn't exported, after all; ignore it
+            continue;
+        }
+        assert(stub);
         CFeature* feature = stub->get();
         Coordinate center;
         if (feature->type() == FeatureType::NODE)
@@ -121,6 +127,7 @@ void ChangedTile::resolveExports(TilePtr pTile)
         }
         sorted.emplace_back(hilbert.compute(center), feature);
     }
+    texChanges_.clear();   // TODO: Needed?
     std::sort(sorted.begin(), sorted.end());
 
     // Place the features into exportTableChanges_, filling any
@@ -130,6 +137,11 @@ void ChangedTile::resolveExports(TilePtr pTile)
     for (SortedFeature sortedFeature : sorted)
     {
         CFeature* feature = sortedFeature.feature;
+        if (feature->typedId() == TypedFeatureId::ofWay(1339781319))
+        {
+            LOGS << "!!!";
+        }
+
         Tex tex;
         if (pos < exportTableChanges_.size())
         {

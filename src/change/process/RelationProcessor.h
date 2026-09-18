@@ -23,6 +23,17 @@
 //  maintain referential integrity (a relation may contain
 //  another relation that has been deleted)
 
+// TODO: Incomplete relations (and their parents) are currently
+//  marked as "changed" even if nothing actually changed
+//  (The TCA compares past member table to the member table proposed
+//  by the osc, and marks the relation as MEMBERS_CHANGED on
+//  that basis. If the RelationProcessor later removes any
+//  missing member refs, MEMBERS_CHANGED stays set)
+//  Better: If members are missing, re-scan past member table
+//  against adjusted current, and clear MEMBERS_CHANGED if
+//  they are the same). When processing member relations,
+//  check if members actually changed and clear flags as needed
+
 class RelationProcessor : public Feature2dProcessor
 {
 public:
@@ -80,7 +91,8 @@ private:
 				return true;
 			}
 		}
-		assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
+		// assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
+		// TODO: check
 
 		if (is(ChangeFlags::DELETED))	[[unlikely]]
 		{
@@ -133,6 +145,7 @@ private:
 					// change; once we've actually computed the bounds,
 					// we know for sure and can clear the flag
 				}
+				identifyPotentialTexChanges();
 			}
 		}
 
@@ -254,6 +267,61 @@ private:
 			}
 		}
 		return !defer;
+	}
+
+	void identifyPotentialTexChanges() const
+	{
+		Tip relTip = getRef().tip();
+		assert(!relTip.isNull());
+		Tip relTipSE = getRefSE().tip();
+		// bool twinTileRelation = getRefSE() != CRef::SINGLE_TILE;
+		for(CFeatureStub* memberStub : members())
+		{
+			if (!memberStub) continue;	// skip removed members
+			CFeature* member = memberStub->get();
+			CRef memberRef = member->ref();
+			Tip memberTip = memberRef.tip();
+			assert(!memberTip.isNull());
+			CRef memberRefSE;
+			if (member->type() == FeatureType::NODE)
+			{
+				memberRefSE = CRef::SINGLE_TILE;
+			}
+			else
+			{
+				memberRefSE = member->refSE();
+			}
+			Tip memberTipSE = memberRefSE.tip();
+
+			if (memberTip != relTip || memberTipSE != relTipSE)
+			{
+				// member is foreign
+				member->markAsFutureForeign();
+				if (!memberRef.isExported())
+				{
+					// member will need a TEX (though it may
+					// already have one)
+					mgr_.texChange(member, false, true);
+				}
+				if (!memberTipSE.isNull())	[[unlikely]]
+				{
+					// TODO: Do we really need to check separately?
+					//  Can a dual-tile feature be exported from one tile,
+					//  but not the other?
+					if (!memberRefSE.isExported())
+					{
+						// member will need a TEX (though it may
+						// already have one)
+						mgr_.texChange(member, true, true);
+					}
+				}
+			}
+			else
+			{
+				// TODO: Member doesn't need a TEX
+				//  Check if it may have one, add to CM
+			}
+		}
 	}
 
 	ChangedFeature2D& relation() const { return wayOrRelation(); }

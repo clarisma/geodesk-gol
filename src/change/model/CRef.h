@@ -201,6 +201,12 @@ public:
         return FeaturePtr(pTile + offset());
     }
 
+    FeaturePtr tryGetFeature(TilePtr pTile) const
+    {
+        if (!canGetFeature()) return FeaturePtr();
+        return getFeature(pTile);
+    }
+
     bool canGetFeature() const
     {
         return statusCategory() != SPECIAL;
