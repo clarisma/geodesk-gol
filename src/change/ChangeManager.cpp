@@ -777,6 +777,18 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
         handle = pTile.handleOf(fp);
     }
     changedTile->texChange(handle, texNeeded ? feature : nullptr);
+    if (!texNeeded)
+    {
+        ref = CRef::ofNotExported(tip, handle);
+        if (inSE)
+        {
+            feature->setRefSE(ref);
+        }
+        else
+        {
+            feature->setRef(ref);
+        }
+    }
 }
 
 
@@ -849,6 +861,10 @@ void ChangeManager::confirmTexLoss(ChangedFeatureBase* feature)
         // TODO: How about unresolved?
         return;
     }
+
+    CRef refSE = (feature->type() == FeatureType::NODE) ?
+        CRef::SINGLE_TILE : feature->refSE();
+
     const CRelationTable* rels = model_.getParentRelations(feature);
     if (rels)
     {
@@ -857,15 +873,73 @@ void ChangeManager::confirmTexLoss(ChangedFeatureBase* feature)
             CFeature* rel = relStub->get();
             if (tip != rel->ref().tip())
             {
-                // TODO
+                // Parent relation is in different tile
+                // -> foreign, keep TEX
+                feature->markAsFutureForeign();
+                return;
+            }
+            if (refSE.tip() != rel->refSE().tip())
+            {
+                // SE tiles differ
+                // -> foreign, keep TEX
+                feature->markAsFutureForeign();
+                return;
+            }
+        }
+    }
+    if (feature->type() == FeatureType::NODE)
+    {
+        if (!feature->is(ChangeFlags::TILES_CHANGED))
+        {
+            // The node has not changed tiles (changing tiles would have
+            // triggered all of its parent ways to re-validate foreign
+            // relationships, so it would have been marked as foreign
+            // already if its TEX were still needed.
+            // If a node has not moved tiles, we can still determine
+            // its past position via its ref
+
+            TilePtr pNodeTile = store()->fetchTile(tip);
+            Box nodeTileBounds = tileCatalog().tileOfTip(tip).bounds();
+            FeaturePtr pastFeature = ref.getFeature(pNodeTile);
+            assert(!pastFeature.isNull());
+            NodePtr pastNode(pastFeature);
+            ParentWaysQuery query(store(), pastNode.xy(), pastNode);
+            for (;;)
+            {
+                WayPtr way = query.next();
+                if (way.isNull()) break;
+                if (!pNodeTile.contains(way))
+                {
+                    // Parent way is in a different tile
+                    // -> node must be foreign
+                    feature->markAsFutureForeign();
+                    return;
+                }
+                const Box& wayBounds = way.bounds();
+                if (wayBounds.maxX() > nodeTileBounds.maxX() ||
+                    wayBounds.maxY() > nodeTileBounds.maxY())
+                {
+                    // Parent way is dual-tile
+                    // -> node must be foreign
+                    feature->markAsFutureForeign();
+                    return;
+                }
             }
         }
     }
 
-    // TODO
+    // The feature is no longer foreign, so its TEX can be released
+
+    texChange(feature, false, false);
+    if (refSE != CRef::SINGLE_TILE)
+    {
+        texChange(feature, true, false);
+    }
+    // texChange() already converts the refs into non-exported refs
 }
 
 
+// TODO
 void ChangeManager::ensureResolved(const CRelationTable* rels)
 {
     for (CFeatureStub* relStub : rels->relations())
