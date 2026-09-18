@@ -205,6 +205,7 @@ private:
 	            feature_.setParentRelations(model().getRelationTable(sourceRef));
 	        }
 	    }
+		assert(getRef().tip() != getRefSE().tip());
 	}
 
 protected:

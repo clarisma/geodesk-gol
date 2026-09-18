@@ -71,9 +71,10 @@ public:
 private:
 	bool tryProcess()
 	{
-		if (relation().id() == 18344011)
+		if (relation().id() == 5157108)
 		{
-			LOGS << feature_.typedId() << " (Version " << feature_.version() << ")";"!!!";
+			LOGS << feature_.typedId() << " (Version " << feature_.version()
+				 << ") at " << feature_.ref() << " / " << feature_.refSE();
 		}
 		if (!is(ChangeFlags::RELTABLE_LOADED))
 		{
@@ -147,6 +148,12 @@ private:
 				}
 				identifyPotentialTexChanges();
 			}
+		}
+
+		if (relation().id() == 5157108)
+		{
+			LOGS << feature_.typedId() << " (Version " << feature_.version()
+				 << ") at " << feature_.ref() << " / " << feature_.refSE();
 		}
 
 		// Don't assign to tiles yet, needs to happen in process() itself

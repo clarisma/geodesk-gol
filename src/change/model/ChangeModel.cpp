@@ -606,6 +606,11 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
     assert(stub);
     CFeature* f = stub->get();
 
+    if (f->typedId() == TypedFeatureId::ofRelation(5157108))
+    {
+        LOGS << "!!!";
+    }
+
     CRef ref = iter.isForeign() ?
         CRef::ofExported(iter.tip(), iter.tex()) :
         CRef::ofMaybeExported(tip, pTile.handleOf(pastFeature));
@@ -620,12 +625,17 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
     }
     else
     {
-        if(!f->isChanged() || !ChangedFeatureBase::cast(f)->is(
-            ChangeFlags::PROCESSED))
+        if(!f->isChanged() || !ChangedFeatureBase::cast(f)->isAny(
+            ChangeFlags::PROCESSED | ChangeFlags::TILES_CHANGED |
+            ChangeFlags::DELETED))
         {
             // Differs from nodes, because NW and SE tiles may swap
             // position if a dual-tile feature moves to an adjacent tile,
             // so we cannot safely offer if processed
+
+            // TODO: May clobber the work of updateTiles()
+            //  since it is not processed yet !!!
+            //  Check if the above flag checks fix this
 
             if (pastFeature.hasNorthwestTwin()) [[unlikely]]
             {
