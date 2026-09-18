@@ -87,6 +87,6 @@ private:
 	int threadCount_;
 	double workPerPhase_[4];
 	double workCompleted_;
-	bool debug_ = true;
+	bool debug_ = true;			// TODO
 	OsmPbfMetadata metadata_;
 };

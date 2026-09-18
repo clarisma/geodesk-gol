@@ -99,7 +99,12 @@ void InfoCommand::showRevisionInfo(ConsoleWriter& out)
     bool hasWaynodeIDs = store_.hasWaynodeIds();
     if (hasWaynodeIDs)
     {
-        out << Console::GREEN << "Yes" << Console::DEFAULT << " (via Osmosis Server)\n";
+        out << Console::GREEN << "Yes" << Console::DEFAULT;
+        std::string_view url = store_.replicationUrl();
+        if (!url.empty())
+        {
+            out << " • " << url << '\n';
+        }
     }
     else
     {
