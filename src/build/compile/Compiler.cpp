@@ -883,6 +883,7 @@ void Compiler::initStore()
 	tileIndex[0] = tileIndexSize - 4;
 
 	transaction_.setup(metadata, std::move(tileIndex));
+	transaction_.setReplicationUrl(osmMetadata.replicationUrl);
 }
 
 #ifdef GOL_BUILD_STATS
