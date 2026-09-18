@@ -76,6 +76,11 @@ public:
         return static_cast<FeatureType>((idAndFlags_ >> FLAG_COUNT) & 3);
     }
 
+    bool isNode() const noexcept
+    {
+        return type() == FeatureType::NODE;
+    }
+
     bool isChanged() const { return idAndFlags_ & CHANGED; }
     bool isReplaced() const { return idAndFlags_ & REPLACED; }
     bool isBasic() const { return (idAndFlags_ & (CHANGED |REPLACED)) == 0; }

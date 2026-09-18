@@ -347,6 +347,13 @@ ChangedFeatureBase* ChangeModel::getChanged(TypedFeatureId typedId)
     return getChangedFeature2D(type, typedId.id());
 }
 
+ChangedFeatureBase* ChangeModel::getChanged(CFeatureStub* feature)
+{
+    FeatureType type = feature->type();
+    if(type == FeatureType::NODE) return getChangedNode(feature);
+    return getChangedFeature2D(feature);
+}
+
 /*
 // TODO: "offer" refs instead of setting them, because
 //  the ChangedFeature may already have a "better" ref

@@ -31,11 +31,36 @@ void ChangedTile::recordTexChange(CFeature* feature, bool willHaveTex)
 
 void ChangedTile::resolveExports(TilePtr pTile)
 {
-    if (texChanges_.empty()) return;
+    if (texChanges_.empty() && exportTableChanges_.empty()) return;
 
+    HilbertDistanceInTile hilbert(tile_);
+    std::vector<SortedFeature> sorted;
+
+    // TODO: This is hacky, we're stashing new features
+    //  (which always need a TEX) in exportTableChanges_,
+    //  and process them first; then we clear exportTableChanges_
+    //  so the actual changes can be stored there
+
+    for (auto entry : exportTableChanges_)
+    {
+        CFeature* feature = entry.feature;
+        assert(feature->isChanged());
+        Coordinate center;
+        if (feature->type() == FeatureType::NODE)
+        {
+            center = feature->xy();
+        }
+        else
+        {
+            center = ChangedFeature2D::cast(feature)->bounds().center();
+        }
+        sorted.emplace_back(hilbert.compute(center), feature);
+    }
+    exportTableChanges_.clear();
+
+    uint32_t exportsCount = 0;
     bool tableChanged = false;
     ExportTablePtr exports = tilePtr_.exports();
-    uint32_t exportsCount = 0;
     if (exports)
     {
         exportsCount = exports.count();
@@ -96,8 +121,6 @@ void ChangedTile::resolveExports(TilePtr pTile)
     // the tile (improves locality within the export table)
     // TODO: We could reuse a common vector for sorting
 
-    HilbertDistanceInTile hilbert(tile_);
-    std::vector<SortedFeature> sorted;
     for (const auto& [handle, stub] : texChanges_)
     {
         if (stub == nullptr)

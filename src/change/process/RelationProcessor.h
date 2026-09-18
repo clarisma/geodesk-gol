@@ -124,7 +124,7 @@ private:
 				if (relation().removedRefcyleCount())	[[unlikely]]
 				{
 					addFlags(ChangeFlags::MEMBERS_CHANGED);
-						// TODO: Flag change needed? Done earlier?
+					// TODO: Flag change needed? Done earlier?
 					setLocalTagWithNumber("geodesk:removed_refcycles",
 						relation().removedRefcyleCount());
 				}
@@ -232,9 +232,9 @@ private:
 						continue;
 					}
 					model().ensureBounds(member2D);
-						// TODO: This could be avoided if we always
-						//  load the bounds when we create a ChangedFeature
-						//  for an existing way
+					// TODO: This could be avoided if we always
+					//  load the bounds when we create a ChangedFeature
+					//  for an existing way
 					memberBounds = member2D->bounds();
 					assert(!memberBounds.isEmpty());
 
@@ -274,7 +274,7 @@ private:
 		Tip relTip = getRef().tip();
 		assert(!relTip.isNull());
 		Tip relTipSE = getRefSE().tip();
-		// bool twinTileRelation = getRefSE() != CRef::SINGLE_TILE;
+		bool anyMembersForeign = false;
 		for(CFeatureStub* memberStub : members())
 		{
 			if (!memberStub) continue;	// skip removed members
@@ -310,17 +310,119 @@ private:
 					//  but not the other?
 					if (!memberRefSE.isExported())
 					{
-						// member will need a TEX (though it may
-						// already have one)
+						// member will need a TEX in its SE tile
+						// (though it may already have one)
 						mgr_.texChange(member, true, true);
 					}
 				}
+				anyMembersForeign = true;
 			}
 			else
 			{
 				// TODO: Member doesn't need a TEX
 				//  Check if it may have one, add to CM
 			}
+
+			if (is(ChangeFlags::TILES_CHANGED))
+			{
+				// If the relation's tiles changed, we need to
+				// force each member to update its reltable
+				ensureReltableChanged(member);
+			}
+		}
+
+		if (anyMembersForeign)
+		{
+			relation().markAsFutureForeign();
+			if (!getRef().isExported())
+			{
+				// relation will need a TEX (though it may
+				// already have one)
+				mgr_.texChange(&relation(), false, true);
+			}
+			CRef refSE = getRefSE();
+			if (!refSE.tip().isNull())	[[unlikely]]
+			{
+				// TODO: Do we really need to check separately?
+				//  Can a dual-tile feature be exported from one tile,
+				//  but not the other?
+				if (!refSE.isExported())
+				{
+					// relation will need a TEX in its SE tile
+					// (though it may already have one)
+					mgr_.texChange(&relation(), true, true);
+				}
+			}
+		}
+		else
+		{
+			// TODO: relation's TEX may need to be dropped
+		}
+
+		// TODO: Consolidate texChange code
+	}
+
+	// TODO: cleanup
+	void ensureReltableChanged(CFeature* member) const
+	{
+		ChangedFeatureBase* changed;
+		if (member->isChanged())
+		{
+			changed = ChangedFeatureBase::cast(member);
+			assert(changed->is(ChangeFlags::PROCESSED));
+			model().getParentRelations(changed);
+			changed->addFlags(ChangeFlags::RELTABLE_CHANGED);
+			return;
+		}
+		changed = model().getChanged(member);
+		assert(!changed->is(ChangeFlags::PROCESSED));
+		// Need to remove feature from stacks so it doesn't get
+		// processed in the second round of processing
+		ChangedFeatureBase* popped;
+		switch (member->type())
+		{
+		case FeatureType::NODE:
+			popped = model().changedNodes().pop();
+			break;
+		case FeatureType::WAY:
+			popped = model().changedWays().pop();
+			break;
+		case FeatureType::RELATION:
+			popped = model().changedRelations().pop();
+			break;
+		default:
+			popped = nullptr;
+			assert(false);
+		}
+		assert(popped == changed);
+		model().getParentRelations(changed);
+		assert(changed->is(ChangeFlags::RELTABLE_LOADED));
+		changed->addFlags(ChangeFlags::RELTABLE_CHANGED |
+			ChangeFlags::PROCESSED);
+
+		// TODO: This duplicates assignToTiles
+		CRef ref;
+		Tip tip;
+		if (!changed->isNode())
+		{
+			ref = changed->refSE();
+			tip = ref.tip();
+			if(!tip.isNull())   [[unlikely]]
+			{
+				mgr_.getChangedTile(tip)->addChanged(model().copy(changed));
+			}
+		}
+		ref = changed->ref();
+		tip = ref.tip();
+
+		if (changed->isNode())
+		{
+			mgr_.getChangedTile(tip)->changedNodes().push(
+				ChangedNode::cast(changed));
+		}
+		else
+		{
+			mgr_.getChangedTile(tip)->addChanged(changed);
 		}
 	}
 

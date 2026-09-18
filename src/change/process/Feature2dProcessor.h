@@ -91,6 +91,11 @@ protected:
 			LOGS << feature_.typedId() << " has ref " << getRef();
 		}
 		assert(!getRef().tip().isNull());
+		if (getRef().tip() == getRefSE().tip())
+		{
+			LOGS << feature_.typedId() << " has illegal refs: "
+				<< getRef() << " / " << getRefSE();
+		}
 		assert(getRef().tip() != getRefSE().tip());
 
 		CRef ref = getRefSE();

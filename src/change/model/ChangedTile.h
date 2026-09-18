@@ -27,6 +27,8 @@ public:
     //  tile and deleted in another!
     //  No, original is always stored in changedNodes,
     //   copy goes into deletedNodes
+    //   --> Then allow consumers to cast to ChangedNode, since that
+    //       is always safe!
     LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
     LinkedStack<ChangedFeatureStub>& changedWays() { return changedWays_; };
     LinkedStack<ChangedFeatureStub>& changedRelations() { return changedRelations_; };
@@ -47,6 +49,9 @@ public:
         return deletedFeatures(FeatureType::RELATION);
     }
 
+    // TODO: Rename! It's not clear that this is only
+    //  for ways and relations
+    //  Better yet, unify the stacks
     void addChanged(ChangedFeatureStub* feature)
     {
         assert(feature->get()->ref().tip() == tip_ ||
@@ -71,11 +76,13 @@ public:
     {
         if (handle == 0)
         {
-            // TODO !!!!
+            // For new feature, we can't use the hashmap
+            // (It doesn't have a handle; always 0), so we
+            // stash it; TODO: THis is hacky
+            exportTableChanges_.emplace_back(Tex(), false, feature);
+            return;
         }
         texChanges_[handle] = feature;
-        // TODO: does not work for new features, they don't
-        // have a handle!
     }
 
     void resolveExports(TilePtr pTile);
