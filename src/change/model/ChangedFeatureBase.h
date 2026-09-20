@@ -95,6 +95,7 @@ public:
         return (flags_ & (
             ChangeFlags::TAGS_CHANGED |
             ChangeFlags::GEOMETRY_CHANGED |
+            ChangeFlags::MEMBERS_CHANGED |
             ChangeFlags::WAYNODE_IDS_CHANGED |
             ChangeFlags::BOUNDS_CHANGED |
             ChangeFlags::FLAGS_CHANGED |

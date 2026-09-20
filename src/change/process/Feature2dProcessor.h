@@ -86,6 +86,11 @@ protected:
 
 	void assignToTiles() const
 	{
+		if (!wayOrRelation().hasActualChanges())	[[unlikely]]
+		{
+			// If nothing changed, don't push to tiles
+			return;
+		}
 		if (getRef().tip().isNull())
 		{
 			LOGS << feature_.typedId() << " has ref " << getRef();

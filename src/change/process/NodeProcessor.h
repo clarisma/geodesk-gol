@@ -351,27 +351,31 @@ private:
 	    }
 	    if(!futureTip.isNull())
 	    {
-	        ChangedTile* futureTile = mgr_.getChangedTile(futureTip);
-	        futureTile->changedNodes().push(&node());
-	        if (is(ChangeFlags::GEOMETRY_CHANGED))
-	        {
-	            // If node is (and was) a feature node and has moved,
-	            // its parent relations (if any) may implicitly change
-	            // (If node is added to a relation for the first time,
-	            // we won't need to call this method, since its parent
-	            // relations by definition already explicitly change)
-	            // model_.cascadeMemberChange(pastNode, node);
+	    	if (node().hasActualChanges()) [[likely]]
+	    	{
+	    		// Only push node to tiles if it has actual changes
+	    		ChangedTile* futureTile = mgr_.getChangedTile(futureTip);
+	    		futureTile->changedNodes().push(&node());
+	    		if (is(ChangeFlags::GEOMETRY_CHANGED))
+	    		{
+	    			// If node is (and was) a feature node and has moved,
+	    			// its parent relations (if any) may implicitly change
+	    			// (If node is added to a relation for the first time,
+	    			// we won't need to call this method, since its parent
+	    			// relations by definition already explicitly change)
+	    			// model_.cascadeMemberChange(pastNode, node);
 
-	            Box pastBounds = pastXY_;
-	            Box futureBounds = node().xy();
-	            model().memberChanged(&node(), pastBounds, futureBounds,
-	                ChangeFlags::GEOMETRY_CHANGED |
-	                    (is(ChangeFlags::DELETED) ?
-	                        ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
+	    			Box pastBounds = pastXY_;
+	    			Box futureBounds = node().xy();
+	    			model().memberChanged(&node(), pastBounds, futureBounds,
+						ChangeFlags::GEOMETRY_CHANGED |
+							(is(ChangeFlags::DELETED) ?
+								ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
 
-	            // TODO: This is in the wrong place
-	            // TODO: move down, must also call if deleted
-	        }
+	    			// TODO: This is in the wrong place
+	    			// TODO: move down, must also call if deleted
+	    		}
+	    	}
 	    }
 	    else
 	    {
