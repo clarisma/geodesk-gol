@@ -47,8 +47,10 @@ public:
             if(member->isDualTile())  [[unlikely]]
             {
                 // TODO: use optimal selection
+                //  For now, we grab whichever twin has a TEX
                 ref = member->ref();
-                if (ref.tip().isNull()) [[unlikely]]
+                // if (ref.tip().isNull()) [[unlikely]]
+                if (!ref.isExported()) [[unlikely]]
                 {
                     ref = member->refSE();
                 }

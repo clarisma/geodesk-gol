@@ -83,7 +83,7 @@ void ChangedTile::resolveExports(TilePtr pTile)
                     if (stub == nullptr)
                     {
                         // Newly created empty slot
-                        exportTableChanges_.emplace_back(tex, false, nullptr);
+                        exportTableChanges_.emplace_back(tex, true, nullptr);
                         tableChanged = true;
                     }
                     else
@@ -109,7 +109,8 @@ void ChangedTile::resolveExports(TilePtr pTile)
         }
     }
 
-    if (!tableChanged && texChanges_.empty())
+    // TODO: Clean this up, too complicated as an early-exit condition
+    if (!tableChanged && texChanges_.empty() && sorted.empty())
     {
         return;
     }
@@ -156,17 +157,18 @@ void ChangedTile::resolveExports(TilePtr pTile)
     // Place the features into exportTableChanges_, filling any
     // existing empty slots first
 
+    size_t emptySlotCount = exportTableChanges_.size();
     size_t pos = 0;
     for (SortedFeature sortedFeature : sorted)
     {
         CFeature* feature = sortedFeature.feature;
-        if (feature->typedId() == TypedFeatureId::ofWay(1339781319))
+        if (feature->typedId() == TypedFeatureId::ofWay(1340662848))
         {
             LOGS << "!!!";
         }
 
         Tex tex;
-        if (pos < exportTableChanges_.size())
+        if (pos < emptySlotCount)
         {
             // We can reuse an empty slot
             exportTableChanges_[pos].changed = true;
@@ -176,8 +178,8 @@ void ChangedTile::resolveExports(TilePtr pTile)
         else
         {
             // Otherwise, append to the end of the table
-            exportTableChanges_.emplace_back(
-                Tex(exportsCount), true, feature);
+            tex = Tex(exportsCount);
+            exportTableChanges_.emplace_back(tex, true, feature);
             exportsCount++;
         }
 
@@ -192,6 +194,7 @@ void ChangedTile::resolveExports(TilePtr pTile)
             assert(feature->refSE().tip() == tip_);
             feature->setRefSE(ref);
         }
+        pos++;
     }
 
     // Now exportTableChanges_ contains all TEX changes, as well as
@@ -217,4 +220,13 @@ void ChangedTile::resolveExports(TilePtr pTile)
     // (exportTableChanges_ may still have existing empty slots)
 
     // TODO: Need to resolve: Encoding if export table trimmed, but no entries changed
+}
+
+
+void ChangedTile::dump() const
+{
+    LOGS << "ChangedTile " << tip_ << " (" << tile_ << ") at "
+        << tilePtr_.ptr() << " -- this = " << this << ":";
+    LOGS << "  " << exportTableChanges_.size() << " new TEXes needed";
+    LOGS << "  " << texChanges_.size() << " potential TEX changes";
 }

@@ -528,18 +528,18 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
 // TODO: reltables of members need to be updated if parent moved tiles
 //  (i.e. flag RELTABLE_LOADED & RELTABLE_CHANGED)
 //  No, update only needs to happen if rel changes zoom levels
+/*
 void ChangeManager::checkMemberExports(ChangedFeature2D* rel)
 {
     Tip relTip = rel->ref().tip();
     int relZoom = tileCatalog_.tileOfTip(relTip).zoom();
     bool dualTileRelation = rel->refSE() != CRef::SINGLE_TILE;
-    /*
-    if(dualTileRelation && rel->refSE().tip().isNull())
-    {
-        LOGS << "Invalid refs for " << rel->typedId() << ": "
-            << rel->ref() << " / " << rel->refSE();
-    }
-    */
+    //
+    //if(dualTileRelation && rel->refSE().tip().isNull())
+    //{
+    //    LOGS << "Invalid refs for " << rel->typedId() << ": "
+    //        << rel->ref() << " / " << rel->refSE();
+    //}
     assert(!dualTileRelation || !rel->refSE().tip().isNull());
     bool relationWillBeForeign = false;
     for (CFeatureStub* memberStub : rel->members())
@@ -608,7 +608,7 @@ void ChangeManager::checkExport(CFeature* feature, bool willBeForeign)
         model_.mayLoseTex(feature);
     }
 }
-
+*/
 
 const CTagTable* ChangeManager::getExceptionNodeTags(bool duplicate, bool orphan)
 {
@@ -731,7 +731,7 @@ void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE, bool useOri
 
 void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
 {
-    if (feature->typedId() == TypedFeatureId::ofWay(1339781319))
+    if (feature->typedId() == TypedFeatureId::ofWay(1340662848))
     {
         LOGS << "!!!";
     }
@@ -972,6 +972,10 @@ void ChangeManager::resolveExports()
     for(const auto& [tip,changedTile] : changedTiles_)
     {
         TilePtr pTile = store()->fetchTile(tip);
+        LOGS << "Resolving exports for " << tip << " ("
+            << tileCatalog_.tileOfTip(tip) << ") at " << pTile.ptr()
+            << " -- changedTile = " << changedTile;
         changedTile->resolveExports(pTile);
+        changedTile->dump();
     }
 }

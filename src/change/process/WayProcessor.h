@@ -17,7 +17,7 @@ public:
 	//  Collapse into FLAGGED_WAYNODE?
 	void process()
 	{
-		if (way().id() == 320564300)
+		if (way().id() == 1340662848)
 		{
 			LOGS << "!!!";
 		}
@@ -181,12 +181,12 @@ private:
 				if (twinTileWay || nodeTip != wayTip) [[unlikely]]
 				{
 					// node is foreign
-					node->markAsFutureForeign();
-					if (!nodeRef.isExported())
+					if (!node->isFutureForeign() && !nodeRef.isExported())
 					{
 						// node will need a TEX (though it may
 						// already have one)
 						mgr_.texChange(node, false, true);
+						node->markAsFutureForeign();
 					}
 				}
 				else

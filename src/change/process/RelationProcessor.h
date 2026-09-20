@@ -157,7 +157,6 @@ private:
 		}
 
 		// Don't assign to tiles yet, needs to happen in process() itself
-		// TODO: TEX changes
 		addFlags(ChangeFlags::PROCESSED);
 
 		return true;
@@ -302,25 +301,32 @@ private:
 
 			if (memberTip != relTip || memberTipSE != relTipSE)
 			{
-				// member is foreign
-				member->markAsFutureForeign();
-				if (!memberRef.isExported())
+				if (member->typedId() == TypedFeatureId::ofWay(1340662848))
 				{
-					// member will need a TEX (though it may
-					// already have one)
-					mgr_.texChange(member, false, true);
+					LOGS << "!!!";
 				}
-				if (!memberTipSE.isNull())	[[unlikely]]
+				// member is foreign
+				if (!member->isFutureForeign())
 				{
-					// TODO: Do we really need to check separately?
-					//  Can a dual-tile feature be exported from one tile,
-					//  but not the other?
-					if (!memberRefSE.isExported())
+					if (!memberRef.isExported())
 					{
-						// member will need a TEX in its SE tile
-						// (though it may already have one)
-						mgr_.texChange(member, true, true);
+						// member will need a TEX (though it may
+						// already have one)
+						mgr_.texChange(member, false, true);
 					}
+					if (!memberTipSE.isNull())	[[unlikely]]
+					{
+						// TODO: Do we really need to check separately?
+						//  Can a dual-tile feature be exported from one tile,
+						//  but not the other?
+						if (!memberRefSE.isExported())
+						{
+							// member will need a TEX in its SE tile
+							// (though it may already have one)
+							mgr_.texChange(member, true, true);
+						}
+					}
+					member->markAsFutureForeign();
 				}
 				anyMembersForeign = true;
 			}
@@ -340,24 +346,27 @@ private:
 
 		if (anyMembersForeign)
 		{
-			relation().markAsFutureForeign();
-			if (!getRef().isExported())
+			if (!relation().isFutureForeign())
 			{
-				// relation will need a TEX (though it may
-				// already have one)
-				mgr_.texChange(&relation(), false, true);
-			}
-			CRef refSE = getRefSE();
-			if (!refSE.tip().isNull())	[[unlikely]]
-			{
-				// TODO: Do we really need to check separately?
-				//  Can a dual-tile feature be exported from one tile,
-				//  but not the other?
-				if (!refSE.isExported())
+				relation().markAsFutureForeign();
+				if (!getRef().isExported())
 				{
-					// relation will need a TEX in its SE tile
-					// (though it may already have one)
-					mgr_.texChange(&relation(), true, true);
+					// relation will need a TEX (though it may
+					// already have one)
+					mgr_.texChange(&relation(), false, true);
+				}
+				CRef refSE = getRefSE();
+				if (!refSE.tip().isNull())	[[unlikely]]
+				{
+					// TODO: Do we really need to check separately?
+					//  Can a dual-tile feature be exported from one tile,
+					//  but not the other?
+					if (!refSE.isExported())
+					{
+						// relation will need a TEX in its SE tile
+						// (though it may already have one)
+						mgr_.texChange(&relation(), true, true);
+					}
 				}
 			}
 		}

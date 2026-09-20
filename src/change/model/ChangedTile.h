@@ -22,6 +22,8 @@ public:
 
     Tip tip() const { return tip_; }
 
+    void dump() const;
+
     // TODO: Change all to ChangedFeatureStub;
     //  node can be copied as well, because it may be added in one
     //  tile and deleted in another!
