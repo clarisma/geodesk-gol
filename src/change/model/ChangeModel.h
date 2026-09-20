@@ -42,6 +42,7 @@ public:
         std::string_view key, TagValueType type, uint32_t value);
     const CRelationTable* getRelationTable(CRef ref,
         const MembershipChange* changes = nullptr);
+    const CRelationTableSet& relationTables() const { return relationTables_; }
 
     /// Retrieves the relation table of the given feature,
     /// loading it if needed and processing any membership changes

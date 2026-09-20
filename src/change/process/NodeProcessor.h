@@ -64,6 +64,10 @@ public:
 
 	void process()
 	{
+		if (node().id() == 1119136410)
+		{
+			LOGS << "!!!";
+		}
 		processMembershipChanges();
 		if(is(ChangeFlags::DELETED))
 		{

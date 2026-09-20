@@ -61,7 +61,8 @@ public:
             }
             if (ref.tip().isNull())
             {
-                LOGS << "TableEncoder: " << member->typedId() << " is unresolved.";
+                LOGS << "TableEncoder: " << member->typedId() << " is unresolved: "
+                    << member->ref() << " / " << member->refSE();
             }
             assert(!ref.tip().isNull());
             if (!ref.isExported())

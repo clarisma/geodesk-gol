@@ -109,6 +109,14 @@ protected:
 		mgr_.getChangedTile(tip)->addChanged(&feature_);
 	}
 
+	void validateMemberReltable(ChangedFeatureBase* member) const
+	{
+		assert(member->peekParentRelations());
+		for (CFeatureStub* relStub : member->peekParentRelations()->relations())
+		{
+			mgr_.normalizeRefs(relStub->get());
+		}
+	}
 
 private:
 	void updateTiles(TilePair futureTiles) const

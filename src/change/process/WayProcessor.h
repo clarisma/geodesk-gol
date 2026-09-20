@@ -82,6 +82,16 @@ public:
 					identifyPotentialTexChanges();
 				}
 			}
+			if (is(ChangeFlags::RELTABLE_CHANGED))	[[unlikely]]
+			{
+				if (getRefSE() != CRef::SINGLE_TILE)  [[unlikely]]
+				{
+					if (way().peekParentRelations())
+					{
+						validateMemberReltable(&way());
+					}
+				}
+			}
 			if (!is(ChangeFlags::DELETED))	[[likely]]
 			{
 				assignToTiles();

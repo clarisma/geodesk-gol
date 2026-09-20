@@ -71,7 +71,7 @@ public:
 private:
 	bool tryProcess()
 	{
-		if (relation().id() == 5157108)
+		if (relation().id() == 18242857)
 		{
 			LOGS << feature_.typedId() << " (Version " << feature_.version()
 				 << ") at " << feature_.ref() << " / " << feature_.refSE();
@@ -388,58 +388,61 @@ private:
 			assert(changed->is(ChangeFlags::PROCESSED));
 			model().getParentRelations(changed);
 			changed->addFlags(ChangeFlags::RELTABLE_CHANGED);
-			return;
-		}
-		changed = model().getChanged(member);
-		assert(!changed->is(ChangeFlags::PROCESSED));
-		// Need to remove feature from stacks so it doesn't get
-		// processed in the second round of processing
-		ChangedFeatureBase* popped;
-		switch (member->type())
-		{
-		case FeatureType::NODE:
-			popped = model().changedNodes().pop();
-			break;
-		case FeatureType::WAY:
-			popped = model().changedWays().pop();
-			break;
-		case FeatureType::RELATION:
-			popped = model().changedRelations().pop();
-			break;
-		default:
-			popped = nullptr;
-			assert(false);
-		}
-		assert(popped == changed);
-		model().getParentRelations(changed);
-		assert(changed->is(ChangeFlags::RELTABLE_LOADED));
-		changed->addFlags(ChangeFlags::RELTABLE_CHANGED |
-			ChangeFlags::PROCESSED);
-
-		// TODO: This duplicates assignToTiles
-		CRef ref;
-		Tip tip;
-		if (!changed->isNode())
-		{
-			ref = changed->refSE();
-			tip = ref.tip();
-			if(!tip.isNull())   [[unlikely]]
-			{
-				mgr_.getChangedTile(tip)->addChanged(model().copy(changed));
-			}
-		}
-		ref = changed->ref();
-		tip = ref.tip();
-
-		if (changed->isNode())
-		{
-			mgr_.getChangedTile(tip)->changedNodes().push(
-				ChangedNode::cast(changed));
 		}
 		else
 		{
-			mgr_.getChangedTile(tip)->addChanged(changed);
+			changed = model().getChanged(member);
+			assert(!changed->is(ChangeFlags::PROCESSED));
+			// Need to remove feature from stacks so it doesn't get
+			// processed in the second round of processing
+			ChangedFeatureBase* popped;
+			switch (member->type())
+			{
+			case FeatureType::NODE:
+				popped = model().changedNodes().pop();
+				break;
+			case FeatureType::WAY:
+				popped = model().changedWays().pop();
+				break;
+			case FeatureType::RELATION:
+				popped = model().changedRelations().pop();
+				break;
+			default:
+				popped = nullptr;
+				assert(false);
+			}
+			assert(popped == changed);
+			model().getParentRelations(changed);
+			assert(changed->is(ChangeFlags::RELTABLE_LOADED));
+			changed->addFlags(ChangeFlags::RELTABLE_CHANGED |
+				ChangeFlags::PROCESSED);
+
+			// TODO: This duplicates assignToTiles
+			CRef ref;
+			Tip tip;
+			if (!changed->isNode())
+			{
+				ref = changed->refSE();
+				tip = ref.tip();
+				if(!tip.isNull())   [[unlikely]]
+				{
+					mgr_.getChangedTile(tip)->addChanged(model().copy(changed));
+				}
+			}
+			ref = changed->ref();
+			tip = ref.tip();
+
+			if (changed->isNode())
+			{
+				mgr_.getChangedTile(tip)->changedNodes().push(
+					ChangedNode::cast(changed));
+			}
+			else
+			{
+				mgr_.getChangedTile(tip)->addChanged(changed);
+			}
 		}
+		validateMemberReltable(changed);
 	}
 
 	ChangedFeature2D& relation() const { return wayOrRelation(); }

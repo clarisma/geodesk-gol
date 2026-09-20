@@ -176,6 +176,12 @@ const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipCh
                 LOGS << "  Removing " << changes->typedId() << " from " << changes->parentRelation()->typedId();
             }
             auto it = std::ranges::find(tempRelations_, changes->parentRelation());
+            if (it == tempRelations_.end())
+            {
+                LOGS << "Attempted to remove " << changes->typedId() << " from "
+                    << changes->parentRelation()->typedId() <<
+                        ", but the parent rel is not present";
+            }
             assert(it != tempRelations_.end());
             std::swap(*it, tempRelations_.back());
             tempRelations_.pop_back();
@@ -606,14 +612,15 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
     assert(stub);
     CFeature* f = stub->get();
 
-    if (f->typedId() == TypedFeatureId::ofRelation(5157108))
-    {
-        LOGS << "!!!";
-    }
-
     CRef ref = iter.isForeign() ?
         CRef::ofExported(iter.tip(), iter.tex()) :
         CRef::ofMaybeExported(tip, pTile.handleOf(pastFeature));
+
+    if (f->typedId() == TypedFeatureId::ofRelation(18242871))
+    {
+        LOGS << "Read " << f->typedId() << " via tile " << tip
+            <<": " << ref;
+    }
 
     if (f->type() == FeatureType::NODE)
     {
@@ -626,8 +633,7 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
     else
     {
         if(!f->isChanged() || !ChangedFeatureBase::cast(f)->isAny(
-            ChangeFlags::PROCESSED | ChangeFlags::TILES_CHANGED |
-            ChangeFlags::DELETED))
+            ChangeFlags::TILES_CHANGED | ChangeFlags::DELETED))
         {
             // Differs from nodes, because NW and SE tiles may swap
             // position if a dual-tile feature moves to an adjacent tile,

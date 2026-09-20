@@ -227,13 +227,27 @@ public:
     /// Note: We never replace MISSING or NEW, to avoid clobbering
     /// a computed tile of a deleted or changed feature.
     ///
+
+    /*  // old, bad
     bool isVague() const
     {
         uint32_t status = static_cast<uint32_t>(data_);
         return (status & (2 | SPECIAL_MISSING | SPECIAL_NEW)) == 0;
+    }
+    */
+
+    // TODO: Revise flag system to make this check more efficient
+    bool isVague() const
+    {
+        if ((data_ & 2) != 0) return false;
             // Bit 1 (=2) is set for EXPORTED or NOT_EXPORTED refs,
-            // but never for MAYBE_EXPORTED or special refs
-            // Special refs apart from MISSING or NEW can be replaced
+            // not considered "vague"
+        uint32_t status =  static_cast<uint32_t>(data_);
+        return status != SPECIAL_MISSING && status != SPECIAL_NEW;
+            // NEW and MISSING are definite, everything else
+            // is vague: UNKNOWN, UNRESOLVED, MAYBE_EXPORTED
+            // TODO: Should we guard against replacing
+            //  SINGLE_TILE and ANONYMOUS_NODE?
     }
 
     bool isUnknownOrMissing() const

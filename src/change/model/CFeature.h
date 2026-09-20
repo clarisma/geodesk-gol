@@ -54,7 +54,7 @@ public:
         assert(!isReplaced());
         assert(!ref.tip().isNull() || ref==CRef::ANONYMOUS_NODE);
         assert(ref != CRef::SINGLE_TILE);  // only SE ref can be single-tile
-        if(ref_. isVague()) ref_ = ref;
+        if(ref_.isVague()) ref_ = ref;
     }
 
     /*
