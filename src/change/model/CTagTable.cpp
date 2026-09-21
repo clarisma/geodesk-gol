@@ -38,10 +38,12 @@ CTagTable::CTagTable(const TagTableModel& tagModel, ChangeModel& changeModel) :
             globalTag.valueType(), getTagValue(changeModel, globalTag));
     }
 
+    size_t hash = 0;
     for(int i=0; i<tagCount_; i++)
     {
-        hash_ = Hash::combine(hash_, static_cast<uint64_t>(tags_[i]));
+        hash = Hash::combine(hash, static_cast<uint64_t>(tags_[i]));
     }
+    hash_ = static_cast<uint32_t>(hash ^ (hash >> 32));
 }
 
 uint32_t CTagTable::getTagValue(ChangeModel& changeModel, const TagTableModel::Tag& tag)
@@ -86,6 +88,7 @@ bool CTagTable::equals(const ChangeModel& model, int32_t handle, TagTablePtr pTa
     {
         Tag tag = tags_[i];
         if(!iterGlobal.next()) return false;
+        if (tag.key() != iterGlobal.key()) return false;
         if(tag.type() != iterGlobal.valueType()) return false;
         if(tag.type() == TagValueType::LOCAL_STRING)
         {

@@ -10,13 +10,14 @@
 CRelationTable::CRelationTable(std::span<CFeatureStub*> rels) :
     count_(static_cast<uint32_t>(rels.size()))
 {
-    hash_ = 0;
+    size_t hash = 0;
     for(int i=0; i<rels.size(); i++)
     {
         relations_[i] = rels[i];
-        hash_ = clarisma::Hash::combine(hash_,
+        hash = clarisma::Hash::combine(hash,
             reinterpret_cast<size_t>(rels[i]));
     }
+    hash_ = static_cast<uint32_t>(hash ^ (hash >> 32));
 }
 
 bool CRelationTable::remove(uint64_t relId) noexcept
@@ -28,7 +29,7 @@ bool CRelationTable::remove(uint64_t relId) noexcept
             --count_;
             if(i < count_)
             {
-                std::memmove(relations_[i], relations_[i+1],
+                std::memmove(&relations_[i], &relations_[i+1],
                     (count_ - i)*sizeof(relations_[0]));
             }
             return true;

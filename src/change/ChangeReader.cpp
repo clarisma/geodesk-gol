@@ -47,6 +47,11 @@ void ChangeReader::read()
     {
         error("Expected <osmChange> element");
     }
+    LOGS << model_.features().size() << " features in model";
+    LOGS << "  Load factor = " << model_.features().load_factor()
+        << ", buckets = " << model_.features().bucket_count();
+    LOGS << model_.stringCount() << " strings in model";
+    LOGS << model_.tagTableCount() << " tags tables in model";
 }
 
 void ChangeReader::readChanges()

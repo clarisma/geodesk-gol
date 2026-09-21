@@ -27,6 +27,7 @@ ChangeModel::ChangeModel(FeatureStore* store, UpdateSettings& settings) :
     })
 {
     // assert(_CrtCheckMemory());
+    features_.reserve(32'000'000);
 }
 
 

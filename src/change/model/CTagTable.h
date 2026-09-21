@@ -64,6 +64,9 @@ public:
         if(tagCount_ != other.tagCount_) return false;
         if(localTagCount_ != other.localTagCount_) return false;
         return memcmp(tags_, other.tags_, tagCount_ * sizeof(Tag)) == 0;
+            // We have to compare localTagCount first, since a global
+            // tag and a local tag could have the same binary representation
+            // (but still be different)
     }
 
     bool equals(const ChangeModel& model, int32_t handle, TagTablePtr pTags) const noexcept;

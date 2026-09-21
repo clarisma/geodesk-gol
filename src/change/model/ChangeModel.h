@@ -206,6 +206,9 @@ public:
         return features_;
     }
 
+    size_t stringCount() const { return strings_.size(); }
+    size_t tagTableCount() const { return tagTables_.size(); }
+
     LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
     LinkedStack<ChangedFeature2D>& changedWays() { return changedWays_; };
     LinkedStack<ChangedFeature2D>& changedRelations() { return changedRelations_; };
