@@ -265,11 +265,13 @@ std::string_view ChangeModel::getRoleString(CFeature::Role role) const
 
 CFeatureStub* ChangeModel::getFeatureStub(TypedFeatureId typedId)
 {
-    auto [it, inserted] = features_.try_emplace(typedId, nullptr);
+    FeatureType type = typedId.type();
+    uint64_t id = typedId.id();
+    auto [it, inserted] =
+        features_[static_cast<int>(type)].try_emplace(id, nullptr);
     if(inserted)
     {
-        it->second = arena_.create<CFeature>(
-            0, typedId.type(), typedId.id());
+        it->second = arena_.create<CFeature>(0, type, id);
     }
     return it->second;
 }
@@ -287,8 +289,9 @@ CFeatureStub* ChangeModel::getFeatureStub(TypedFeatureId typedId)
 
 CFeature* ChangeModel::peekFeature(TypedFeatureId typedId) const
 {
-    auto it = features_.find(typedId);
-    if(it == features_.end()) return nullptr;
+    int index = static_cast<int>(typedId.type());
+    auto it = features_[index].find(typedId.id());
+    if(it == features_[index].end()) return nullptr;
     return it->second->get();
 }
 
@@ -319,7 +322,7 @@ ChangedNode* ChangeModel::getChangedNode(uint64_t id, CFeatureStub* existing)
         assert(changed->isFutureWaynode() == node->isFutureWaynode());
         assert(changed->isFutureForeign() == node->isFutureForeign());
     }
-    features_[TypedFeatureId::ofNode(id)] = changed;
+    features_[0][id] = changed;
     changedNodes_.push(changed);
     return changed;
 }
@@ -351,8 +354,9 @@ ChangedFeature2D* ChangeModel::getChangedFeature2D(TypedFeatureId typedId, CFeat
         assert(!changed->isFutureWaynode());
         assert(!wayOrRelation->isFutureWaynode());
         assert(changed->isFutureForeign() == wayOrRelation->isFutureForeign());
-   }
-    features_[typedId] = changed;
+    }
+    int index = static_cast<int>(typedId.type());
+    features_[index][typedId.id()] = changed;
     (type == FeatureType::WAY ? changedWays_ : changedRelations_).push(changed);
     return changed;
 }
@@ -443,29 +447,31 @@ void ChangeModel::dump()
 
     Console::log("Completed read.");
 
-    for(const auto& [id, stub] : features_)
+    for (int type=0; type<3; type++)
     {
-        CFeature* f = stub->get();
-        FeatureType type = f->type();
-        counts[static_cast<int>(type)]++;
-        if(f->isChanged())
+        for(const auto& [id, stub] : features_[type])
         {
-            changedCounts[static_cast<int>(type)]++;
-            if(test(ChangedFeatureBase::cast(f)->flags(), ChangeFlags::TAGS_CHANGED))
+            CFeature* f = stub->get();
+            counts[type]++;
+            if(f->isChanged())
             {
-                tagsChangedCounts[static_cast<int>(type)]++;
+                changedCounts[type]++;
+                if(test(ChangedFeatureBase::cast(f)->flags(), ChangeFlags::TAGS_CHANGED))
+                {
+                    tagsChangedCounts[type]++;
+                }
+                if(test(ChangedFeatureBase::cast(f)->flags(), ChangeFlags::GEOMETRY_CHANGED))
+                {
+                    geomChangedCounts[type]++;
+                }
+                /*
+                if((ChangedFeatureBase::cast(f)->flags() & ChangeFlags::CREATED)
+                    == ChangeFlags::CREATED)
+                {
+                    createdCounts[static_cast<int>(type)]++;
+                }
+                */
             }
-            if(test(ChangedFeatureBase::cast(f)->flags(), ChangeFlags::GEOMETRY_CHANGED))
-            {
-                geomChangedCounts[static_cast<int>(type)]++;
-            }
-            /*
-            if((ChangedFeatureBase::cast(f)->flags() & ChangeFlags::CREATED)
-                == ChangeFlags::CREATED)
-            {
-                createdCounts[static_cast<int>(type)]++;
-            }
-            */
         }
     }
     Console::log("Total nodes:      %lld", counts[0]);
@@ -489,17 +495,20 @@ void ChangeModel::dump()
 void ChangeModel::checkMissing()
 {
     size_t missingCount = 0;
-    for (const auto it : features_)
+    for (int type=0; type<3; type++)
     {
-        CFeature* f = it.second->get();
-        if(!f->ref().tip().isNull()) continue;
-        if(f->isChanged())
+        for (const auto it : features_[type])
         {
-            if(ChangedFeatureBase::cast(f)->version() == 1) continue;
+            CFeature* f = it.second->get();
+            if(!f->ref().tip().isNull()) continue;
+            if(f->isChanged())
+            {
+                if(ChangedFeatureBase::cast(f)->version() == 1) continue;
+            }
+            missingCount++;
+            ConsoleWriter out;
+            // out.timestamp() << "Missing: " << it.first;
         }
-        missingCount++;
-        ConsoleWriter out;
-        // out.timestamp() << "Missing: " << it.first;
     }
     Console::log("%lld features missing.", missingCount);
 }
@@ -1012,7 +1021,9 @@ void ChangeModel::clear()
     stringToNumber_.clear();
     tagTables_.clear();
     relationTables_.clear();
-    features_.clear();
+    features_[0].clear();
+    features_[1].clear();
+    features_[2].clear();
     futureNodeLocations_.clear();
     changedNodes_.clear();
     changedWays_.clear();

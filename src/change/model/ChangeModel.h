@@ -52,10 +52,9 @@ public:
     CFeatureStub* getFeatureStub(TypedFeatureId typedId);
     ChangedNode* getChangedNode(uint64_t id)
     {
-        TypedFeatureId typedId = TypedFeatureId::ofNode(id);
-        auto it = features_.find(typedId);
+        auto it = features_[0].find(id);
         return getChangedNode(id,
-            it == features_.end() ? nullptr : it->second);
+            it == features_[0].end() ? nullptr : it->second);
     }
     ChangedNode* getChangedNode(CFeatureStub* feature)
     {
@@ -69,10 +68,11 @@ public:
         {
             LOGS << "getChangedFeature2D !!!";
         }
-
-        auto it = features_.find(typedId);
+        assert(!typedId.isNode());
+        int index = static_cast<int>(typedId.type());
+        auto it = features_[index].find(typedId.id());
         return getChangedFeature2D(typedId,
-            it == features_.end() ? nullptr : it->second);
+            it == features_[index].end() ? nullptr : it->second);
     }
 
     ChangedFeature2D* getChangedFeature2D(FeatureType type, uint64_t id)
@@ -201,9 +201,9 @@ public:
         return iter->second;
     }
 
-    const HashMap<TypedFeatureId,CFeatureStub*>& features() const
+    const HashMap<uint64_t,CFeatureStub*>& features(FeatureType type) const
     {
-        return features_;
+        return features_[static_cast<int>(type)];
     }
 
     LinkedStack<ChangedNode>& changedNodes() { return changedNodes_; };
@@ -270,7 +270,7 @@ private:
     HashMap<std::string_view,uint32_t> stringToNumber_;
     CTagTableSet tagTables_;
     CRelationTableSet relationTables_;
-    HashMap<TypedFeatureId,CFeatureStub*> features_;
+    HashMap<uint64_t,CFeatureStub*> features_[3];
     HashMap<Coordinate,ChangedNode*> futureNodeLocations_;
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeature2D> changedWays_;

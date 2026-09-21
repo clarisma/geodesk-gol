@@ -25,7 +25,7 @@ void ChangeModelDumper::dump(const char* fileName)
 template<typename T>
 void ChangeModelDumper::dumpFeatures(FeatureType type, void (ChangeModelDumper::*dump)(const T*))
 {
-    for(auto f: std::views::values(model_.features()))
+    for(auto f: std::views::values(model_.features(type)))
     {
         CFeature* feature = f->get();
         if(feature->isChanged() && feature->type() == type)
