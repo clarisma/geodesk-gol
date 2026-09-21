@@ -146,7 +146,10 @@ private:
 					// change; once we've actually computed the bounds,
 					// we know for sure and can clear the flag
 				}
-				identifyPotentialTexChanges();
+				if (!is(ChangeFlags::DELETED))	[[likely]]
+				{
+					identifyPotentialTexChanges();
+				}
 			}
 		}
 
@@ -278,6 +281,11 @@ private:
 	void identifyPotentialTexChanges() const
 	{
 		Tip relTip = getRef().tip();
+		if (relTip.isNull())
+		{
+			LOGS << relation().typedId() << " bad ref: " << getRef()
+				<< " / " << getRefSE();
+		}
 		assert(!relTip.isNull());
 		Tip relTipSE = getRefSE().tip();
 		bool anyMembersForeign = false;

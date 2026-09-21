@@ -64,6 +64,7 @@ public:
 					{
 						// All nodes are missing => delete the way
 						addFlags(ChangeFlags::DELETED);
+						clearFlags(ChangeFlags::MEMBERS_CHANGED);
 						processDeleted();
 						futureBounds_ = pastBounds_;
 							// avoids possible tile assignment

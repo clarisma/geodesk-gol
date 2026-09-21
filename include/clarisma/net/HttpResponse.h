@@ -39,7 +39,7 @@ public:
     size_t contentLength() const;
     size_t read(void* buf, size_t size);
     void read(std::vector<std::byte>& data);
-    void readUnzippedGzip(std::vector<std::byte>& data);
+    void readUnzippedGzip(std::vector<std::byte>& data) const;
     void close();
 
 private:
