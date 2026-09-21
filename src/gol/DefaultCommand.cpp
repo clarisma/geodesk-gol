@@ -50,6 +50,9 @@ void DefaultCommand::help()
     help.subCommand("info", "Obtain metadata and statistics");
     help.subCommand("load", "Load tiles into a GOL");
     help.subCommand("save", "Export tiles from a GOL");
+#ifdef GOL_EXPERIMENTAL
+    help.subCommand("update", "Update a GOL from OSC files or a replication server");
+#endif
     help.subCommand("check", "Verify integrity");
     help << "\nUse " << Console::WHITE << "gol help "
         << Console::FAINT_LIGHT_BLUE << "<command>" << Console::DEFAULT

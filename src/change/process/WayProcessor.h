@@ -103,8 +103,8 @@ public:
 		{
 			ChangeFlags flags = way().flags();
 			model().memberChanged(&way(), pastBounds_, futureBounds_,
-				(is(ChangeFlags::DELETED) ?
-					(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::GEOMETRY_CHANGED) : ChangeFlags::NONE) |
+				(isAny(ChangeFlags::DELETED | ChangeFlags::TILES_CHANGED) ?
+					(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::BOUNDS_CHANGED) : ChangeFlags::NONE) |
 						(flags & (ChangeFlags::GEOMETRY_CHANGED |
 							ChangeFlags::BOUNDS_CHANGED)));
 			// TODO: Check these flags

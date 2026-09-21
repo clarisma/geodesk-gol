@@ -365,15 +365,25 @@ private:
 	    			// relations by definition already explicitly change)
 	    			// model_.cascadeMemberChange(pastNode, node);
 
+	    			if (node().id() == 7898016044)
+	    			{
+	    				LOGS << "Cascading geometry change of node/" << node().id();
+	    			}
 	    			Box pastBounds = pastXY_;
 	    			Box futureBounds = node().xy();
 	    			model().memberChanged(&node(), pastBounds, futureBounds,
-						ChangeFlags::GEOMETRY_CHANGED |
-							(is(ChangeFlags::DELETED) ?
+						ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::BOUNDS_CHANGED |
+							(isAny(ChangeFlags::DELETED | ChangeFlags::TILES_CHANGED) ?
 								ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
 
+	    			// If a node's geometry changes, its bounds are always changed
+	    			// (This is important because parent relations only consider
+	    			// bounds change of a member when determining whether their
+	    			// own bounds could have changed)
+	    			//
 	    			// TODO: This is in the wrong place
 	    			// TODO: move down, must also call if deleted
+	    			// TODO: must also cascade MEMBERS_CHANGED if tiles changed
 	    		}
 	    	}
 	    }
