@@ -32,20 +32,23 @@ ChangeModel::ChangeModel(FeatureStore* store, UpdateSettings& settings) :
 
 uint32_t ChangeModel::getLocalString(std::string_view s)
 {
-    // TODO: This is bad, the string_view refers to text in the parsed xml,
-    //  which will be thrown away as soon as the file is read
-    /*
-    auto res = stringToNumber_.insert({s, static_cast<uint32_t>(strings_.size())});
-    if(res.second)
-    {
-        uint32_t totalSize = ShortVarString::totalSize(s.size());
-        ShortVarString* str = reinterpret_cast<ShortVarString*>(arena_.alloc(totalSize, 1));
-        str->init(s.data(), s.size());
-        strings_.push_back(str);
-    }
-    return res.first->second;
-    */
+    auto it = stringToNumber_.lazy_emplace(s,[&](const auto& ctor)
+        {
+            uint32_t number = static_cast<uint32_t>(strings_.size());
+            uint32_t totalSize = ShortVarString::totalSize(s.size());
+            auto* str = reinterpret_cast<ShortVarString*>(
+                arena_.alloc(totalSize, 1));
+            str->init(s.data(), s.size());
+            strings_.push_back(str);
+            ctor(str->toStringView(), number);
+        });
 
+    return it->second;
+}
+
+/*
+uint32_t ChangeModel::getLocalString(std::string_view s)
+{
     // TODO: Make more efficient, avoid hashing twice when inserting
 
     auto it = stringToNumber_.find(s);
@@ -58,7 +61,7 @@ uint32_t ChangeModel::getLocalString(std::string_view s)
     stringToNumber_[str->toStringView()] = number;
     return number;
 }
-
+*/
 
 uint32_t ChangeModel::getTagValue(const TagTableModel::Tag& tag)
 {
@@ -262,12 +265,25 @@ std::string_view ChangeModel::getRoleString(CFeature::Role role) const
 
 CFeatureStub* ChangeModel::getFeatureStub(TypedFeatureId typedId)
 {
+    auto [it, inserted] = features_.try_emplace(typedId, nullptr);
+    if(inserted)
+    {
+        it->second = arena_.create<CFeature>(
+            0, typedId.type(), typedId.id());
+    }
+    return it->second;
+}
+
+/*
+CFeatureStub* ChangeModel::getFeatureStub(TypedFeatureId typedId)
+{
     auto it = features_.find(typedId);
     if(it != features_.end()) return it->second;
     CFeature* f = arena_.create<CFeature>(0, typedId.type(), typedId.id());
     features_.insert({typedId, f});
     return f;
 }
+*/
 
 CFeature* ChangeModel::peekFeature(TypedFeatureId typedId) const
 {
