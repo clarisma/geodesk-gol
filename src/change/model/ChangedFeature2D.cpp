@@ -32,3 +32,17 @@ void ChangedFeature2D::compareWayMembers(FeatureStore* store, WayPtr pastWay)
     if(!iter.next().isNull()) return;
     clearFlags(ChangeFlags::MEMBERS_CHANGED);
 }
+
+
+void ChangedFeature2D::removeMember(CFeatureStub* member) noexcept
+{
+    assert(type() == FeatureType::RELATION);
+    for (int i = 0; i < memberCount_; i++)
+    {
+        if (members_[i] == member)
+        {
+            members_[i] = nullptr;
+        }
+    }
+    addFlags(ChangeFlags::MEMBERS_CHANGED);
+}

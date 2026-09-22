@@ -6,12 +6,15 @@
 #include <clarisma/util/Pointers.h>
 #include <geodesk/feature/ParentRelationIterator.h>
 #include <geodesk/query/ParentWaysQuery.h>
+
+#include "build/sort/SuperRelation.h"
 #include "change/model/ChangeModelDumper.h"
 #include "change/model/ChangedTile.h"
 #include "change/process/NodeProcessor.h"
 #include "change/process/WayProcessor.h"
 #include "change/process/RelationProcessor.h"
 #include "geodesk/query/FeatureFinder.h"
+#include "osm/SuperRelationScore.h"
 
 // TODO: When do we process the membership changes of members
 //  of a deleted relation? ==> during scan in TCA
@@ -88,7 +91,7 @@ void ChangeManager::preProcessRelations()
     // because we need to have the membership changes, since we're
     // retrieving relation tables (into which any membership changes
     // are merged)
-    Box maxBounds = Box::ofWorld();
+    // Box maxBounds = Box::ofWorld();
     rel = model_.changedRelations().first();
         // TODO: We need to move the stack locally, because cascading
         //  may add new relations (though that's probably benign)
@@ -113,15 +116,10 @@ void ChangeManager::preProcessRelations()
                 ChangeFlags::BOUNDS_CHANGED |
                     (test(flags, ChangeFlags::DELETED) ?
                         ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE);
-            model_.memberChanged(rel, maxBounds,
-                maxBounds, cascadeFlags);
+            checkParentRelations(rel, cascadeFlags, nullptr);
         }
         rel = rel->next();
     }
-
-    // TODO: For explicitly changed relations, we need to cascade
-    //  GEOM/BOUNDS changes to their parents; we'll check for refcycles
-    //  at the same time
 }
 
 void ChangeManager::preProcess()
@@ -978,4 +976,72 @@ void ChangeManager::resolveExports()
         changedTile->resolveExports(pTile);
         changedTile->dump();
     }
+}
+
+
+
+void ChangeManager::checkParentRelations(ChangedFeature2D* relation,
+    ChangeFlags parentFlags, LinkedChildRelation* pChildRelation)
+{
+    const CRelationTable* rels = model_.getParentRelations(relation);
+    if (!rels) return;
+
+    LinkedChildRelation self { relation, pChildRelation };
+
+    relation->addFlags(ChangeFlags::RELATION_ATTEMPTED);
+
+    for (CFeatureStub* parentStub : rels->relations())
+    {
+        ChangedFeature2D* parent = model_.getChangedFeature2D(parentStub);
+        parent->addFlags(parentFlags);
+        if (parent->is(ChangeFlags::RELATION_ATTEMPTED))
+        {
+            breakRefcycle(parent, pChildRelation);
+        }
+        checkParentRelations(parent, parentFlags &
+            (ChangeFlags::BOUNDS_CHANGED | ChangeFlags::GEOMETRY_CHANGED),
+            &self);
+    }
+    relation->clearFlags(ChangeFlags::RELATION_ATTEMPTED);
+}
+
+
+void ChangeManager::breakRefcycle(
+    ChangedFeature2D* parent, LinkedChildRelation* pChildRelation)
+{
+    double lowestScore = std::numeric_limits<double>::max();
+    ChangedFeature2D* originalParent = parent;
+    ChangedFeature2D* loser = nullptr;
+    ChangedFeature2D* memberToRemove = nullptr;
+    for (;;)
+    {
+        ChangedFeature2D* child = pChildRelation->childRelation;
+        double score = computeSuperRelationScore(parent);
+        if (score < lowestScore)
+        {
+            // TODO: Use ID as tie breaker?
+            lowestScore = score;
+            loser = parent;
+            memberToRemove = child;
+        }
+        parent = child;
+        if (parent == originalParent) break;
+        pChildRelation = pChildRelation->next;
+        if (!pChildRelation) return;
+            // Chain has been cut, this means the refcycle
+            // has already been resolved
+    }
+
+    loser->removeMember(memberToRemove);
+    model_.removeMemberParent(memberToRemove, loser);
+}
+
+
+double ChangeManager::computeSuperRelationScore(ChangedFeature2D* rel)
+{
+    SuperRelationScore score;
+
+    // return score.score();
+
+    return 7777; // TODO
 }

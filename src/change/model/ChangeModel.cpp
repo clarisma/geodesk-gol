@@ -205,29 +205,29 @@ const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipCh
             {
                 return a->id() < b->id(); // Sort ascending by id
             });
-        // TODO: could just sort by pointer, avoids de-ref of data;
-        //  we only care about a stable representation
-        //  the proper sorting will be performed within ChangeWriter
-        //   but will the pointer stay the same if a relation is changed??
-        //    No, getChangedFeature2D will update mapping
-        //    Safest to stick with ID
-        //    But then hash/compare won't work either!!!!
-
-        CRelationTable* newRels =
-            arena_.createVariableLength<CRelationTable>(
-                tempRelations_.size(), tempRelations_);
-        tempRelations_.clear();
-        auto [it, inserted] = relationTables_.insert(newRels);
-        if(!inserted)
-        {
-            // This is ok, we will never roll back creation if
-            // we've added strings, since this means that the
-            // tag-table does not already exist
-            arena_.freeLastAlloc(newRels);
-        }
-        rels = *it;
+        rels = createRelationTable();
+            // clears tempRelations_
     }
     return rels;
+}
+
+
+const CRelationTable* ChangeModel::createRelationTable()
+{
+    assert(tempRelations_.size());
+    CRelationTable* newRels =
+            arena_.createVariableLength<CRelationTable>(
+                tempRelations_.size(), tempRelations_);
+    tempRelations_.clear();
+    auto [it, inserted] = relationTables_.insert(newRels);
+    if(!inserted)
+    {
+        // This is ok, we will never roll back creation if
+        // we've added strings, since this means that the
+        // tag-table does not already exist
+        arena_.freeLastAlloc(newRels);
+    }
+    return *it;
 }
 
 const CRelationTable* ChangeModel::getParentRelations(ChangedFeatureBase* feature)
@@ -239,8 +239,8 @@ const CRelationTable* ChangeModel::getParentRelations(ChangedFeatureBase* featur
         {
             ref = feature->refSE();
         }
-        feature->setParentRelations(getRelationTable(ref
-            , feature->membershipChanges()));
+        feature->setParentRelations(getRelationTable(ref,
+            feature->membershipChanges()));
     }
     return feature->peekParentRelations();
 }
@@ -1139,4 +1139,26 @@ void ChangeModel::ensureBounds(ChangedFeature2D* feature) const
             feature->setBounds(fp.bounds());
         }
     }
+}
+
+
+void ChangeModel::removeMemberParent(
+    ChangedFeatureBase* member, ChangedFeature2D* parentRel)
+{
+    assert(tempRelations_.empty());
+    const CRelationTable* rels  = getParentRelations(member);
+    for (CFeatureStub* relStub : rels->relations())
+    {
+        if (relStub != parentRel) tempRelations_.push_back(relStub);
+    }
+    if (tempRelations_.empty())
+    {
+        rels = nullptr;
+    }
+    else
+    {
+        rels = createRelationTable();
+    }
+    member->setParentRelations(rels);
+    member->addFlags(ChangeFlags::RELTABLE_CHANGED | ChangeFlags::REMOVED_FROM_RELATION);
 }

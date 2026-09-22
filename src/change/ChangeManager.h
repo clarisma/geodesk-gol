@@ -40,12 +40,21 @@ public:
 	}
 
 private:
+	struct LinkedChildRelation
+	{
+		ChangedFeature2D* childRelation;
+		LinkedChildRelation* next;
+	};
+
 	void processNodes();
 	void processWays();
 	void preProcessRelations();
 	void processRelations();
-	void checkMemberExports(ChangedFeature2D* rel);
-	void checkExport(CFeature* feature, bool willBeForeign);
+	void checkParentRelations(ChangedFeature2D* relation,
+		ChangeFlags parentFlags, LinkedChildRelation* pChildRelation);
+	double computeSuperRelationScore(ChangedFeature2D* rel);
+	void breakRefcycle(ChangedFeature2D* parent, LinkedChildRelation* pChildRelation);
+
 	CRef getRef(FeaturePtr feature) const;
 	int normalizeRefs(CFeature* feature) const;
 	ChangedNode* findUniqueLocationNode(Tip tip, Coordinate xy);

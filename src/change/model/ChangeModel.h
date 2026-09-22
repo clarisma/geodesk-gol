@@ -127,6 +127,7 @@ public:
     }
 
     void addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel);
+    void removeMemberParent(ChangedFeatureBase* member, ChangedFeature2D* parentRel);
 
     std::span<CFeatureStub*> loadWayNodes(Tip tip, DataPtr pTile, WayPtr way);
 
@@ -261,6 +262,7 @@ private:
     template<typename Iter>
     CFeature* readFeature(Iter& iter, Tip tip, TilePtr pTile);
     void loadMembers(ChangedFeature2D* rel);
+    const CRelationTable* createRelationTable();
 
     // void readParentRelations(FeaturePtr feature, Tip tip);
     static bool parentBoundsMayChange(const Box& parent,

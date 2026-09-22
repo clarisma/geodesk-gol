@@ -87,6 +87,8 @@ public:
         // don't set BOUNDS_CHANGED
     }
 
+    void removeMember(CFeatureStub* member) noexcept;
+
     int removedRefcyleCount() const { return removedRefcyleCount_; }
 
 protected:
