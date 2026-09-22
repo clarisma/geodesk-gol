@@ -34,7 +34,7 @@ public:
         return {relations_, count_};
     }
 
-    bool remove(uint64_t relId) noexcept;
+//    bool remove(uint64_t relId) noexcept;
 
     struct PtrHash
     {

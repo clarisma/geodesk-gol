@@ -20,6 +20,9 @@ CRelationTable::CRelationTable(std::span<CFeatureStub*> rels) :
     hash_ = static_cast<uint32_t>(hash ^ (hash >> 32));
 }
 
+// TODO: Don't use this, we cannot modify a reltable once its
+//  been indexed (sharing!)
+/*
 bool CRelationTable::remove(uint64_t relId) noexcept
 {
     for(int i=0; i<count_; i++)
@@ -37,3 +40,4 @@ bool CRelationTable::remove(uint64_t relId) noexcept
     }
     return false;
 }
+*/
