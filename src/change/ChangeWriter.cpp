@@ -106,8 +106,11 @@ void ChangeWriter::gatherFeatures()
         bool newToTile = addChangedFeature(relation);
         if(newToTile || relation->is(ChangeFlags::MEMBERS_CHANGED))
         {
-            for(const CFeatureStub *memberStub : relation->members())
+            auto members = relation->members();
+            auto roles = relation->roles();
+            for(int i=0; i<relation->memberCount(); i++)
             {
+                const CFeatureStub *memberStub = members[i];
                 if(memberStub) [[likely]]
                 {
                     const CFeature* member = memberStub->get();
@@ -127,15 +130,11 @@ void ChangeWriter::gatherFeatures()
                             // LOGS << relation->typedId() << ": gathered " << member->typedId();
                         }
                     }
-                }
-            }
-            for(auto role : relation->roles())
-            {
-                // TODO: Check what happens to roles of omitted features
-
-                if(!role.isGlobal())
-                {
-                    strings_[role.value()]++;
+                    auto role = roles[i];
+                    if(!role.isGlobal())  [[unlikely]]
+                    {
+                        strings_[role.value()]++;
+                    }
                 }
             }
         }
