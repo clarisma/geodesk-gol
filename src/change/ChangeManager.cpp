@@ -101,6 +101,7 @@ void ChangeManager::preProcessRelations()
 
     while (rel)
     {
+        LOGS << "Marking and checking " << rel->typedId();
         ChangeFlags flags = rel->flags();
         if(testAny(flags, ChangeFlags::MEMBERS_CHANGED |
             ChangeFlags::DELETED))
@@ -116,7 +117,8 @@ void ChangeManager::preProcessRelations()
                 ChangeFlags::BOUNDS_CHANGED |
                     (test(flags, ChangeFlags::DELETED) ?
                         ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE);
-            checkParentRelations(rel, cascadeFlags, nullptr);
+            LinkedRelation linked {rel,nullptr};
+            checkParentRelations(&linked, cascadeFlags);
         }
         rel = rel->next();
     }
@@ -980,68 +982,87 @@ void ChangeManager::resolveExports()
 
 
 
-void ChangeManager::checkParentRelations(ChangedFeature2D* relation,
-    ChangeFlags parentFlags, LinkedChildRelation* pChildRelation)
+void ChangeManager::checkParentRelations(LinkedRelation* pRelation,
+    ChangeFlags parentFlags)
 {
+    ChangedFeature2D* relation = pRelation->relation;
     const CRelationTable* rels = model_.getParentRelations(relation);
     if (!rels) return;
-
-    LinkedChildRelation self { relation, pChildRelation };
 
     relation->addFlags(ChangeFlags::RELATION_ATTEMPTED);
 
     for (CFeatureStub* parentStub : rels->relations())
     {
         ChangedFeature2D* parent = model_.getChangedFeature2D(parentStub);
+        LOGS << "Checking parent " << parent->typedId() << " of " <<
+            relation->typedId();
         parent->addFlags(parentFlags);
+        LinkedRelation linkedParent { parent, pRelation };
         if (parent->is(ChangeFlags::RELATION_ATTEMPTED))
         {
-            breakRefcycle(parent, pChildRelation);
+            breakRefcycle(&linkedParent);
         }
-        checkParentRelations(parent, parentFlags &
-            (ChangeFlags::BOUNDS_CHANGED | ChangeFlags::GEOMETRY_CHANGED),
-            &self);
+        else
+        {
+            checkParentRelations(&linkedParent, parentFlags &
+                (ChangeFlags::BOUNDS_CHANGED | ChangeFlags::GEOMETRY_CHANGED));
+        }
     }
     relation->clearFlags(ChangeFlags::RELATION_ATTEMPTED);
 }
 
 
-void ChangeManager::breakRefcycle(
-    ChangedFeature2D* parent, LinkedChildRelation* pChildRelation)
+void ChangeManager::breakRefcycle(LinkedRelation* pRelation)
 {
     double lowestScore = std::numeric_limits<double>::max();
-    ChangedFeature2D* originalParent = parent;
-    ChangedFeature2D* loser = nullptr;
-    ChangedFeature2D* memberToRemove = nullptr;
+    ChangedFeature2D* originalParent = pRelation->relation;
+    ChangedFeature2D* parent = originalParent;
+    LinkedRelation* loser = nullptr;
+    ChangedFeature2D* child;
     for (;;)
     {
-        ChangedFeature2D* child = pChildRelation->childRelation;
+        LinkedRelation* pParent = pRelation;
+        pRelation = pRelation->next;
+        if (pRelation == nullptr) return;
+            // Chain has been cut, this means the refcycle
+            // has already been resolved
+        child = pRelation->relation;
         double score = computeSuperRelationScore(parent);
+        LOGS << "Score of " << parent->typedId() << " = " << score
+            << ", child = " << child->typedId();
+
         if (score < lowestScore)
         {
             // TODO: Use ID as tie breaker?
             lowestScore = score;
-            loser = parent;
-            memberToRemove = child;
+            loser = pParent;
         }
         parent = child;
         if (parent == originalParent) break;
-        pChildRelation = pChildRelation->next;
-        if (!pChildRelation) return;
-            // Chain has been cut, this means the refcycle
-            // has already been resolved
     }
 
-    loser->removeMember(memberToRemove);
-    model_.removeMemberParent(memberToRemove, loser);
+    LOGS << "  Loser: " << loser->relation->typedId();
+    parent = loser->relation;
+    child = loser->next->relation;
+    parent->removeMember(child);
+    parent->incrementRefcyleCount();
+    model_.removeMemberParent(child, parent);
+    loser->next = nullptr;
 }
 
 
 double ChangeManager::computeSuperRelationScore(ChangedFeature2D* rel)
 {
     SuperRelationScore score;
+    int memberCounts[3] = {};
 
-    // return score.score();
-
-    return 7777; // TODO
+    model_.ensureMembersLoaded(rel);
+    for (CFeatureStub* member : rel->members())
+    {
+        if (member == nullptr) continue;
+        memberCounts[static_cast<int>(member->type())]++;
+    }
+    score.addMemberCounts(memberCounts[0], memberCounts[1], memberCounts[2]);
+    // TODO: tags
+    return score.score();
 }

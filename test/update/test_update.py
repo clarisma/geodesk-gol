@@ -56,6 +56,7 @@ def test_update(gol_tool, tmp_path):
         "duplicates",
         "geom-only",
         "missing-nodes",
+        "relation-refcycle",
         "tags-changed",
         # "orphans",
     ]

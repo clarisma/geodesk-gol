@@ -40,20 +40,19 @@ public:
 	}
 
 private:
-	struct LinkedChildRelation
+	struct LinkedRelation
 	{
-		ChangedFeature2D* childRelation;
-		LinkedChildRelation* next;
+		ChangedFeature2D* relation;
+		LinkedRelation* next;
 	};
 
 	void processNodes();
 	void processWays();
 	void preProcessRelations();
 	void processRelations();
-	void checkParentRelations(ChangedFeature2D* relation,
-		ChangeFlags parentFlags, LinkedChildRelation* pChildRelation);
+	void checkParentRelations(LinkedRelation* pRelation, ChangeFlags parentFlags);
 	double computeSuperRelationScore(ChangedFeature2D* rel);
-	void breakRefcycle(ChangedFeature2D* parent, LinkedChildRelation* pChildRelation);
+	void breakRefcycle(LinkedRelation* pRelation);
 
 	CRef getRef(FeaturePtr feature) const;
 	int normalizeRefs(CFeature* feature) const;

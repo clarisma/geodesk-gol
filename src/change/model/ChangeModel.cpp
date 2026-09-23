@@ -1149,7 +1149,7 @@ void ChangeModel::removeMemberParent(
     const CRelationTable* rels  = getParentRelations(member);
     for (CFeatureStub* relStub : rels->relations())
     {
-        if (relStub != parentRel) tempRelations_.push_back(relStub);
+        if (relStub->get() != parentRel) tempRelations_.push_back(relStub);
     }
     if (tempRelations_.empty())
     {

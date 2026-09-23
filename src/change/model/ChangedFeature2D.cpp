@@ -39,8 +39,11 @@ void ChangedFeature2D::removeMember(CFeatureStub* member) noexcept
     assert(type() == FeatureType::RELATION);
     for (int i = 0; i < memberCount_; i++)
     {
-        if (members_[i] == member)
+        if (members_[i]->typedId() == member->typedId())
         {
+            // We can't compare pointers directly,
+            // because of stub replacement
+            assert(members_[i]->get() == member->get());
             members_[i] = nullptr;
         }
     }

@@ -1,0 +1,15 @@
+<!--
+
+Verify that:
+
+- relation/1 is removed from refcycle
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <relation id="1" version="1">
+            <member type="way" ref="1" role=""/>
+            <member type="relation" ref="3" role="remove_this_reference"/>
+        </relation>
+    </modify>
+</osmChange>

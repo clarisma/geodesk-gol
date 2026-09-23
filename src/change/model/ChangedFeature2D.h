@@ -90,6 +90,7 @@ public:
     void removeMember(CFeatureStub* member) noexcept;
 
     int removedRefcyleCount() const { return removedRefcyleCount_; }
+    void incrementRefcyleCount() { removedRefcyleCount_++; }
 
 protected:
     Box bounds_;

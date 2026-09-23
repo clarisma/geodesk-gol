@@ -16,6 +16,7 @@ CRelationTable::CRelationTable(std::span<CFeatureStub*> rels) :
         relations_[i] = rels[i];
         hash = clarisma::Hash::combine(hash,
             reinterpret_cast<size_t>(rels[i]));
+        // TODO: Use stub->get() to get true pointer ???
     }
     hash_ = static_cast<uint32_t>(hash ^ (hash >> 32));
 }
