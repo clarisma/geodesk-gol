@@ -110,8 +110,16 @@ private:
 					if (missingMembers_ < members().size())	[[likely]]
 					{
 						addFlags(ChangeFlags::MEMBERS_CHANGED);
-						setLocalTagWithNumber(
-							"geodesk:missing_members", missingMembers_);
+						int netMissingMembers = missingMembers_ -
+							relation().removedRefcyleCount();
+							// Child relations that are removed to break
+							// a refcycle are set to null, but they aren't
+							// considered "missing"
+						if (netMissingMembers > 0)
+						{
+							setLocalTagWithNumber(
+								"geodesk:missing_members", missingMembers_);
+						}
 					}
 					else
 					{
