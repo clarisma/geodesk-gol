@@ -996,6 +996,7 @@ void ChangeManager::checkParentRelations(LinkedRelation* pRelation,
         ChangedFeature2D* parent = model_.getChangedFeature2D(parentStub);
         LOGS << "Checking parent " << parent->typedId() << " of " <<
             relation->typedId();
+        model_.ensureBounds(parent);
         parent->addFlags(parentFlags);
         LinkedRelation linkedParent { parent, pRelation };
         if (parent->is(ChangeFlags::RELATION_ATTEMPTED))
