@@ -91,44 +91,49 @@ void ChangeIngester::performDownload()
         }
         currentRevision_ = seq;
 
-        if (seq >= target.revision) return;       // No changes
-
-        status_ = Status::PARTIALLY_FETCHED;
-
-        updater_.beginUpdate(seq, currentTimestamp,
-            target.revision, target.timestamp);
-
-        do
+        if (seq >= target.revision)
         {
-            if (stopFetching_) [[unlikely]]
-            {
-                break;
-            }
-
-            seq++;
-            try
-            {
-                LOGS << "Fetching revision " << seq;
-                client.fetch(seq, data);
-            }
-            catch (std::exception& ex)
-            {
-                LOGS << "ChangeIngester::performDownload ending download due to "
-                    << typeid(ex).name() << ": " << ex.what();
-                error_ = ex.what();
-                break;
-            }
-
-            // TODO: This could hang if 0 bytes (because empty data is
-            //  used to indicate end of downloads)
-
-            LOGS << "Posting " << data.size() << " bytes of revision data";
-            queue_.put(std::move(data));
+            status_ = Status::NO_UPDATES;
         }
-        while (seq < target.revision);
-        if (error_.empty()) [[likely]]
+        else
         {
-            status_ = Status::FULLY_FETCHED;
+            status_ = Status::PARTIALLY_FETCHED;
+
+            updater_.beginUpdate(seq, currentTimestamp,
+                target.revision, target.timestamp);
+
+            do
+            {
+                if (stopFetching_) [[unlikely]]
+                {
+                    break;
+                }
+
+                seq++;
+                try
+                {
+                    LOGS << "Fetching revision " << seq;
+                    client.fetch(seq, data);
+                }
+                catch (std::exception& ex)
+                {
+                    LOGS << "ChangeIngester::performDownload ending download due to "
+                        << typeid(ex).name() << ": " << ex.what();
+                    error_ = ex.what();
+                    break;
+                }
+
+                // TODO: This could hang if 0 bytes (because empty data is
+                //  used to indicate end of downloads)
+
+                LOGS << "Posting " << data.size() << " bytes of revision data";
+                queue_.put(std::move(data));
+            }
+            while (seq < target.revision);
+            if (error_.empty()) [[likely]]
+            {
+                status_ = Status::FULLY_FETCHED;
+            }
         }
     }
     catch (std::exception& ex)

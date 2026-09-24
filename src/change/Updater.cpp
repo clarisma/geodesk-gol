@@ -306,10 +306,12 @@ void Updater::update(std::string_view url, std::span<const char*> files)
         transaction_.setReplicationUrl(url);
     }
     awaitPhaseCompletion();
+    Console::msg("Parallel analysis completed.");
     for (UpdaterWorker& worker: workContexts())
     {
         worker.applyActions();
     }
+    Console::msg("Analysis actions applied.");
 
 #ifndef NDEBUG
     model().dump();
@@ -323,8 +325,10 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     // that could not be resolved in first pass due to missing members
     changes_.process();
     changes_.postProcess();
+    Console::msg("Analyzed and processed.");
 
     prepareUpdate();
+    Console::msg("GOB prepared.");
     applyUpdate();
 
     end();

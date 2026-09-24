@@ -167,6 +167,21 @@ private:
 				 << ") at " << feature_.ref() << " / " << feature_.refSE();
 		}
 
+		if (getRefSE() != CRef::SINGLE_TILE)  [[unlikely]]
+		{
+			// If the relation is multi-tile, but a parent relation lives
+			// in one of the tiles, the parent's second ref may be
+			// unknown -- this causes problems with writing changes.
+			// We need to get at least an "unresolved" ref (which
+			// has a TIP, even though the handle of the feature is
+			// not yey known) for the parent's second tile, so the
+			// ChangeWriter knows the relation is local in both tiles
+			//
+			const CRelationTable* rels = relation().peekParentRelations();
+			if (rels) validateMemberReltable(&relation());
+		}
+
+
 		// Don't assign to tiles yet, needs to happen in process() itself
 		addFlags(ChangeFlags::PROCESSED);
 
