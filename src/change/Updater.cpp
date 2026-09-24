@@ -77,7 +77,8 @@ void UpdaterWorker::applyUpdate(int entryNumber)
     TileCompiler compiler(analyzer_.model().store());
     const TesArchiveEntry& entry = updater_->tesEntry(entryNumber);
     Tip tip = entry.tip;
-    LOGS << "Updating Tile " << tip;
+    LOGS << "Updating Tile " << tip << " ("
+        << updater_->tileCatalog().tileOfTip(tip) << ")";
     compiler.modifyTile(tip, updater_->tileCatalog().tileOfTip(tip));
 
     // TODO: Why not store data uncompressed for local updates?

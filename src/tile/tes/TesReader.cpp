@@ -893,6 +893,7 @@ TRelation* TesReader::getRelation(int number) const
 {
 	if (features_[2] + number >= features_[0] + featureCount_)
 	{
+		LOGS << tile_.tile() << ": getRelation() failed";
 		invalid("Relation #%d exceeds range (%d relations)",
 			number, featureCount_ - (features_[2] - features_[0]));
 	}

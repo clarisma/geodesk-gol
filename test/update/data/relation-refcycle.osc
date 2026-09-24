@@ -7,9 +7,9 @@ Verify that:
 
 <osmChange version="0.6" generator="geodesk-gol-test">
     <modify>
-        <relation id="1" version="1">
+        <relation id="10" version="2">
             <member type="way" ref="1" role=""/>
-            <member type="relation" ref="3" role="remove_this_reference"/>
+            <member type="relation" ref="30" role="remove_this_reference"/>
         </relation>
     </modify>
 </osmChange>

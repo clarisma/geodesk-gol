@@ -5,13 +5,13 @@
         <nd ref="1"/>
         <nd ref="2"/>
     </way>
-    <relation id="1" version="1">
+    <relation id="10" version="1">
         <member type="way" ref="1"/>
     </relation>
-    <relation id="2" version="1">
-        <member type="relation" ref="1"/>
+    <relation id="20" version="1">
+        <member type="relation" ref="10"/>
     </relation>
-    <relation id="3" version="1">
-        <member type="relation" ref="2"/>
+    <relation id="30" version="1">
+        <member type="relation" ref="20"/>
     </relation>
 </osm>    

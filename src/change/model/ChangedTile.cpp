@@ -31,6 +31,7 @@ void ChangedTile::recordTexChange(CFeature* feature, bool willHaveTex)
 
 void ChangedTile::resolveExports(TilePtr pTile)
 {
+    assert(pTile == tilePtr_);
     if (texChanges_.empty() && exportTableChanges_.empty()) return;
 
     HilbertDistanceInTile hilbert(tile_);
@@ -60,7 +61,7 @@ void ChangedTile::resolveExports(TilePtr pTile)
 
     uint32_t exportsCount = 0;
     bool tableChanged = false;
-    ExportTablePtr exports = tilePtr_.exports();
+    ExportTablePtr exports = pTile.exports();
     if (exports)
     {
         exportsCount = exports.count();
