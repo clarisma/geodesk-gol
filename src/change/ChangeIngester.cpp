@@ -54,6 +54,10 @@ void ChangeIngester::download(std::string_view url)
         throw;
     }
     if (thread_.joinable()) thread_.join();
+    if (!error_.empty())
+    {
+        throw std::runtime_error(error_);   // TODO: exception type
+    }
     LOGS << "All changes ingested";
 }
 

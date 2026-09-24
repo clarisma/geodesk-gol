@@ -69,6 +69,7 @@ void UpdaterWorker::prepareUpdate(Tip tip)
     }
 #endif
 
+    LOGS << "UpdateWorker prepared " << tip;
     updater_->postOutput(TesArchiveWriter::createTes(tip, buf.takeBytes()));
 }
 
@@ -136,11 +137,8 @@ void Updater::processTask(TileData& task)
 {
     if(phase_ == Phase::PREPARE_UPDATE)
     {
-        /*
         LOGS << "Writing tes for " << task.tip() << ": "
-            << task.sizeOriginal() << " bytes ("
-            << task.sizeCompressed() << " bytes compressed)";
-        */
+            << task.size() << " bytes";
         archiveWriter_.writeTile(std::move(task));
     }
     else
