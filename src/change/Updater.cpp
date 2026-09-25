@@ -272,6 +272,8 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     {
         readChangeFiles(files);
     }
+    Console::msg("All changes ingested.");
+
 #ifndef NDEBUG
     model().dumpChangedRelationCount();   // TODO: move to ChangeManager
 #endif
@@ -282,6 +284,7 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     model().prepareWays();
     //assert(_CrtCheckMemory());
 
+    Console::msg("Ready for analysis.");
     LOGS << "Starting analysis...";
 
     startPhase(Phase::SEARCH, store->tileCount(), workAnalyzing_ / store->tileCount());

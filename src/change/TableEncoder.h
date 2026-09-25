@@ -36,6 +36,13 @@ public:
             {
                 LOGS << member->typedId() << " not found in local-feature table, TIP=" << localTip_;
             }
+
+            LOGS << "ENCODE rel=" << member->typedId()
+                << " ptr=" << member
+                << " local=" << member->isInTile(localTip_)
+                << " tip=" << localTip_
+                << " featureCount=" << localFeatures_.size();
+
             assert(it != localFeatures_.end());
             table_.push_back(((it->second - localBase_)
                 << LocalFlagCount) | differentRoleFlag);

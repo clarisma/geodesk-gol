@@ -225,11 +225,28 @@ void ChangeWriter::useRelationTable(const CRelationTable* relTable)
     {
         for(const CFeatureStub *relStub : relTable->relations())
         {
+            if (relStub->id() == 10072189)
+            {
+                LOGS << relStub->typedId() <<
+                    " is in relTable " << relTable;
+            }
             const CFeature* rel = relStub->get();
+
+            LOGS << "GATHER reltable=" << relTable
+                << " rel=" << rel->typedId()
+                << " ptr=" << rel
+                << " local=" << rel->isInTile(tile_->tip())
+                << " tip=" << tile_->tip();
+
             if(rel->isInTile(tile_->tip()))
             {
                 if(!features_.contains(rel))
                 {
+                    if (rel->id() == 10072189)
+                    {
+                        LOGS << "Added " << rel->typedId() <<
+                            " to map of local features in " << tile_->tip();
+                    }
                     featureLists_[2].push_back(rel);
                     features_[rel] = -1;
                 }
@@ -249,6 +266,11 @@ void ChangeWriter::prepareFeatures(std::vector<const CFeature*>& featureList, in
 
     for(int i=0; i<featureList.size(); i++)
     {
+        if (featureList[i]->typedId() == TypedFeatureId::ofRelation(10072189))
+        {
+            LOGS << "Assigned local slot " << (i + startingNumber)
+                << " to " << featureList[i]->typedId();
+        }
         features_[featureList[i]] = i + startingNumber;
     }
 }
@@ -417,8 +439,10 @@ void ChangeWriter::writeWay(const ChangedFeature2D* way)
             }
             Coordinate nodeXY = node->xy();
             assert(!nodeXY.isNull());
-            out_.writeSignedVarint(nodeXY.x - prevNodeXY.x);
-            out_.writeSignedVarint(nodeXY.y - prevNodeXY.y);
+            out_.writeSignedVarint(
+                static_cast<int64_t>(nodeXY.x) - prevNodeXY.x);
+            out_.writeSignedVarint(
+                static_cast<int64_t>(nodeXY.y) - prevNodeXY.y);
             prevNodeXY = nodeXY;
         }
 
@@ -432,7 +456,9 @@ void ChangeWriter::writeWay(const ChangedFeature2D* way)
             for(const CFeatureStub* nodeStub : way->members())
             {
                 uint64_t nodeId = nodeStub->id();
-                out_.writeSignedVarint(nodeId - prevNodeId);
+                out_.writeSignedVarint(
+                    static_cast<int64_t>(nodeId) -
+                    static_cast<int64_t>(prevNodeId));
                 prevNodeId = nodeId;
             }
         }
@@ -583,7 +609,9 @@ int ChangeWriter::writeStub(const ChangedFeatureBase* feature, int flags, int fl
         }
         else
         {
-            int relTableNumber = relationTables_[rels];
+            auto it = relationTables_.find(rels);
+            assert(it != relationTables_.end());
+            int relTableNumber = it->second;
             if (relTableNumber < 2)
             {
                 writeRelationTable(rels);
