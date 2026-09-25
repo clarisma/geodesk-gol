@@ -12,6 +12,8 @@
 #include "change/model/ChangedTile.h"
 #include "tile/tes/TesFlags.h"
 
+// TODO: Careful with changed features, we may have a copy,
+//  always call get() to retrieve the true feature
 
 void ChangeWriter::write(ChangedTile* tile, Buffer* buf)
 {
@@ -75,7 +77,7 @@ void ChangeWriter::gatherFeatures()
     while(!ways.isEmpty())
     {
         ChangedFeature2D* way = ChangedFeature2D::cast(ways.pop()->get());
-        if (way->id() == 30910986)
+        if (way->id() == 727805123)
         {
             LOGS << tile_->tip() <<": Adding " << way->typedId() << " as changed feature";
         }
@@ -160,6 +162,11 @@ bool ChangeWriter::addChangedFeature(const ChangedFeatureBase* feature)
     }
     assert(feature->isInTile(tile_->tip()));
 
+    if (tile_->tip() == 0x2194)
+    {
+        LOGS << tile_->tip() << ": addChangedFeature: " << feature->typedId();
+    }
+
     // For relations, we need to check if the relation isn't already
     // in the inventory, because it may have already been added
     // as part of a member's reltable
@@ -232,11 +239,14 @@ void ChangeWriter::useRelationTable(const CRelationTable* relTable)
             }
             const CFeature* rel = relStub->get();
 
-            LOGS << "GATHER reltable=" << relTable
-                << " rel=" << rel->typedId()
-                << " ptr=" << rel
-                << " local=" << rel->isInTile(tile_->tip())
-                << " tip=" << tile_->tip();
+            if (tile_->tip() == 0x2194)
+            {
+                LOGS << "GATHER reltable=" << relTable
+                    << " rel=" << rel->typedId()
+                    << " ptr=" << rel
+                    << " local=" << rel->isInTile(tile_->tip())
+                    << " tip=" << tile_->tip();
+            }
 
             if(rel->isInTile(tile_->tip()))
             {
@@ -321,11 +331,19 @@ void ChangeWriter::writeFeatureIndex(const std::vector<const CFeature*>& feature
     uint64_t prevId = 0;
     for(const CFeature* feature : featureList)
     {
+        assert(feature->isInTile(tile_->tip()));
+
         bool changed = feature->isChanged() &&
             ChangedFeatureBase::cast(feature)->hasActualChanges();
             // TODO: Is the check for actual changes needed?
             //  Why would feature be added to the tile if not changed?
         uint64_t id = feature->id();
+
+        if (tile_->tip() == 0x2194 && changed)
+        {
+            LOGS << tile_->tip() << ": writeFeatureIndex for changed feature " << feature->typedId();
+        }
+
         /*
         LOGS << "Writing indexed feature: " << feature->typedId()
             << ", ptr = " << reinterpret_cast<uintptr_t>(feature)
@@ -352,6 +370,11 @@ void ChangeWriter::writeFeatures(FeatureType type, void (ChangeWriter::*write)(T
     {
         if(feature->isChanged() && ChangedFeatureBase::cast(feature)->hasActualChanges())
         {
+            if (tile_->tip() == 0x2194)
+            {
+                LOGS << tile_->tip() << ": writeFeatures " << feature->typedId();
+            }
+
             assert(feature->isInTile(tile_->tip()));
             (this->*write)(T::cast(feature));
         }

@@ -413,12 +413,21 @@ private:
 	void ensureReltableChanged(CFeature* member) const
 	{
 		ChangedFeatureBase* changed;
+		bool addToTiles = true;
 		if (member->isChanged())
 		{
 			changed = ChangedFeatureBase::cast(member);
 			assert(changed->is(ChangeFlags::PROCESSED));
 			model().getParentRelations(changed);
+			bool hadAnyChanges =changed->hasActualChanges();
 			changed->addFlags(ChangeFlags::RELTABLE_CHANGED);
+			addToTiles = !hadAnyChanges;
+
+			// PROCESSED does not mean the member was pushed
+			// to any tiles; if it had not changes, it was
+			// simply skipped; now that we marked the reltable
+			// has been updated, we need to ensure it is
+			// added to its future tiles as a changed feature
 		}
 		else
 		{
@@ -447,7 +456,9 @@ private:
 			assert(changed->is(ChangeFlags::RELTABLE_LOADED));
 			changed->addFlags(ChangeFlags::RELTABLE_CHANGED |
 				ChangeFlags::PROCESSED);
-
+		}
+		if (addToTiles)
+		{
 			// TODO: This duplicates assignToTiles
 			CRef ref;
 			Tip tip;
