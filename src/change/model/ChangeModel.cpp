@@ -633,7 +633,7 @@ CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
         CRef::ofExported(iter.tip(), iter.tex()) :
         CRef::ofMaybeExported(tip, pTile.handleOf(pastFeature));
 
-    if (f->typedId() == TypedFeatureId::ofRelation(18242871))
+    if (f->typedId() == TypedFeatureId::ofRelation(8945512))
     {
         LOGS << "Read " << f->typedId() << " via tile " << tip
             <<": " << ref;

@@ -341,7 +341,7 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     // TODO: Different display if nothing updated?
 
     int count = changes_.changedTileCount();
-    Console::end().success() << "Updated " << count <<
+    Console::end().success() << "Updated " << FormattedLong(count) <<
         (count==1 ? " tile.\n" : " tiles.\n");
 }
 

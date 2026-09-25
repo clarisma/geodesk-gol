@@ -458,6 +458,12 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
     // (i.e. we know the TIP, but don't have its offset or TEX),
     // or SINGLE_TILE (SE part only)
 
+    if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
+    {
+        LOGS << "Normalizing refs for " << feature->typedId()
+            << feature->ref() << " / " << feature->refSE();
+    }
+
     assert(feature->type() != FeatureType::NODE);
     CRef ref = feature->ref();
     Tip tip = ref.tip();
@@ -735,8 +741,10 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
     {
         LOGS << "!!!";
     }
+    /*
     LOGS << feature->typedId() << (texNeeded ? " will need TEX" :
         " will not need TEX");
+    */
     assert(feature->type() != FeatureType::NODE || !inSE);
         // Nodes are single-tile and hence can only be in a NW tile
 
@@ -771,6 +779,12 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
             // for nodes, because nodes are single-tile
             CRef otherRef = feature->ref(!inSE);
             Tip otherTip = otherRef.tip();
+            if (otherTip.isNull())
+            {
+                LOGS << "Cannot resolve " << feature->typedId() << ": "
+                    << ref << " / " << otherRef << ", inSE = " << inSE
+                    << ", texNeeded = " << texNeeded;
+            }
             assert(!otherTip.isNull());
             TilePtr pTileOther = store()->fetchTile(otherTip);
             // TODO: what happens if the other tile is not loaded?
