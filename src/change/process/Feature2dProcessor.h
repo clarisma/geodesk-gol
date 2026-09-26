@@ -124,6 +124,14 @@ protected:
 	}
 
 private:
+
+	// It's possible that a dual tile feature moves tiles,
+	// while retaining one of its original tile. If that tile
+	// is unresolved, we need to resolve it in this function,
+	// since we won't have the other resolved tile (from which
+	// we resolve the remaining ref) after this function
+	// assigns the future tiles
+
 	void updateTiles(TilePair futureTiles) const
 	{
 	    ChangeFlags tileChanges = ChangeFlags::NONE;
@@ -163,6 +171,10 @@ private:
 	        {
 	            // Set SE tile as new NW tile
 	            // (feature simply moved SE)
+	        	if (pastRefSE.isUnresolved())
+	        	{
+	        		pastRefSE = mgr_.getResolvedRef(&feature_, true);
+	        	}
 	            setRef(pastRefSE);
 	        }
 	    }
@@ -191,6 +203,10 @@ private:
 	        {
 	            // Set NW tile as new SE tile
 	            // (feature simply moved NW)
+	        	if (pastRefNW.isUnresolved())
+	        	{
+	        		pastRefNW = mgr_.getResolvedRef(&feature_, false);
+	        	}
 	            setRefSE(pastRefNW);
 	        }
 	    }

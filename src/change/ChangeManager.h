@@ -76,7 +76,18 @@ private:
 		return false;
 	}
 
-	void ensureResolved(const CRelationTable* rels);
+	// void ensureResolved(const CRelationTable* rels);
+	/*
+	void ensureResolvedRef(CFeature* feature, bool ofSE)
+	{
+		if (feature->ref(ofSE).isUnresolved()) [[unlikely]]
+		{
+			resolveRef(feature, ofSE);
+		}
+	}
+	*/
+	/// Obtains (but does not set) the resolved ref of a feature
+	CRef getResolvedRef(CFeature* feature, bool ofSE);
 	void remove(ChangedFeatureBase* feature, bool fromSE, bool useOriginal = false);
 	void texChange(CFeature* feature, bool inSE, bool texNeeded);
 	void confirmTexLoss(ChangedFeatureBase* feature);

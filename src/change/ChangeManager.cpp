@@ -461,7 +461,7 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
     if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
     {
         LOGS << "Normalizing refs for " << feature->typedId()
-            << feature->ref() << " / " << feature->refSE();
+            << "(" << feature << "): " << feature->ref() << " / " << feature->refSE();
     }
 
     assert(feature->type() != FeatureType::NODE);
@@ -472,6 +472,10 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
         CRef refSE = feature->refSE();
         if (refSE == CRef::SINGLE_TILE) [[likely]]
         {
+            if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
+            {
+                LOGS << "Already normalized: " << feature->typedId();
+            }
             return 1;
         }
         if (feature->refSE().tip().isNull())
@@ -527,6 +531,13 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
         ref = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.first()));
         feature->setRef(ref);
     }
+
+    if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
+    {
+        LOGS << "Refs after normalization of " << feature->typedId()
+            << ": " << feature->ref() << " / " << feature->refSE();
+    }
+
     return 1;
 }
 
@@ -964,7 +975,32 @@ void ChangeManager::confirmTexLoss(ChangedFeatureBase* feature)
     // texChange() already converts the refs into non-exported refs
 }
 
+// TODO: merge with code in texChange()
+CRef ChangeManager::getResolvedRef(CFeature* feature, bool ofSE)
+{
+    CRef ref = feature->ref(ofSE);
+    assert(ref.isUnresolved());
+    CRef otherRef = feature->ref(!ofSE);
+    Tip otherTip = otherRef.tip();
+    assert(!otherTip.isNull());
+    TilePtr pTile = store()->fetchTile(ref.tip());
+    TilePtr pTileOther = store()->fetchTile(otherTip);
+    // TODO: what happens if the other tile is not loaded?
+    assert(pTileOther);
+    // Retrieve the feature from the other tile
+    FeaturePtr fp = otherRef.getFeature(pTileOther);
+    assert(!fp.isNull());
+    Box bounds = fp.bounds();
+    Coordinate corner = ofSE ? bounds.bottomRight() : bounds.topLeft();
+    bounds = corner;
+    FeatureFinder finder;
+    // Now look up the feature in the original tile
+    fp = finder.find(pTile, feature->typedId(), bounds);
+    assert(!fp.isNull());
+    return CRef::ofMaybeExported(ref.tip(), pTile.handleOf(fp));
+}
 
+/*
 // TODO
 void ChangeManager::ensureResolved(const CRelationTable* rels)
 {
@@ -976,6 +1012,8 @@ void ChangeManager::ensureResolved(const CRelationTable* rels)
 
     }
 }
+
+*/
 
 
 void ChangeManager::resolveExports()
