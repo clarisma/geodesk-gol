@@ -17,6 +17,8 @@
 #include <clarisma/util/log.h>
 #include <clarisma/util/varint.h>
 
+#include "ExportTableOp.h"
+
 
 TesReader::TesReader(TileModel& tile) :
 	tile_(tile),
@@ -996,3 +998,76 @@ void TesReader::readExports()
 		tile_.createExportTable(features, nullptr, count);
 	}
 }
+
+/*
+void TesReader::readExports()
+{
+	uint32_t taggedCount = readVarint32(p_);
+	size_t count = taggedCount >> 1;
+
+	using namespace ExportTableOp;
+
+	uint32_t header = readVarint32(p_);
+	bool isV2 = (header & 1) != 0;
+	uint32_t operation = isV2 ? ((header >> 1) & 3) : REPLACE;
+	uint32_t count = header >> (isV2 ? 3 : 1);
+
+	if(count)
+	{
+		TFeature** features = tile_.arena().allocArray<TFeature*>(count);
+		if (taggedCount & 1)
+		{
+			// partial export table update
+			TExportTable* oldExportTable = tile_.exportTable();
+			if (oldExportTable)  [[likely]]
+			{
+				// copy existing entries (new table may be shorter,
+				//  so use the lesser of new and old count)
+				size_t oldCount = oldExportTable->count();
+				memcpy(features, oldExportTable->features(),
+					std::min(count, oldCount) * sizeof(TFeature*));
+			}
+
+			uint32_t taggedSkipCount;
+			uint32_t nextEntryPos = 0;
+			do
+			{
+				// Read number of export-table entries to be
+				// skipped (Bit 0 marks whether more ranges follow)
+				taggedSkipCount = readVarint32(p_);
+				nextEntryPos += taggedSkipCount >> 1;
+				uint32_t taggedFeatureRef;
+				do
+				{
+					taggedFeatureRef = readVarint32(p_);
+					uint32_t featureRef = taggedFeatureRef >> 1;
+					// Remember, for partial export-table updates,
+					//  feature references are 1-based (0 means empty slot)
+					if (featureRef == 0)
+					{
+						features[nextEntryPos] = nullptr;
+					}
+					else
+					{
+						features[nextEntryPos] = getFeature(featureRef - 1);
+					}
+					nextEntryPos++;
+				}
+				while (taggedFeatureRef & 1);
+			}
+			while (taggedSkipCount & 1);
+		}
+		else
+		{
+			// full replacement of export table
+			for(int i=0; i<count; i++)
+			{
+				uint32_t ref = readVarint32(p_);
+				features[i] = getFeature(ref);
+				// for full replacement, feature refs are 0-based
+			}
+		}
+		tile_.createExportTable(features, nullptr, count);
+	}
+}
+*/
