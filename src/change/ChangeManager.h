@@ -4,6 +4,7 @@
 #pragma once
 #include "build/util/TileCatalog.h"
 #include "change/model/ChangeModel.h"
+#include "change/model/ChangeStatistics.h"
 #include "ChangeWriter.h"
 #include "TileChangeAnalyzer.h"
 
@@ -38,6 +39,11 @@ public:
 	{
 		return static_cast<int>(changedTiles_.size());
 	}
+
+#ifdef GOL_UPDATE_STATISTICS
+	void tallyStats(const ChangedFeatureBase& changed) { stats_.tally(changed); }
+#endif
+
 
 private:
 	struct LinkedRelation
@@ -104,6 +110,10 @@ private:
 	const CTagTable* duplicateNodeTags_ = nullptr;
 	const CTagTable* orphanNodeTags_ = nullptr;
 	const CTagTable* duplicateOrphanNodeTags_ = nullptr;
+
+#ifdef GOL_UPDATE_STATISTICS
+	ChangeStatistics stats_;
+#endif
 
 	friend class FeatureProcessor;
 	friend class Feature2dProcessor;

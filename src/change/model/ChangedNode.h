@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ChangedFeatureBase.h"
+#include <geodesk/feature/NodePtr.h>
 
 class ChangedNode : public ChangedFeatureBase
 {

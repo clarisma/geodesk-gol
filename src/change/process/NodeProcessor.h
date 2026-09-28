@@ -86,6 +86,7 @@ public:
 			}
 			node().setRef(CRef::MISSING);
 			addFlags(ChangeFlags::PROCESSED);
+			tallyStats();
 			return;
 
 			// TODO: If node was a feature, a delete has to be modify
@@ -121,6 +122,7 @@ public:
 		resolveTileChange();
 		propagateFeatureStatusChangeToWays();
 		addFlags(ChangeFlags::PROCESSED);
+		tallyStats();
 
 		// TODO: If node changes tiles and is exported, it must notify
 		//  its parent ways so the node table can be updated

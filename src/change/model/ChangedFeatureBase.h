@@ -4,11 +4,9 @@
 #pragma once
 
 #include <clarisma/util/log.h>
-#include <geodesk/feature/NodePtr.h>
 #include "CFeature.h"
 #include "ChangeAction.h"
 #include "ChangeFlags.h"
-#include "CRef.h"
 
 class ChangedFeatureBase;
 class CRelationTable;

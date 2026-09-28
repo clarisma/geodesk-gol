@@ -66,6 +66,7 @@ public:
 		{
 			assignToTiles();
 		}
+		tallyStats();
 	}
 
 private:

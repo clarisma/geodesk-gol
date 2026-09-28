@@ -127,6 +127,7 @@ public:
 		// TODO: TEX changes
 
 		addFlags(ChangeFlags::PROCESSED);
+		tallyStats();
 	}
 
 private:

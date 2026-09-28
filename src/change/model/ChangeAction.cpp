@@ -1,8 +1,16 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "ChangeAction.h"
 #include "ChangeModel.h"
+
+// TODO: Let TCA do all the principal work; e.g. retrieve nodes of
+//  implicitly changed ways while the tile is "hot" and stash
+//  them in the TCA's arena, then copy them into the model
+//  Fetching the nodes for an implicitly changed way while applying
+//  the actions often requires fetching a tile that is no longer in
+//  cache, hence we're seeing 30s of runtime to process actions for
+//  a week-long update
 
 void ChangeAction::apply(ChangeModel& model)
 {

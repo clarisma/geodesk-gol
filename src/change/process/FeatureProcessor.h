@@ -38,6 +38,13 @@ public:
 		}
 	}
 
+	void tallyStats()
+	{
+#ifdef GOL_UPDATE_STATISTICS
+		mgr_.tallyStats(feature_);
+#endif
+	}
+
 protected:
 	ChangeModel& model() const { return mgr_.model(); }
 

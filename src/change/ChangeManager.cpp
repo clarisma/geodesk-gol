@@ -164,6 +164,14 @@ void ChangeManager::postProcess()
     }
 #endif
 
+#ifdef GOL_UPDATE_STATISTICS
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        stats_.report();
+    }
+#endif
+
+
     LOGS << "Post-processed changes.";
     LOGS << changedTileCount() << " tiles changed.";
 }

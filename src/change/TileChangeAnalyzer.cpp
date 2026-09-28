@@ -554,6 +554,7 @@ void TileChangeAnalyzer::addAction(Args&&... args)
 
 void TileChangeAnalyzer::applyActions()
 {
+    size_t count = 0;
     ChangeAction* a = actions_;
     while(a)
     {
@@ -561,8 +562,15 @@ void TileChangeAnalyzer::applyActions()
             // stash next because apply() may change it due to re-chaining
         a->apply(model_);
         a = next;
+        count++;
     }
     actions_ = nullptr;
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter() << "Applied " << count << " change actions.";
+    }
+#endif
 }
 
 void TileChangeAnalyzer::readExports()
