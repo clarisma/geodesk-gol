@@ -38,15 +38,14 @@ private:
 	bool readWayNodeTable(TElement::Handle handle, uint8_t* pTable, uint32_t tableSize);
 	void readRemovedFeatures();
 	void readExports();
-	void readExports2();
 	void setGeometryFlags(MutableFeaturePtr pFeature, int tesFlags);
 
-	TString* getString(int number) const;
-	TTagTable* getTagTable(int number) const;
-	TRelationTable* getRelationTable(int number) const;
-	TFeature* getFeature(int number) const;
-	TNode* getNode(int number) const;
-	TRelation* getRelation(int number) const; 
+	TString* getString(uint32_t number) const;
+	TTagTable* getTagTable(uint32_t number) const;
+	TRelationTable* getRelationTable(uint32_t number) const;
+	TFeature* getFeature(uint32_t number) const;
+	TNode* getNode(uint32_t number) const;
+	TRelation* getRelation(uint32_t number) const;
 
 	template <typename... Args>
 	static void invalid(const char* message, Args... args) 

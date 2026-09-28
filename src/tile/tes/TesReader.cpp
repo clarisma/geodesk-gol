@@ -143,7 +143,7 @@ TTagTable* TesReader::readTagTable()
 		keyString->setAlignment(TElement::Alignment::DWORD);
 
 		// TODO: Need special tracking for key-strings since
-		// some exisiting strings may be unaligned -- hence,
+		// some existing strings may be unaligned -- hence,
 		// when we look them up via handle (which is expected to be
 		// 4-byte aligned), we will miss such an aligned key
 		// Need a separate lookup table
@@ -183,6 +183,8 @@ TTagTable* TesReader::readTagTable()
 	while (writer.ptr() != pEnd);
 	writer.endGlobalTags();
 
+	// TODO: check this narrowing hash conversion,
+	//  avoid repeating the bug that only hashes keys of tag tables
 	return tile_.completeTagTable(tags, static_cast<uint32_t>(writer.hash()), needsFixup);
 }
 
@@ -833,7 +835,7 @@ void TesReader::readRelationChange(TRelation* rel)
 	body->setNeedsFixup(needsFixup);
 }
 
-TString* TesReader::getString(int number) const
+TString* TesReader::getString(uint32_t number) const
 {
 	// #ifdef GEODESK_SAFE
 	if (number > stringCount_)
@@ -844,7 +846,7 @@ TString* TesReader::getString(int number) const
 	return strings_[number];
 }
 
-TTagTable* TesReader::getTagTable(int number) const
+TTagTable* TesReader::getTagTable(uint32_t number) const
 {
 	// #ifdef GEODESK_SAFE
 	if (number > sharedTagTableCount_)
@@ -855,14 +857,14 @@ TTagTable* TesReader::getTagTable(int number) const
 	return tagTables_[number];
 }
 
-TRelationTable* TesReader::getRelationTable(int number) const
+TRelationTable* TesReader::getRelationTable(uint32_t number) const
 {
 	// TODO: SAFE check range
 	return relationTables_[number];
 }
 
 
-TFeature* TesReader::getFeature(int number) const
+TFeature* TesReader::getFeature(uint32_t number) const
 {
 	if (number >= featureCount_)
 	{
@@ -872,7 +874,7 @@ TFeature* TesReader::getFeature(int number) const
 }
 
 
-TNode* TesReader::getNode(int number) const
+TNode* TesReader::getNode(uint32_t number) const
 {
 // #ifdef GEODESK_SAFE
 	if (features_[0] + number >= features_[1])
@@ -891,7 +893,7 @@ TNode* TesReader::getNode(int number) const
 	return static_cast<TNode*>(feature);
 }
 
-TRelation* TesReader::getRelation(int number) const
+TRelation* TesReader::getRelation(uint32_t number) const
 {
 	if (features_[2] + number >= features_[0] + featureCount_)
 	{
@@ -928,14 +930,19 @@ void TesReader::readRemovedFeatures()
 		TFeature* feature = tile_.getFeature(static_cast<FeatureType>(type), id);
 		if (feature)
 		{
-			// TODO: Set visibility/deleted
-			// (If feature is not present, we do nothing)
+			// TODO: Distinguish between "removed"
+			//  (no longer present in tile) vs. "deleted"
+			//  i.e. still presetn but tombstoned
+			//  Right now, we'll treat both as "removed"
+			//  (If feature is not present, we do nothing)
+			feature->setFlag(TFeature::Flags::REMOVED, true);
 		}
 		prevId = id;
 		count--;
 	}
 }
 
+/*
 void TesReader::readExports()
 {
 	uint32_t taggedCount = readVarint32(p_);
@@ -998,9 +1005,9 @@ void TesReader::readExports()
 		tile_.createExportTable(features, nullptr, count);
 	}
 }
+*/
 
-
-void TesReader::readExports2()
+void TesReader::readExports()
 {
 	uint32_t taggedCount = readVarint32(p_);
 	bool v2 = taggedCount & 1;
@@ -1015,11 +1022,18 @@ void TesReader::readExports2()
 		return;
 	}
 
+	size_t copyCount = replace ? 0 : std::min(newCount, oldCount);
 	TFeature** features = tile_.arena().allocArray<TFeature*>(newCount);
-	if (!replace)
+	if (copyCount)
 	{
 		memcpy(features, oldExportTable->features(),
-			std::min(newCount, oldCount) * sizeof(TFeature*));
+			copyCount * sizeof(TFeature*));
+	}
+	if (!replace)
+	{
+		// Defensively null-initialize the new slots, in case
+		// malformed patches don't fill them
+		std::fill(features + copyCount, features + newCount, nullptr);
 	}
 	size_t pos = 0;
 	size_t run = newCount;
@@ -1037,14 +1051,18 @@ void TesReader::readExports2()
 			break;
 		}
 		size_t end = pos + run;
+		if (end > newCount)  [[unlikely]]
+		{
+			invalid("Export table patch out of bounds");
+		}
 		while (pos < end)
 		{
 			TFeature* feature = nullptr;
-			uint32_t featureRef = readVarint32(p_);
+			uint32_t featureRef = readVarint32(p_) +
+				(1 - static_cast<int>(v2));
 			if (featureRef != 0) [[likely]]
 			{
-				feature = getFeature(featureRef -
-					static_cast<unsigned>(v2));
+				feature = getFeature(featureRef - 1);
 			}
 			features[pos++] = feature;
 		}
