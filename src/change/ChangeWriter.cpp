@@ -141,6 +141,24 @@ void ChangeWriter::gatherFeatures()
             }
         }
     }
+
+    for (auto& exportChange : tile_->exportTableChanges())
+    {
+        CFeature* exportedFeature = exportChange.feature;
+        if (exportedFeature)
+        {
+            addFeature(exportedFeature);
+        }
+    }
+}
+
+void ChangeWriter::addFeature(CFeature* feature)
+{
+    auto [it, inserted] = features_.try_emplace(feature, -1);
+    if(inserted)
+    {
+        featureLists_[static_cast<int>(feature->type())].push_back(feature);
+    }
 }
 
 /// Adds the given feature to featureLists_ and features_
@@ -847,6 +865,86 @@ void ChangeWriter::writeRemovedFeatures(int start, int count)
 
 void ChangeWriter::writeExports()
 {
-    // TODO
-    out_.writeByte(0);
+    uint32_t exportsCount = tile_->futureExportsCount();
+    if (exportsCount == 0) [[unlikely]]
+    {
+        // Drop the export table altogether
+        out_.writeByte(3);
+        // Bit 0 = 1 means "new style"
+        // Bit 1 = 1 means "replace"
+        // The remainder of the bits are 0, i.e.
+        // zero-length export table
+        // TODO: This will change in v3, as we drop
+        //  the bit for old-style export-table encoding:
+        //  out.writeByte(1);
+        return;
+    }
+    out_.writeVarint((exportsCount << 2) | 1);
+    // TODO: In v3, this will be
+    //  out.writeVarint(futureExportsCount_ << 1);
+
+    auto changes = tile_->exportTableChanges();
+    Tex pos = 0;
+    size_t start = 0;
+
+    // changes now contains all features with newly assigned
+    // TEXES, all new holes, as well as existing holes (for
+    // those, the `change` flag is set to false)
+    // All changes are sorted by TEX
+    // We need to find continuous ranges of changes and
+    // generate ExportTablePatch records
+    // We ignore existing holes
+    // There will be no existing holes at the rear of changes,
+    // since they have already been removed
+
+    while (start < changes.size())
+    {
+        auto change = changes[start];
+        if (!change.changed)
+        {
+            start++;
+            continue;
+        }
+        Tex startTex = change.tex;
+        size_t skip = startTex - pos;
+        assert(skip > 0 || startTex == 0);
+        pos = startTex;
+        size_t run = 1;
+        size_t end = start+1;
+        while (end < changes.size())
+        {
+            // Keep accumulating until we reach a gap
+            // or an existing hole, or the table end
+            change = changes[end];
+            assert(change.tex > pos);
+            pos += 1;
+            if (!change.changed) break;
+            if (change.tex - pos > 0) break;
+            end++;
+            run++;
+        }
+        out_.writeVarint(run);
+        out_.writeVarint(skip);
+        for (size_t i = 0; i < run; i++)
+        {
+            change = changes[start++];
+            uint32_t featureRef = 0;
+            if (change.feature)
+            {
+                auto it = features_.find(change.feature);
+                // The feature must be in the feature index
+                // for this tile, or else gatherFeatures()
+                // has a bug
+                if (it == features_.end())
+                {
+                    LOGS << change.feature->typedId() <<
+                        " not found in feature table, TIP=" << tile_->tip();
+                }
+                assert(it != features_.end());
+                featureRef = it->second + 1;
+            }
+            out_.writeVarint(featureRef);
+        }
+    }
+    out_.writeByte(0);      // end of patches
 }

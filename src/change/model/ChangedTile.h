@@ -88,9 +88,7 @@ public:
     }
 
     void resolveExports(TilePtr pTile);
-    void writeChanges(clarisma::BufferWriter& out);
 
-private:
     struct ExportTableEntry
     {
         ExportTableEntry(Tex tex, bool changed, CFeature* feature) :
@@ -101,6 +99,14 @@ private:
         CFeature* feature;
     };
 
+    std::span<const ExportTableEntry> exportTableChanges() const
+    {
+        return exportTableChanges_;
+    }
+
+    uint32_t futureExportsCount() const { return futureExportsCount_; }
+
+private:
     struct SortedFeature
     {
         SortedFeature(uint32_t hilbert, CFeature* feature) :

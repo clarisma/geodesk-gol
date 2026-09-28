@@ -218,9 +218,9 @@ void ChangedTile::resolveExports(TilePtr pTile)
     }
     futureExportsCount_ = exportsCount;
 
-    // (exportTableChanges_ may still have existing empty slots)
-
-    // TODO: Need to resolve: Encoding if export table trimmed, but no entries changed
+    // exportTableChanges_ may still have existing empty slots
+    // in the middle; we have to skip those when we write the
+    // patch instructions
 }
 
 
@@ -231,3 +231,5 @@ void ChangedTile::dump() const
     LOGS << "  " << exportTableChanges_.size() << " new TEXes needed";
     LOGS << "  " << texChanges_.size() << " potential TEX changes";
 }
+
+

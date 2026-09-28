@@ -73,6 +73,7 @@ private:
     bool isNewToThisTile(const ChangedFeature2D* feature) const;
     void gatherFeatures();
     int gatherRemovedFeatures(const LinkedStack<ChangedFeatureStub>& removed);
+    void addFeature(CFeature* feature);
     bool addChangedFeature(const ChangedFeatureBase* feature);
     void useTagTable(const CTagTable* tagTable);
     void useRelationTable(const CRelationTable* relTable);

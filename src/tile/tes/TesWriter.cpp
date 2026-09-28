@@ -20,6 +20,11 @@
 // - fix gatherSharedItems() -- wrong minimums
 // - write shared reltables
 
+// TODO:
+//  Updated GOLs may have export tables with holes; we need to use
+//  v2 style for the encoding of export tables, since v1 style
+//  cannot represent holes because of 0-based feature numbering
+
 TesWriter::TesWriter(TileModel& tile, Buffer* out) :
 	tile_(tile),
 	out_(out),
