@@ -107,6 +107,7 @@ public:
 	}
 
 	void createExportTable(TFeature** features, TypedFeatureId* typedIds, size_t count);
+	void clearExportTable() { exportTable_ = nullptr; }
 
 	TReferencedElement* getElement(TElement::Handle handle) const
 	{

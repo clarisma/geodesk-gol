@@ -38,6 +38,7 @@ private:
 	bool readWayNodeTable(TElement::Handle handle, uint8_t* pTable, uint32_t tableSize);
 	void readRemovedFeatures();
 	void readExports();
+	void readExports2();
 	void setGeometryFlags(MutableFeaturePtr pFeature, int tesFlags);
 
 	TString* getString(int number) const;
