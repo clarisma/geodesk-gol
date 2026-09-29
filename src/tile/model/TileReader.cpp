@@ -98,7 +98,8 @@ void TileReader::readWay(WayPtr way)
 	}
 	TWay* w = tile_.addWay(way, pBody, size, anchor);
 	w->setOriginal(true);
-	w->setNeedsFixup(needsFixup);
+	w->body()->setOriginal(true);	// TODO: needed?
+	w->body()->setNeedsFixup(needsFixup);
 #ifdef _DEBUG
 	counts_.featureCount++;
 #endif
@@ -107,6 +108,10 @@ void TileReader::readWay(WayPtr way)
 
 void TileReader::readRelation(RelationPtr relation)
 {
+	if (relation.id() == 5738690)
+	{
+		LOGS << "Reading relation/" << relation.id();
+	}
 	// LOG("Reading relation/%ld", relation.id());
 	bool needsFixup = false;
 	readTagTable(relation);
@@ -158,7 +163,8 @@ void TileReader::readRelation(RelationPtr relation)
 	}
 	TRelation* r = tile_.addRelation(relation, pBody, size);
 	r->setOriginal(true);
-	r->setNeedsFixup(needsFixup);
+	r->body()->setOriginal(true);	// TODO: needed?
+	r->body()->setNeedsFixup(needsFixup);
 #ifdef _DEBUG
 	counts_.featureCount++;
 #endif

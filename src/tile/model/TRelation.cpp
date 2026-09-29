@@ -9,7 +9,14 @@
 
 void TRelationBody::write(const TileModel& tile) const
 {
-	//LOG("Writing body of relation/%lld", constFeature()->feature().id());
+	if (constFeature()->feature().id() == 5738690)
+	{
+		LOGS << "Writing body of relation/%"
+			<< constFeature()->feature().id()
+			<< ", size = " << size()
+			<< ", anchor = " << anchor();
+	}
+
 	uint8_t* p = tile.newTileData() + location();
 	memcpy(p, dataStart(), size());
 

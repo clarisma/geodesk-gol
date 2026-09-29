@@ -147,8 +147,8 @@ void Updater::processTask(TileData& task)
         assert(phase_ == Phase::APPLY_UPDATE);
         try
         {
-            // transaction_.putTile(task.tip(), {task.data(), task.size()});
-            transaction_.addBlob({task.data(), task.size()});
+            transaction_.putTile(task.tip(), {task.data(), task.size()});
+            // transaction_.addBlob({task.data(), task.size()});
             // TODO: For now, we just write the raw data into the file
             //  because the generated tiles aren't valid yet
         }
