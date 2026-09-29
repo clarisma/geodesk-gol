@@ -18,9 +18,11 @@ private:
 
     bool setParam(int number, std::string_view value) override;
     int setBufferSize(std::string_view s);
+    int setRevision(std::string_view s);
     void help() override;
 
     std::string_view url_;
     std::vector<const char*> files_;
     size_t bufferSize_ = 0;
+    uint32_t requestedRevision_ = 0;
 };

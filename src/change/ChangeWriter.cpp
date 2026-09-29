@@ -916,7 +916,7 @@ void ChangeWriter::writeExports()
             // Keep accumulating until we reach a gap
             // or an existing hole, or the table end
             change = changes[end];
-            assert(change.tex > pos);
+            assert(change.tex - pos > 0);
             pos += 1;
             if (!change.changed) break;
             if (change.tex - pos > 0) break;

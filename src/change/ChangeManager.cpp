@@ -101,7 +101,7 @@ void ChangeManager::preProcessRelations()
 
     while (rel)
     {
-        LOGS << "Marking and checking " << rel->typedId();
+        // LOGS << "Marking and checking " << rel->typedId();
         ChangeFlags flags = rel->flags();
         if(testAny(flags, ChangeFlags::MEMBERS_CHANGED |
             ChangeFlags::DELETED))
@@ -1054,8 +1054,8 @@ void ChangeManager::checkParentRelations(LinkedRelation* pRelation,
     for (CFeatureStub* parentStub : rels->relations())
     {
         ChangedFeature2D* parent = model_.getChangedFeature2D(parentStub);
-        LOGS << "Checking parent " << parent->typedId() << " of " <<
-            relation->typedId();
+        // LOGS << "Checking parent " << parent->typedId() << " of " <<
+        //     relation->typedId();
         model_.ensureBounds(parent);
         parent->addFlags(parentFlags);
         LinkedRelation linkedParent { parent, pRelation };

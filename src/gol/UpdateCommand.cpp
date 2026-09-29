@@ -14,7 +14,9 @@
 UpdateCommand::Option UpdateCommand::UPDATE_OPTIONS[] =
 {
     { "buffer",				OPTION_METHOD(&UpdateCommand::setBufferSize) },
-    { "B",	    			OPTION_METHOD(&UpdateCommand::setBufferSize) }
+    { "B",	    			OPTION_METHOD(&UpdateCommand::setBufferSize) },
+{ "revision",				OPTION_METHOD(&UpdateCommand::setRevision) },
+{ "r",	    			OPTION_METHOD(&UpdateCommand::setRevision) }
 };
 
 UpdateCommand::UpdateCommand()
@@ -52,6 +54,13 @@ int UpdateCommand::setBufferSize(std::string_view s)
 {
     FileSizeParser parser(s.data());    // safe (0-terminated)
     bufferSize_ = parser.parse();
+    return 1;
+}
+
+int UpdateCommand::setRevision(std::string_view s)
+{
+    requestedRevision_ = Validate::longValue(s.data(), // safe (0-terminated)
+        1, 0xffff'ffffLL);
     return 1;
 }
 
@@ -115,6 +124,8 @@ void UpdateCommand::help()
     CliHelp help;
     help.command("gol update <gol-file> [<url> | <file>+] [<options>]",
         "Apply changes from a replication server or local files.");
-    areaOptions(help);
+    help.option("-r, --revision <n> | latest",
+        "Target revision (default: latest)");
+	areaOptions(help);
     generalOptions(help);
 }
