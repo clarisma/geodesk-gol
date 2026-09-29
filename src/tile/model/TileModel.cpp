@@ -248,7 +248,9 @@ TRelation* TileModel::addRelation(RelationPtr rel, DataPtr pBodyData, uint32_t b
 
 void TileModel::createExportTable(TFeature** features, TypedFeatureId* typedIds, size_t count)
 {
-	assert(exportTable_ == nullptr);
+	// assert(exportTable_ == nullptr);
+	// If updating a tile, we may replace an existing export table
+	// TODO: Does it make sense to replace it if same size or smaller?
 	exportTable_ = arena_.create<TExportTable>(features, typedIds, count);
 }
 

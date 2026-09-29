@@ -866,6 +866,14 @@ void ChangeWriter::writeRemovedFeatures(int start, int count)
 void ChangeWriter::writeExports()
 {
     uint32_t exportsCount = tile_->futureExportsCount();
+    if (exportsCount == ChangedTile::EXPORTS_UNCHANGED) [[likely]]
+    {
+        out_.writeByte(1);
+        // TODO: This will change in v3, as we drop
+        //  the bit for old-style export-table encoding:
+        //  out.writeByte(0);
+        return;
+    }
     if (exportsCount == 0) [[unlikely]]
     {
         // Drop the export table altogether

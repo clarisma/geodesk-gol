@@ -104,6 +104,8 @@ public:
         return exportTableChanges_;
     }
 
+    static constexpr uint32_t EXPORTS_UNCHANGED = 0xffff'ffff;
+
     uint32_t futureExportsCount() const { return futureExportsCount_; }
 
 private:
@@ -121,8 +123,6 @@ private:
         uint32_t hilbert;
         CFeature* feature;
     };
-
-    static constexpr uint32_t EXPORTS_UNCHANGED = 0xffff'ffff;
 
     LinkedStack<ChangedNode> changedNodes_;
     LinkedStack<ChangedFeatureStub> changedWays_;
