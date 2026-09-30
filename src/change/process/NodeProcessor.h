@@ -64,7 +64,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 1119136410)
+		if (node().id() == 10816096480)
 		{
 			LOGS << "!!!";
 		}
@@ -345,10 +345,14 @@ private:
 	        }
 	        else
 	        {
+	        	// TODO: Check this
+	        	/*
 	            if(node().isFutureWaynode())
 	            {
-	                node().setRef(CRef::ANONYMOUS_NODE);
+		            node().setRef(CRef::ANONYMOUS_NODE);
 	            }
+	            */
+	        	node().setRef(CRef::ANONYMOUS_NODE);
 	        }
 	    }
 	    if(!futureTip.isNull())

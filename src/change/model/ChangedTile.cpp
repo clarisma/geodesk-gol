@@ -31,6 +31,18 @@ void ChangedTile::recordTexChange(CFeature* feature, bool willHaveTex)
 
 void ChangedTile::resolveExports(TilePtr pTile)
 {
+    if (tip_ == Tip(0x980))
+    {
+        LOGS << "Resolving exports for " << tip_
+            << ": texChanges_.size() = " << texChanges_.size()
+            << ", exportTableChanges_.size() = " << exportTableChanges_.size();
+
+        for (const auto& [handle, feature] : texChanges_)
+        {
+            LOGS << tip_ << "@" << handle << ": " << (
+                feature ? feature->typedId() : TypedFeatureId::ofNode(0));
+        }
+    }
     assert(pTile == tilePtr_);
     if (texChanges_.empty() && exportTableChanges_.empty()) return;
 
@@ -113,6 +125,10 @@ void ChangedTile::resolveExports(TilePtr pTile)
     // TODO: Clean this up, too complicated as an early-exit condition
     if (!tableChanged && texChanges_.empty() && sorted.empty())
     {
+        if (tip_ == Tip(0x980))
+        {
+            LOGS << "No actual changes to exports in " << tip_;
+        }
         return;
     }
 
@@ -217,6 +233,11 @@ void ChangedTile::resolveExports(TilePtr pTile)
         exportsCount--;
     }
     futureExportsCount_ = exportsCount;
+
+    if (tip_ == Tip(0x980))
+    {
+        LOGS << tip_ << " will have " << futureExportsCount_ << " exports";
+    }
 
     // exportTableChanges_ may still have existing empty slots
     // in the middle; we have to skip those when we write the

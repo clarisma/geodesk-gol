@@ -30,7 +30,7 @@ bool TileChecker::check()
     for (const Error& error : errors())
     {
         ConsoleWriter out;
-        out.blank() << error.location() << ": " << error.message();
+        out.blank() << tip_ << "  " << error.location() << ": " << error.message();
     }
     return true;
 }
@@ -583,7 +583,8 @@ void TileChecker::checkExports(DataPtr ppExports)
             TypedFeatureId typedId = feature.typedId();
             if (!features_.contains(typedId))
             {
-                error(p, "Pointer to invalid exported feature");
+                error(p, "Slot %d points to invalid exported feature",
+                    (p - pTable) / 4);
             }
             else
             {

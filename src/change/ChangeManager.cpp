@@ -466,7 +466,7 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
     // (i.e. we know the TIP, but don't have its offset or TEX),
     // or SINGLE_TILE (SE part only)
 
-    if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
+    if (feature->typedId() == TypedFeatureId::ofWay(38728241))
     {
         LOGS << "Normalizing refs for " << feature->typedId()
             << "(" << feature << "): " << feature->ref() << " / " << feature->refSE();
@@ -540,7 +540,7 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
         feature->setRef(ref);
     }
 
-    if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
+    if (feature->typedId() == TypedFeatureId::ofWay(38728241))
     {
         LOGS << "Refs after normalization of " << feature->typedId()
             << ": " << feature->ref() << " / " << feature->refSE();

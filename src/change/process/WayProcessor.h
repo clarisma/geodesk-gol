@@ -17,7 +17,7 @@ public:
 	//  Collapse into FLAGGED_WAYNODE?
 	void process()
 	{
-		if (way().id() == 1340662848)
+		if (way().id() == 1163002394)
 		{
 			LOGS << "!!!";
 		}
@@ -200,6 +200,11 @@ private:
 		{
 			CFeature* node = nodeStub->get();
 			CRef nodeRef = node->ref();
+			if (way().id() == 1163002394)
+			{
+				LOGS << way().typedId() << ": " <<
+					node->typedId() << "  " << nodeRef;
+			}
 			Tip nodeTip = nodeRef.tip();
 			if (!nodeTip.isNull())
 			{

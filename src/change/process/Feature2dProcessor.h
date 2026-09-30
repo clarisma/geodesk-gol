@@ -169,6 +169,11 @@ private:
 	        }
 	        else
 	        {
+	        	if (!pastTipNW.isNull())
+	        	{
+	        		// remove from past NW tile
+	        		remove(false);
+	        	}
 	            // Set SE tile as new NW tile
 	            // (feature simply moved SE)
 	        	if (pastRefSE.isUnresolved())
@@ -184,7 +189,7 @@ private:
 	        tileChanges |= ChangeFlags::TILES_CHANGED;
 	        if (futureTipSE != pastTipNW)
 	        {
-	            if (!pastTipSE.isNull())
+	            if (!pastTipSE.isNull() && futureTipNW != pastTipSE)
 	            {
 	                // remove from past SE tile
 	            	remove(true);
