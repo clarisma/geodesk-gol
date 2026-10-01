@@ -23,6 +23,11 @@
 // TODO: Check edge case: Node is present more than once in way,
 //  but only one reference to it is removed
 
+// TODO: We should not set refs for changed feature sthat have
+//  already been processed, or we risk clobbering their refs during
+//  the secondary scan. This may only affects implicitly changed
+//  features that haven't been found during initial scan
+
 /// - If relation is in the ChangeModel:
 ///   - Store its ref
 ///   - If it is explicitly changed:
@@ -40,6 +45,12 @@ void TileChangeAnalyzer::readNode(NodePtr node)
     {
         CRef ref = refOfLocal(node);
         f->setRef(ref);
+            // TODO: Could this clobber an implicitly changed
+            //  node that has already been processed?
+            //  Node dropped from last relation, demoted to anon
+            //  node on parent way, hence its ref is ANON;
+            //  but now we're setting it to the its past ref???
+
         if(node.ptr() != f->getFeature(model_.store()).ptr())
         {
             LOGS << node.typedId() << " != " << f->getFeature(model_.store()).typedId();

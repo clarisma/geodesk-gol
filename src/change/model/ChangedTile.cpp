@@ -31,7 +31,7 @@ void ChangedTile::recordTexChange(CFeature* feature, bool willHaveTex)
 
 void ChangedTile::resolveExports(TilePtr pTile)
 {
-    if (tip_ == Tip(0x980))
+    if (tip_ == Tip(0x325))
     {
         LOGS << "Resolving exports for " << tip_
             << ": texChanges_.size() = " << texChanges_.size()
@@ -92,6 +92,10 @@ void ChangedTile::resolveExports(TilePtr pTile)
                 auto it = texChanges_.find(handle);
                 if (it != texChanges_.end())
                 {
+                    if (tip_ == 0x325 && tex == 729)
+                    {
+                        LOGS << tip_ << " #" << static_cast<uint32_t>(tex) << ": " << it->second;
+                    }
                     CFeatureStub* stub = it->second;
                     if (stub == nullptr)
                     {
@@ -125,7 +129,7 @@ void ChangedTile::resolveExports(TilePtr pTile)
     // TODO: Clean this up, too complicated as an early-exit condition
     if (!tableChanged && texChanges_.empty() && sorted.empty())
     {
-        if (tip_ == Tip(0x980))
+        if (tip_ == Tip(0x325))
         {
             LOGS << "No actual changes to exports in " << tip_;
         }
@@ -234,8 +238,14 @@ void ChangedTile::resolveExports(TilePtr pTile)
     }
     futureExportsCount_ = exportsCount;
 
-    if (tip_ == Tip(0x980))
+    if (tip_ == Tip(0x325))
     {
+        for (auto change : exportTableChanges_)
+        {
+            LOGS << static_cast<int>(change.tex) << ": " << change.changed
+                << ": " << (change.feature ? change.feature->typedId() :
+                    TypedFeatureId::ofNode(0));
+        }
         LOGS << tip_ << " will have " << futureExportsCount_ << " exports";
     }
 

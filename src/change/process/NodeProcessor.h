@@ -124,6 +124,11 @@ public:
 		addFlags(ChangeFlags::PROCESSED);
 		tallyStats();
 
+		if (node().id() == 10816096480)
+		{
+			LOGS << node().typedId() << ": ref after processing is " << node().ref();
+		}
+
 		// TODO: If node changes tiles and is exported, it must notify
 		//  its parent ways so the node table can be updated
 		//  (or do we do this already whenever geom is changed?)

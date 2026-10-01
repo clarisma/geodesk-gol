@@ -582,9 +582,9 @@ std::span<CFeatureStub*> ChangeModel::loadWayNodes(Tip tip, DataPtr pTile, WayPt
         if(wayNode.id == 0) break;
 
         CFeature* node = getFeatureStub(TypedFeatureId::ofNode(wayNode.id))->get();
-        if (wayNode.id == 7857097273)
+        if (wayNode.id == 10816096480)
         {
-            LOGS << "- Loading node/" << wayNode.id;
+            LOGS << "- Loading node/" << wayNode.id << "  old ref: " << node->ref();
             if (node->isChanged())
             {
                 LOGS << "    version = " << ChangedNode::cast(node)->version();

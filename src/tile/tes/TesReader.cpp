@@ -714,7 +714,7 @@ bool TesReader::readWayNodeTable(TElement::Handle handle, uint8_t* pTable, uint3
 // (We should handle reltable differently, more efficient this way)
 void TesReader::readRelationChange(TRelation* rel)
 {
-	if(rel->id() == 1183819)
+	if(rel->id() == 2773992)
 	{
 		LOG("Reading changes for relation/%lld", rel->feature().id());
 	}

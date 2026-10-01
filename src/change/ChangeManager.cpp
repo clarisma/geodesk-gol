@@ -689,10 +689,15 @@ ChangedNode* ChangeManager::findUniqueLocationNode(Tip tip, Coordinate xy)
     if (!soleRemainingNode.isNull())
     {
         node = model_.getChangedNode(soleRemainingNode.id());
-        node->setXY(xy);
-        TilePtr tile = model_.store()->fetchTile(tip);
-        node->offerRef(CRef::ofMaybeExported(
-            tip, tile.handleOf(soleRemainingNode)));
+        if (!node->is(ChangeFlags::PROCESSED))
+        {
+            // Don't clobber node ref if it has been processed
+            // already; if demoted, it may now be ANONYMOUS_NODE
+            node->setXY(xy);
+            TilePtr tile = model_.store()->fetchTile(tip);
+            node->offerRef(CRef::ofMaybeExported(
+                tip, tile.handleOf(soleRemainingNode)));
+        }
         uniqueLocationNodes_[xy] = node;
     }
     return node;

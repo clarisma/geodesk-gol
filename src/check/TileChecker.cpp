@@ -296,7 +296,7 @@ bool TileChecker::checkId(FeaturePtr feature)
     auto [it, inserted] = features_.insert(feature.typedId());
     if (!inserted)
     {
-        error("Duplicate feature: %s/%ull", feature.typeName(), feature.id());
+        error("Duplicate feature: %s/%llu", feature.typeName(), feature.id());
         return false;
     }
     return true;
@@ -515,14 +515,19 @@ bool TileChecker::checkFeatureBounds2D(FeaturePtr feature)
         error(feature.ptr(), "Feature extends past more than one tile edge");
         return false;
     }
-    int multiTileFlags =
+    int expectedMultiTileFlags =
         (extendsWest ? FeatureFlags::MULTITILE_WEST : 0) |
         (extendsNorth ? FeatureFlags::MULTITILE_NORTH : 0);
     int flags = feature.flags();
-    if ((flags & (FeatureFlags::MULTITILE_WEST |
-        FeatureFlags::MULTITILE_NORTH)) != multiTileFlags)
+    int actualMultiTileFlags = flags & (FeatureFlags::MULTITILE_WEST |
+        FeatureFlags::MULTITILE_NORTH);
+    if (actualMultiTileFlags != expectedMultiTileFlags)
     {
-        error(feature.ptr(), "Invalid multi-tile flags");
+        error(feature.ptr(),
+            "Invalid multi-tile flags for %s/%llu: "
+            "should be %d instead of %d",
+            feature.typeName(), feature.id(),
+            expectedMultiTileFlags, actualMultiTileFlags);
         return false;
     }
     return true;
@@ -583,15 +588,17 @@ void TileChecker::checkExports(DataPtr ppExports)
             TypedFeatureId typedId = feature.typedId();
             if (!features_.contains(typedId))
             {
-                error(p, "Slot %d points to invalid exported feature",
-                    (p - pTable) / 4);
+                char buf[32];
+                typedId.format(buf);
+                error(p, "Slot %d points to invalid exported feature (%s)",
+                    (p - pTable) / 4, buf);
             }
             else
             {
                 auto [it, inserted] = exported.insert(typedId);
                 if (!inserted)
                 {
-                    error(p, "Multiple TEXes assigned to %s/%ull",
+                    error(p, "Multiple TEXes assigned to %s/llu",
                         feature.typeName(), feature.id());
                 }
             }

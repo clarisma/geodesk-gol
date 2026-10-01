@@ -72,7 +72,7 @@ public:
 private:
 	bool tryProcess()
 	{
-		if (relation().id() == 18242857)
+		if (relation().id() == 2144774)
 		{
 			LOGS << feature_.typedId() << " (Version " << feature_.version()
 				 << ") at " << feature_.ref() << " / " << feature_.refSE();
