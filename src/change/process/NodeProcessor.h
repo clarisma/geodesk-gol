@@ -64,7 +64,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 10816096480)
+		if (node().id() == 3312813977)
 		{
 			LOGS << "!!!";
 		}
@@ -343,7 +343,7 @@ private:
 	                assert(tags);
 	                node().setTagTable(tags);
 	            }
-	            if (!node().peekParentRelations())
+	            if (!is(ChangeFlags::RELTABLE_LOADED))
 	            {
 	                node().setParentRelations(model().getRelationTable(pastRef_));
 	            }
