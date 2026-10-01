@@ -714,14 +714,12 @@ bool TesReader::readWayNodeTable(TElement::Handle handle, uint8_t* pTable, uint3
 // (We should handle reltable differently, more efficient this way)
 void TesReader::readRelationChange(TRelation* rel)
 {
-	if(rel->id() == 2773992)
+	if(rel->id() == 7359360)
 	{
 		LOG("Reading changes for relation/%lld", rel->feature().id());
 	}
 
 	TRelationTable* newRels;
-	bool needsFixup = rel->needsFixup();
-
 	uint32_t flags = readFeatureChange(rel, &newRels);
 	MutableFeaturePtr pFeature(rel->feature());
 
@@ -739,6 +737,7 @@ void TesReader::readRelationChange(TRelation* rel)
 	DataPtr pOldBody = body->data();
 	MutableDataPtr pBody;
 	uint32_t tableSize;
+	bool needsFixup = body->needsFixup();
 
 	if (flags & TesFlags::MEMBERS_CHANGED)
 	{

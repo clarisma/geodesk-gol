@@ -108,7 +108,7 @@ void TileReader::readWay(WayPtr way)
 
 void TileReader::readRelation(RelationPtr relation)
 {
-	if (relation.id() == 5738690)
+	if (relation.id() == 7359360)
 	{
 		LOGS << "Reading relation/" << relation.id();
 	}

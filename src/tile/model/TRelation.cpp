@@ -9,7 +9,7 @@
 
 void TRelationBody::write(const TileModel& tile) const
 {
-	if (constFeature()->feature().id() == 5738690)
+	if (constFeature()->feature().id() == 7359360)
 	{
 		LOGS << "Writing body of relation/%"
 			<< constFeature()->feature().id()
