@@ -342,9 +342,17 @@ void TileReader::readExportTable(DataPtr p)
 	TFeature** features = tile_.arena().allocArray<TFeature*>(count);
 	for(int i=0; i<count; i++)
 	{
-		TElement::Handle handle = handleOf(p.follow());
-		features[i] = TFeature::cast(tile_.getElement(handle));
-		assert(features[i]);
+		int32_t ptr = p.getInt();
+		if (ptr) [[likely]]
+		{
+			TElement::Handle handle = handleOf(p + ptr);
+			features[i] = TFeature::cast(tile_.getElement(handle));
+			assert(features[i]);
+		}
+		else
+		{
+			features[i] = nullptr;
+		}
 		p += 4;
 	}
 	tile_.createExportTable(features, nullptr, count);

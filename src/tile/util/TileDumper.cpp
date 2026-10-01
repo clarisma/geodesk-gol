@@ -209,7 +209,14 @@ void TileDumper::dumpExports(TExportTable* exports)
     for(int i=0; i<count; i++)
     {
         out_ << "          #" << i << ": ";
-        printLocalFeatureRef(features[i]->handle());
+        if (features[i])    [[likely]]
+        {
+            printLocalFeatureRef(features[i]->handle());
+        }
+        else
+        {
+            out_ << "EMPTY";
+        }
         out_.writeByte('\n');
     }
 }
