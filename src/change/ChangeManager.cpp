@@ -498,10 +498,25 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
                 // bottom edge of its NW tile, which means it has
                 // a SE tile
 
+                if (feature->typedId() == TypedFeatureId::ofRelation(2144774))
+                {
+                    LOGS << "000321 = " << tileCatalog_.tileOfTip(Tip(0x321));
+                    LOGS << "000325 = " << tileCatalog_.tileOfTip(Tip(0x325));
+                    TilePair tp = tileCatalog_.tilePair(pastBounds);
+                    LOGS << "Tile pair = " << tp.first() << " / " << tp.second();
+                }
                 TilePair tp = tileCatalog_.tilePair(pastBounds);
                 assert(tileCatalog_.tipOfTile(tp.first()) == tip);
                 assert(tp.hasSecond());
-                refSE = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.second()));
+                Tip tipSE = tileCatalog_.tipOfTile(tp.second());
+                assert(!tipSE.isNull());
+                refSE = CRef::ofUnresolved(tipSE);
+
+                if (feature->typedId() == TypedFeatureId::ofRelation(2144774))
+                {
+                    LOGS << "tipSE = " << tipSE;
+                    LOGS << "refSE = " << refSE;
+                }
             }
             feature->setRefSE(refSE);
         }
@@ -534,9 +549,11 @@ int ChangeManager::normalizeRefs(CFeature* feature) const
         //  this means the GOL is corrupt)
 
         TilePair tp = tileCatalog_.tilePair(pastBounds);
-        assert(tileCatalog_.tipOfTile(tp.second()) == tip);
         assert(tp.hasSecond());
-        ref = CRef::ofUnresolved(tileCatalog_.tipOfTile(tp.first()));
+        assert(tileCatalog_.tipOfTile(tp.second()) == tip);
+        Tip tipNW = tileCatalog_.tipOfTile(tp.first());
+        assert(!tipNW.isNull());
+        ref = CRef::ofUnresolved(tipNW);
         feature->setRef(ref);
     }
 
@@ -814,7 +831,13 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
             // TODO: what happens if the other tile is not loaded?
             assert(pTileOther);
             // Retrieve the feature from the other tile
-            fp = otherRef.getFeature(pTileOther);
+            // fp = otherRef.getFeature(pTileOther);
+            fp = otherRef.tryGetFeature(pTileOther);
+            if (fp.isNull())
+            {
+                LOGS << "Cannot retrieve feature " << feature->typedId() <<
+                    " via " << feature->ref() << " / " << feature->refSE();
+            }
             assert(!fp.isNull());
             Box bounds = fp.bounds();
             Coordinate corner = inSE ? bounds.bottomRight() : bounds.topLeft();
@@ -827,6 +850,14 @@ void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
         handle = pTile.handleOf(fp);
     }
     changedTile->texChange(handle, texNeeded ? feature : nullptr);
+
+    if (feature->typedId() == TypedFeatureId::ofRelation(2144774))
+    {
+        LOGS << "Noted tex change for " << feature->typedId()
+            << " in " << changedTile->tip() << " at handle " << handle
+            << " using pointer " << feature;
+    }
+
     if (!texNeeded)
     {
         ref = CRef::ofNotExported(tip, handle);

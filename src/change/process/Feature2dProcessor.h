@@ -145,6 +145,8 @@ private:
 	    assert(pastTipNW != pastTipSE || pastTipNW.isNull());
 	    assert(futureTipNW != futureTipSE);
 	    assert(!futureTipNW.isNull());
+		CRef futureRefNW = pastRefNW;
+		CRef futureRefSE = pastRefSE;
 
 	    if (pastTipNW != futureTipNW)
 	    {
@@ -153,6 +155,8 @@ private:
 	    	// is updated, we're no longer able to get the feature
 	    	// (which we need in order to load the reltable)
 			ensureReltableLoaded();
+	    		// TODO: do we need this? looks like we do this later
+
 	        tileChanges |= ChangeFlags::TILES_CHANGED;
 	        if (futureTipNW != pastTipSE)
 	        {
@@ -165,7 +169,7 @@ private:
 	            		remove(false);
 	            	}
 	            }
-	            setRef(CRef::ofNew(futureTipNW));
+	            futureRefNW = CRef::ofNew(futureTipNW);
 	        }
 	        else
 	        {
@@ -179,13 +183,18 @@ private:
 	        	if (pastRefSE.isUnresolved())
 	        	{
 	        		pastRefSE = mgr_.getResolvedRef(&feature_, true);
+        			// setRefSE(pastRefSE);
+	        			// remove() needs the resolved ref
 	        	}
-	            setRef(pastRefSE);
+	        	futureRefNW = pastRefSE;
 	        }
 	    }
 
 	    if (pastTipSE != futureTipSE)
 	    {
+	    	ensureReltableLoaded();
+	    		// TODO: do we need this? looks like we do this later
+
 	        tileChanges |= ChangeFlags::TILES_CHANGED;
 	        if (futureTipSE != pastTipNW)
 	        {
@@ -196,11 +205,11 @@ private:
 	            }
 	            if (futureTipSE.isNull())
 	            {
-	                setRefSE(CRef::SINGLE_TILE);
+	                futureRefSE = CRef::SINGLE_TILE;
 	            }
 	            else
 	            {
-	                setRefSE(CRef::ofNew(futureTipSE));
+	                futureRefSE = CRef::ofNew(futureTipSE);
 	                tileChanges |= ChangeFlags::NEW_TO_SOUTHEAST;
 	            }
 	        }
@@ -212,12 +221,12 @@ private:
 	        	{
 	        		pastRefNW = mgr_.getResolvedRef(&feature_, false);
 	        	}
-	            setRefSE(pastRefNW);
+	            futureRefSE = pastRefNW;
 	        }
 	    }
 	    if (futureTipSE.isNull())
 	    {
-	        setRefSE(CRef::SINGLE_TILE);
+	        futureRefSE = CRef::SINGLE_TILE;
 	    }
 	    addFlags(tileChanges);
 
@@ -239,6 +248,8 @@ private:
 	            feature_.setParentRelations(model().getRelationTable(sourceRef));
 	        }
 	    }
+		setRef(futureRefNW);
+		setRefSE(futureRefSE);
 		assert(getRef().tip() != getRefSE().tip());
 	}
 

@@ -729,6 +729,9 @@ void TesReader::readRelationChange(TRelation* rel)
 	{
 		pFeature.setBounds(readBounds());
 	}
+	setGeometryFlags(pFeature, flags);
+		// We need to set these flags here because we may exit
+		// early if no other changes
 
 	// readFeatureChange() has already set the member flag to its post-update state
 	uint32_t relsPtrSize = pFeature.isRelationMember() ? 4 : 0;
@@ -828,7 +831,6 @@ void TesReader::readRelationChange(TRelation* rel)
 		memcpy(pBody.ptr(), pOldBody, body->size() - body->anchor());
 	}
 
-	setGeometryFlags(pFeature, flags);
 	body->setData(pBody);
 	body->setSize(newBodySize);
 	body->setAnchor(pFeature.isRelationMember() ? 4 : 0);

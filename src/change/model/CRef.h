@@ -165,9 +165,13 @@ public:
     //  the feature's tile, but not where it is located in the tile?
     bool mayHaveTex() const
     {
+        return (data_ & 1) != 0 || isUnresolved();
+        /*
+        assert(!isUnresolved());
         return data_ & 1;
             // The lowest bit is set if the ref is exported or
             // maybe_exported, which means this ref *may* have a TEX
+        */
     }
 
     bool isExported() const
