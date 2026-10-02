@@ -709,6 +709,13 @@ void SorterWorker::resolveSuperRelations()
                 // Don't call indexFeature(), which only works for the
                 // regular phases; instead, write directly to the relation index 
                 indexes_[2].put(rel->id(), pilePair);
+
+                // TODO: This is not safe; we need to call endBatch()
+                //  if there is a gap between two IDs, or else we
+                //  risk clobbering the value at the higher position
+                //  of the preceding item -- the index isn;t empty at
+                //  this point, regular relations have already been
+                //  indexed
             }
             flushPiles();
             // don't call flushIndex() -- only suitable for regular phases

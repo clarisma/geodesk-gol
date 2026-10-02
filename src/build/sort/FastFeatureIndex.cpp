@@ -87,6 +87,11 @@ void FastFeatureIndex::flushAtomic()
 	// If not, this means duplicate/out-of-order writes
 }
 
+// TODO: This might overwrite adjacent slots if index is already
+//  populated; important for super-relation sorting phase, as
+//  super-relation tiles are placed into the index after regular
+//  relations have already been indexed
+
 void FastFeatureIndex::put(int64_t id, int pile)
 {
 	assert(id <= maxId_);
