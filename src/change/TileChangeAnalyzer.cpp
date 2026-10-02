@@ -312,7 +312,8 @@ void TileChangeAnalyzer::compareWayNodes(ChangedFeature2D* changed, WayPtr way)
     */
 
     ChangeFlags flagsToClear = wayGeometryChanged ? ChangeFlags::NONE : ChangeFlags::GEOMETRY_CHANGED;
-    flagsToClear |= waynodeIdsChanged ? ChangeFlags::NONE : ChangeFlags::WAYNODE_IDS_CHANGED;
+    flagsToClear |= waynodeIdsChanged ? ChangeFlags::NONE :
+        (ChangeFlags::WAYNODE_IDS_CHANGED | ChangeFlags::MEMBERS_CHANGED);
     changed->clearFlags(flagsToClear);
 }
 

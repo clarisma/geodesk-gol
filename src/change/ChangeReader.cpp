@@ -226,7 +226,13 @@ void ChangeReader::readFeature(ChangeFlags flags)
             }
 
             featureType = FeatureType::WAY;
-            flags &= ~ChangeFlags::MEMBERS_CHANGED;
+            // flags &= ~ChangeFlags::MEMBERS_CHANGED;
+            // TODO: For now, We assume we'll need to update
+            //  the node table if node IDs changed
+            //  We could avoid this in many cases, because
+            //  the node table may stay the same if only
+            //  anonymous nodes were added, removed or
+            //  reordered
 
             roles = nullptr;
             if(members_.size() < 2)

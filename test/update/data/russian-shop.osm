@@ -1,0 +1,20 @@
+<osm version="0.6" generator="geodesk-gol-test">
+    <node id="356478644" version="1" lon="64.0437729" lat="67.5008028"/>
+    <node id="356478645" version="1" lon="64.0417095" lat="67.50094">
+        <tag k="shop" v="convenience"/>
+    </node>
+    <node id="356478648" version="1" lon="64.0416614" lat="67.5008341"/>
+    <node id="356478650" version="1" lon="64.0437248" lat="67.5006969"/>
+    <way id="31837036" version="10" timestamp="2025-03-21T09:50:22Z" uid="22470665" user="wildgodlike" changeset="163897102">
+        <nd ref="356478648"/>
+        <nd ref="356478650"/>
+        <nd ref="356478644"/>
+        <nd ref="356478645"/>
+        <nd ref="356478648"/>
+        <tag k="addr:city" v="Воркута"/>
+        <tag k="addr:country" v="RU"/>
+        <tag k="addr:housenumber" v="41А"/>
+        <tag k="addr:street" v="Ленинградская улица"/>
+        <tag k="building" v="yes"/>
+    </way>
+</osm>
