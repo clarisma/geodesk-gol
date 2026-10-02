@@ -298,7 +298,7 @@ bool OsmPbfEncoder::addWay(WayPtr way)
     {
         nodesOrRoles_.clear();
 
-        WayNodeIterator iter(store_, way, false, wayNodeIds_);
+        WayNodeIterator iter(store_, way, true, wayNodeIds_);
         int64_t prevId_ = 0;
         int32_t prevLon_ = 0;
         int32_t prevLat_ = 0;

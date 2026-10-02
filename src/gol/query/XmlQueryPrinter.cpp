@@ -179,7 +179,7 @@ void XmlQueryPrinter::printWay(ConsoleWriter& out, int64_t id, FeatureData data)
 {
     // LOGS << "Printing way/" << id;
     out << "  <way id=\"" << id << "\" version=\"1\">\n";
-    WayNodeIterator iter(store_, data.way, false, wayNodeIds_);
+    WayNodeIterator iter(store_, data.way, true, wayNodeIds_);
     for (;;)
     {
         WayNodeIterator::WayNode node = iter.next();
