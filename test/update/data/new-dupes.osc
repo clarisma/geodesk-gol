@@ -1,0 +1,22 @@
+<!--
+
+Verify that:
+
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="5" version="1" lon="-90" lat="45">
+            <tag k="shop" v="bakery"/>
+        </node>
+        <node id="6" version="1" lon="90" lat="-45"/>
+        <way id="1" version="2">
+            <nd ref="5"/>
+            <nd ref="2"/>
+            <nd ref="6"/>
+            <nd ref="4"/>
+            <nd ref="5"/>
+            <tag k="area" v="yes"/>
+        </way>
+    </modify>
+</osmChange>

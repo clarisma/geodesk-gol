@@ -114,6 +114,16 @@ void ChangeReader::readTag()
     }
     int keyCode = strings_.getCode(k);
     int valueCode = strings_.getCode(v);
+
+    if (keyCode == 0 || valueCode == 0)
+    {
+        LOGS << "Discarded invalid tag";
+        // If either key or value is blank, we ignore the tag
+        // because it is useless and interferes with the GOL's
+        // representation of tags
+        return;
+    }
+
     if(keyCode >= 0 && keyCode <= TagValues::MAX_COMMON_KEY)    [[likely]]
     {
         if(valueCode >= 0)

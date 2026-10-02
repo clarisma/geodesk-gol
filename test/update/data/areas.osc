@@ -1,0 +1,26 @@
+<!--
+
+Verify that:
+    way/1 changes to area
+    way/2 changes to non-area closed ring
+    both must repeat feature node/1 as first and last node in node table
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <way id="1" version="2">
+        <nd ref="1"/>
+        <nd ref="2"/>
+        <nd ref="3"/>
+        <nd ref="4"/>
+        <nd ref="1"/>
+        <tag k="area" v="no"/>
+    </way>
+    <way id="2" version="2">
+        <nd ref="1"/>
+        <nd ref="2"/>
+        <nd ref="3"/>
+        <nd ref="4"/>
+        <nd ref="1"/>
+        <tag k="area" v="yes"/>
+    </way>
+</osmChange>

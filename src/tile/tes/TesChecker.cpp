@@ -383,8 +383,8 @@ void TesChecker::readNode()
     // TODO: flag check
     if(flags & TesFlags::GEOMETRY_CHANGED)
     {
-        prevXY_.x += fromZigzag(readVarint64());
-        prevXY_.y += fromZigzag(readVarint64());
+        prevXY_.x += readSignedVarint64();
+        prevXY_.y += readSignedVarint64();
         out_ << "  LONLAT: " << LonLat(prevXY_) << '\n';
     }
 }
@@ -406,8 +406,8 @@ void TesChecker::readWay()
         Box bounds;
         for(int i=0; i<nodeCount; ++i)
         {
-            xy.x += fromZigzag(readVarint32());
-            xy.y +=fromZigzag(readVarint32());
+            xy.x += readSignedVarint64();
+            xy.y += readSignedVarint64();
             coords_.emplace_back(xy);
             bounds.expandToInclude(xy);
         }
@@ -418,7 +418,7 @@ void TesChecker::readWay()
         {
             for(int i=0; i<nodeCount; ++i)
             {
-                nodeId += fromZigzag(readVarint64());
+                nodeId += readSignedVarint64();
                 out_ << "    node/" << nodeId << ": " << LonLat(coords_[i]) << '\n';
             }
         }
@@ -491,10 +491,10 @@ void TesChecker::readRelation()
     // TODO: flag check
     if(flags & TesFlags::BBOX_CHANGED)
     {
-        int64_t minX = static_cast<int64_t>(prevXY_.x) + fromZigzag(readVarint64());
-        int64_t minY = static_cast<int64_t>(prevXY_.y) + fromZigzag(readVarint64());
-        int64_t maxX = minX + readVarint64();
-        int64_t maxY = minY + readVarint64();
+        int64_t minX = static_cast<int64_t>(prevXY_.x) + readSignedVarint64();
+        int64_t minY = static_cast<int64_t>(prevXY_.y) + readSignedVarint64();
+        int64_t maxX = minX + readVarint64();   // unsigned
+        int64_t maxY = minY + readVarint64();   // unsigned
         Box bounds(minX, minY, maxX, maxY);
         out_ << "  BOUNDS: " << LonLat(bounds.bottomLeft()) << " -> " << LonLat(bounds.topRight()) << '\n';
         prevXY_ = bounds.bottomLeft();
