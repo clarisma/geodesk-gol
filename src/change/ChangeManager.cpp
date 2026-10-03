@@ -224,9 +224,10 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
     {
         WayPtr way = query.next();
         if (way.isNull()) break;
-        if (way.id() == 1154460013)
+        if (way.id() == 28833517)
         {
-            LOGS << "!!!";
+            LOGS << "Notifying way/" << way.id() << " that one of its nodes "
+                "changed feature status";
         }
         ChangedFeature2D* changedWay =
             model_.getChangedFeature2D(FeatureType::WAY, way.id());
@@ -1138,6 +1139,7 @@ void ChangeManager::breakRefcycle(LinkedRelation* pRelation)
         if (parent == originalParent) break;
     }
 
+    assert(loser);
     LOGS << "  Loser: " << loser->relation->typedId();
     parent = loser->relation;
     child = loser->next->relation;

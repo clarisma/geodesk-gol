@@ -62,6 +62,16 @@ bool TileChecker::checkAccess(DataPtr p, const char* what)
     return true;
 }
 
+bool TileChecker::checkAccess(DataPtr p, const char* what, size_t size)
+{
+    if (p.ptr() < start() || p.ptr() + size >= end())
+    {
+        error(p, "%s truncated", what);
+        return false;
+    }
+    return true;
+}
+
 void TileChecker::checkNodeIndex(DataPtr ppIndex)
 {
     Box bounds;
@@ -76,7 +86,7 @@ void TileChecker::checkNodeIndex(DataPtr ppIndex)
     DataPtr p = ppIndex + rel;
     for (;;)
     {
-        if (!checkAccess(p + 7, "node index")) return;
+        if (!checkAccess(p, "node index", 8)) return;
         int rel = p.getInt();
         int lastFlag = rel & 1;
         rel &= ~1;
@@ -102,7 +112,7 @@ uint32_t TileChecker::checkNodeTrunk(DataPtr p, uint32_t keys, Box& actualBounds
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 19, "index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "index branch", 20)) return INVALID_INDEX;
         int32_t rel = p.getInt();
         int lastFlag = rel & 1;
         int leafFlag = rel & 2;
@@ -138,10 +148,9 @@ uint32_t TileChecker::checkNodeLeaf(DataPtr p, uint32_t keys, Box& actualBounds)
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 19, "node index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "node index leaf", 20)) return INVALID_INDEX;
         int flags = (p+8).getInt();
-        if (!checkAccess(p + 19 + (flags & 4),
-            "node index branch"))
+        if (!checkAccess(p,"node index leaf", 20 + (flags & 4)))
         {
             return INVALID_INDEX;
         }
@@ -169,7 +178,7 @@ void TileChecker::checkIndex(DataPtr ppIndex, FeatureTypes types)
     DataPtr p = ppIndex + rel;
     for (;;)
     {
-        if (!checkAccess(p + 7, "index")) return;
+        if (!checkAccess(p, "index", 8)) return;
         rel = p.getInt();
         int lastFlag = rel & 1;
         rel &= ~1;
@@ -195,7 +204,7 @@ uint32_t TileChecker::checkTrunk(DataPtr p, FeatureTypes types, uint32_t keys, B
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 19, "index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "index branch", 20)) return INVALID_INDEX;
         int32_t rel = p.getInt();
         int lastFlag = rel & 1;
         int leafFlag = rel & 2;
@@ -231,7 +240,7 @@ uint32_t TileChecker::checkLeaf(DataPtr p, FeatureTypes types, uint32_t keys, Bo
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 31, "index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "index leaf", 32)) return INVALID_INDEX;
         FeaturePtr feature(p + 16);
         int flags = feature.flags();
         if (!types.acceptFlags(flags))
@@ -329,7 +338,7 @@ uint32_t TileChecker::checkNode(DataPtr p, Box& actualLeafBounds)
     TagTableInfo tags = checkTagTablePtr(p + 8, feature.typedId());
     if (tags.flags & TagTableInfo::TAGGED_DUPLICATE)
     {
-
+        // TODO
     }
     if (tags.flags & TagTableInfo::TAGGED_ORPHAN)
     {
@@ -364,7 +373,7 @@ TileChecker::TagTableInfo TileChecker::checkTagTable(DataPtr pTags, bool hasLoca
     int prevGlobalKey = 0;
     for (;;)
     {
-        if (!checkAccess(p+3, "tag table")) return info;
+        if (!checkAccess(p, "tag table", 4)) return info;
         int keyBits = p.getUnsignedShort();
         int type = keyBits & 3;
         int key = (keyBits >> 2) & 0x1fff;
@@ -545,7 +554,155 @@ uint32_t TileChecker::checkFeature2D(FeaturePtr feature)
 uint32_t TileChecker::checkWay(DataPtr p)
 {
     WayPtr way(p);
-    return checkFeature2D(way);
+    uint32_t actualKeys = checkFeature2D(way);
+    checkWayBody(way);
+    return actualKeys;
+}
+
+void TileChecker::checkWayBody(WayPtr way)
+{
+    DataPtr ppBody = way.ptr() + 12;
+    int relBody = ppBody.getInt();
+    if (!checkPointer(ppBody, relBody)) return;
+    DataPtr p = way.bodyptr();
+    moveTo(p);
+    uint32_t nodeCount = readVarint32();
+    if (nodeCount < 2)
+    {
+        error(p, "way/%llu: Invalid number of nodes", way.id());
+        return;
+    }
+    Box actualBounds;
+    Coordinate xy = way.bottomLeft();
+    for (int i = 0; i < nodeCount; i++)
+    {
+        xy.translateX(readSignedVarint64());
+        xy.translateY(readSignedVarint64());
+        actualBounds.expandToInclude(xy);
+    }
+    if (actualBounds != way.bounds())
+    {
+        error(p, "way/%llu: Stated bounds don't match computed bounds", way.id());
+    }
+    int64_t nodeId = 0;
+    for (int i = 0; i < nodeCount; i++)
+    {
+        int64_t nodeIdDelta = readSignedVarint64();
+        if (nodeIdDelta == 0)
+        {
+            warning(p, "way/%llu: Zero ID delta for node #%d (possible dupe)", way.id(), i);
+            break;
+        }
+        nodeId += nodeIdDelta;
+        if (nodeId < 0)
+        {
+            error(p, "way/%llu: Node ID out of range for node #%d", way.id(), i);
+            break;
+        }
+    }
+
+    if (way.isRelationMember())
+    {
+        p -= 4;
+        if (!checkAccess(p, "way body")) return;
+        checkRelationTable(p);
+    }
+    if (way.hasFeatureNodes())
+    {
+        checkRelatedTable(way, "node table", p - 2,
+            Tex::WAYNODES_START_TEX, -2, 0,
+            FeatureTypes::NODES);
+    }
+}
+
+
+void TileChecker::checkRelatedTable(FeaturePtr parent,
+    const char* what, DataPtr p, Tex startTex, int step,
+    int extraFlags, FeatureTypes acceptedTypes)
+{
+    TypedFeatureId parentId = parent.typedId();
+    Tip currentTip = FeatureConstants::START_TIP;
+    Tex currentTex = startTex;
+    ExportTablePtr pExports;
+    int32_t member;
+    do
+    {
+        if (!checkAccess(p, what, 2)) return;
+        DataPtr pCurrent = p;
+        uint16_t lowerWord = p.getUnsignedShort();
+        p += step;
+        if (lowerWord & MemberFlags::FOREIGN)
+        {
+            if(lowerWord & (1 << (3 + extraFlags)))
+            {
+                // wide TEX delta
+                if (!checkAccess(p, what, 2)) return;
+                uint16_t upperWord = p.getUnsignedShort();
+                p += step;
+                member = (static_cast<int32_t>(upperWord) << 16) | lowerWord;
+            }
+            else
+            {
+                member = static_cast<int16_t>(lowerWord);
+            }
+            if (member & (1 << (2 + extraFlags)))
+            {
+                // foreign member in different tile
+                if (!checkAccess(p, what, 2)) return;
+                int32_t tipDelta = p.getShort();
+                p += step;
+                if (tipDelta & 1)
+                {
+                    // wide TIP delta
+                    if (!checkAccess(p, what, 2)) return;
+                    tipDelta = (tipDelta & 0xffff) |
+                        (static_cast<int32_t>(p.getShort()) << 16);
+                    p += step;
+                }
+                tipDelta >>= 1;     // signed
+                currentTip += tipDelta;
+                // TODO: set exports
+            }
+        }
+        else
+        {
+            // local member
+            if (!checkAccess(p, what, 2)) return;
+            uint16_t upperWord = p.getUnsignedShort();
+            p += step;
+            member = (static_cast<int32_t>(upperWord) << 16) | lowerWord;
+
+            DataPtr pMember;
+            if(extraFlags > 0)
+            {
+                pMember = pCurrent.andMask(0xffff'ffff'ffff'fffc) +
+                    (static_cast<int32_t>(member & 0xffff'fff8) >> 1);
+            }
+            else
+            {
+                pMember = pCurrent + (member >> 1);
+            }
+            checkReferencedFeature(pMember, parentId, acceptedTypes);
+        }
+    }
+    while ((member & MemberFlags::LAST) == 0);
+}
+
+void TileChecker::checkReferencedFeature(DataPtr p, TypedFeatureId parent, FeatureTypes acceptedTypes)
+{
+    if (!checkAccess(p, "feature", 12)) return;
+    FeaturePtr feature(p);
+    if (!acceptedTypes.acceptFlags(feature.flags()))
+    {
+        char buf[32];
+        parent.format(buf);
+        error(p, "wrong related feature type for %s", buf);
+    }
+}
+
+void TileChecker::checkRelationTable(DataPtr ppRels)
+{
+    // TODO
 }
 
 uint32_t TileChecker::checkRelation(DataPtr p)

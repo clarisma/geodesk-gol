@@ -147,10 +147,20 @@ void Updater::processTask(TileData& task)
         assert(phase_ == Phase::APPLY_UPDATE);
         try
         {
+            // TODO: The worker should pass the location and,
+            //  most importantly, the size of the past tile
+            //  to avoid having to read again from the old tile
+            //  that may be evicted by now
+            DataPtr pTileIndex = transaction_.store().tileIndex();
+            TileIndexEntry entry(
+                (pTileIndex + task.tip() * 4).getUnsignedInt());
+            uint32_t oldFirstPage = entry.page();
+            assert(oldFirstPage != 0);
+            TilePtr pTile(transaction_.store().pagePointer(oldFirstPage));
+            uint32_t oldTotalSize = pTile.totalSize();
+            transaction_.freePages(oldFirstPage,
+                transaction_.store().pagesForBytes(oldTotalSize));
             transaction_.putTile(task.tip(), {task.data(), task.size()});
-            // transaction_.addBlob({task.data(), task.size()});
-            // TODO: For now, we just write the raw data into the file
-            //  because the generated tiles aren't valid yet
         }
         catch (std::exception& ex)
         {
@@ -252,6 +262,8 @@ void Updater::update(std::string_view url, std::span<const char*> files)
     //assert(_CrtCheckMemory());
     start();
 
+    uint32_t newRevision = 0;
+
     if (!url.empty())
     {
         Console::get()->start("Checking for updates...");
@@ -268,6 +280,7 @@ void Updater::update(std::string_view url, std::span<const char*> files)
             Console::end().success() << "No updates available\n";
             return;
         }
+        newRevision = ingester.currentRevision();
     }
     else
     {
@@ -303,6 +316,7 @@ void Updater::update(std::string_view url, std::span<const char*> files)
         // TODO: We need to lock the store for writing earlier,
         //  so we can detect any lock conflicts before doing
         //  any work
+    transaction_.targetSnapshot().revision = newRevision;
     if (!url.empty())
     {
         transaction_.setReplicationUrl(url);

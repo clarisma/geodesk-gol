@@ -34,7 +34,7 @@ AnalyzerWorker::AnalyzerWorker(Analyzer* analyzer) :
 
 void AnalyzerWorker::flush()
 {
-	LOG("== Flushing context %p with %d strings", this, strings_.counterCount());
+	// LOG("== Flushing context %p with %d strings", this, strings_.counterCount());
 	std::unique_ptr<uint8_t[]> strings = strings_.takeStrings();
 
 	// Now that we've reset the String Statistics, the lookup table entries
@@ -163,7 +163,7 @@ void AnalyzerWorker::endBlock()	// CRTP override
 
 void AnalyzerWorker::afterTasks()
 {
-	LOG("Context %p: flushing remaining strings...", this);
+	// LOG("Context %p: flushing remaining strings...", this);
 	flush();
 }
 

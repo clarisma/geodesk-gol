@@ -25,6 +25,7 @@ public:
     void download(std::string_view url);
     std::string_view error() const { return error_; }
     Status status() const { return status_; }
+    uint32_t currentRevision() const { return currentRevision_; }
 
 private:
     void performDownload();

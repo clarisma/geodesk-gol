@@ -5,7 +5,7 @@
 #include <clarisma/data/HashMap.h>
 #include <clarisma/data/HashSet.h>
 #include <clarisma/validate/BinaryChecker.h>
-#include <geodesk/feature/FeaturePtr.h>
+#include <geodesk/feature/WayPtr.h>
 #include <geodesk/feature/TilePtr.h>
 #include <geodesk/feature/Tip.h>
 #include <geodesk/geom/Tile.h>
@@ -78,9 +78,16 @@ private:
 	bool checkFeatureBounds2D(FeaturePtr feature);
 	uint32_t checkFeature2D(FeaturePtr feature);
 	uint32_t checkWay(DataPtr p);
+	void checkWayBody(WayPtr way);
+	void checkRelatedTable(FeaturePtr parent, const char* what,
+		DataPtr p, Tex startTex, int step, int extraFlags,
+		FeatureTypes acceptedTypes);
+	void checkReferencedFeature(DataPtr p, TypedFeatureId parent, FeatureTypes acceptedTypes);
 	uint32_t checkRelation(DataPtr p);
+	void checkRelationTable(DataPtr ppRels);
 	bool checkPointer(DataPtr pBase, int delta);
     bool checkAccess(DataPtr p, const char* what);
+	bool checkAccess(DataPtr p, const char* what, size_t size);
     bool checkBounds(DataPtr pStored);
     bool checkBounds(DataPtr pStored, const Box& actual);
     bool checkId(FeaturePtr feature);

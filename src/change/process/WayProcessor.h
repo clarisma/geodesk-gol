@@ -17,7 +17,7 @@ public:
 	//  Collapse into FLAGGED_WAYNODE?
 	void process()
 	{
-		if (way().id() == 1163002394)
+		if (way().id() == 28833517)
 		{
 			LOGS << "!!!";
 		}
@@ -126,7 +126,9 @@ public:
 
 		// TODO: TEX changes
 
-		addFlags(ChangeFlags::PROCESSED);
+		addFlags(featureNodes_ ?
+			(ChangeFlags::PROCESSED | ChangeFlags::WAY_WILL_HAVE_FEATURE_NODES) :
+			ChangeFlags::PROCESSED);
 		tallyStats();
 	}
 

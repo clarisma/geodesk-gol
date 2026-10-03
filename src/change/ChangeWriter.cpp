@@ -444,7 +444,7 @@ bool ChangeWriter::isNewToThisTile(const ChangedFeature2D* feature) const
 
 void ChangeWriter::writeWay(const ChangedFeature2D* way)
 {
-    if(way->id() == 1338636317)
+    if(way->id() == 750583717)
     {
         LOGS << "Writing changed way/" << way->id();
     }

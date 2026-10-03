@@ -458,7 +458,7 @@ void TesReader::readNodeChange(TNode* node)
  */
 void TesReader::readWayChange(TWay* way)
 {
-	if (way->id() == 30910986)
+	if (way->id() == 750583717)
 	{
 		LOGS << "Reading change for way/" << way->id();
 	}

@@ -64,7 +64,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 3312813977)
+		if (node().id() == 316989735)
 		{
 			LOGS << "!!!";
 		}
@@ -420,20 +420,22 @@ private:
 			// If a node's feature status has changed, all ways that
 			// contain this node need to update their node tables
 
-			if (!is(ChangeFlags::GEOMETRY_CHANGED))
+			// if (!is(ChangeFlags::GEOMETRY_CHANGED))
+			// {
+
+			// Only do this if the node hasn't moved (for nodes that
+			// moved, the TileChangeAnalyzer has already marked their
+			// implicitly changed parent ways
+			// No! We need to mark parents as members_changed
+			// TODO: didn't fix the 10/3/26 problem
+
+			if (willBeFeature_ || (pastFeatureFlags_ & FeatureFlags::WAYNODE) != 0)
 			{
-				// Only do this if the node hasn't moved (for nodes that
-				// moved, the TileChangeAnalyzer has already marked their
-				// implicitly changed parent ways
+				// Only do this if an anonymous node (which is always a waynode)
+				// turn feature node, or a waynode-flagged feature node turns
+				// anonymous
 
-				if (willBeFeature_ || (pastFeatureFlags_ & FeatureFlags::WAYNODE) != 0)
-				{
-					// Only do this if an anonymous node (which is always a waynode)
-					// turn feature node, or a waynode-flagged feature node turns
-					// anonymous
-
-					mgr_.wayNodeFeatureStatusChanged(node().xy(), pastNode_);
-				}
+				mgr_.wayNodeFeatureStatusChanged(pastXY_, pastNode_);
 			}
 		}
 	}
