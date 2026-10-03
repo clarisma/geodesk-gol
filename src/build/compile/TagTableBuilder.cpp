@@ -28,25 +28,40 @@ TTagTable* TagTableBuilder::getTagTable(ByteSpan protoTags, bool determineIfArea
 	{
 		std::pair<int, std::string_view> key = ProtoGol::readKeyString(p, strings_);
 		std::pair<int, std::string_view> val = ProtoGol::readValueString(p, strings_);
-		if(key.first >= 0)
+		if(key.first > 0)
 		{
-			if(val.first >= 0)
+			if(val.first > 0)
 			{
 				addGlobalTag(key.first, val.first);
 			}
 			else
 			{
+				if (val.first == 0)	[[unlikely]]
+				{
+					// skip blank value
+					continue;
+				}
 				addGlobalTag(key.first, val.second);
 			}
 		}
 		else
 		{
-			if(val.first >= 0)
+			if (key.first == 0)	[[unlikely]]
+			{
+				// skip blank key
+				continue;
+			}
+			if(val.first > 0)
 			{
 				addLocalTag(key.second, val.first);
 			}
 			else
 			{
+				if (val.first == 0)	[[unlikely]]
+				{
+					// skip blank value
+					continue;
+				}
 				addLocalTag(key.second, val.second);
 			}
 		}
