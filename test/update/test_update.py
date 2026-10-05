@@ -71,6 +71,7 @@ def perform_update_test(name, gol_tool, tmp_path):
 def test_update(gol_tool, tmp_path):
     print(f"tmp_path = {tmp_path}")
     cases = [
+        "node-promotion",
         "russian-shop",
         "areas",
         "new-dupes",

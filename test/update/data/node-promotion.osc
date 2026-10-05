@@ -1,0 +1,28 @@
+<!--
+
+Verify that:
+    - node/2 and node/5 are properly promoted
+    - way/10 has its node table updated
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <create>
+        <node id="6" version="1" lon="-30" lat="45"/>
+    </create>
+    <modify>
+        <node id="2" version="2" lon="-45" lat="45">
+            <tag k="highway" v="crossing"/>
+        </node>
+        <node id="5" version="2" lon="90" lat="45">
+            <tag k="barrier" v="gate"/>
+        </node>
+        <way id="10" version="2">
+            <nd ref="1"/>
+            <nd ref="2"/>
+            <nd ref="6"/>
+            <nd ref="3"/>
+            <nd ref="4"/>
+            <nd ref="5"/>
+        </way>
+    </modify>
+</osmChange>

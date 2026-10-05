@@ -578,15 +578,23 @@ void TesReader::readWayChange(TWay* way)
 	{
 		if (willBeRelationMember)
 		{
-			body->setHandle(bodyHandle + 4);
+			// body->setHandle(bodyHandle + 4);
 			bodyHandle += 4;
 		}
 		else
 		{
-			body->setHandle(bodyHandle - 4);
+			// body->setHandle(bodyHandle - 4);
 			bodyHandle -= 4;
 		}
 	}
+	bodyHandle &= 0xffff'fffe;
+	body->setHandle(bodyHandle);
+		// We always force the body's handle into a 2-byte
+		// alignment, because otherwise pointers in the
+		// way's node table cannot be represented
+		// (Changing the handle is ok, since bodies are never
+		// looked up by handle, which also means we don't
+		// have to worry that the handle may clash)
 
 	uint32_t memberTableSize;
 	if (flags & TesFlags::MEMBERS_CHANGED)
