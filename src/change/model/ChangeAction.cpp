@@ -22,6 +22,11 @@ void ChangeAction::apply(ChangeModel& model)
     {
         if(isRefSE_)    [[unlikely]]
         {
+            if (typedId().isNode())
+            {
+                LOGS << "Illegal SE ref for " << typedId() <<
+                    " in change action " << type_;
+            }
             changed->offerRefSE(ref_);
         }
         else

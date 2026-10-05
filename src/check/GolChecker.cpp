@@ -27,7 +27,7 @@ void GolChecker::processTile(Tip tip, Tile tile)
 #ifdef GOL_DIAGNOSTICS
         if (Console::verbosity() >= Console::Verbosity::DEBUG)
         {
-            TileChecker checker(tip, tile, TilePtr(pTile.ptr()));
+            TileChecker checker(store(), tip, tile, TilePtr(pTile.ptr()));
             checker.check();
         }
 #endif

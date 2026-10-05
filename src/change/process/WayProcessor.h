@@ -139,6 +139,7 @@ private:
 	bool computeBounds()
 	{
 		bool defer = false;
+		bool nodesChangedTiles = false;
 		for(CFeatureStub* nodeStub : members())
 		{
 			CFeature* node = nodeStub->get();
@@ -158,10 +159,25 @@ private:
 			}
 			else
 			{
+				if (node->isChanged())
+				{
+					ChangedNode* changedNode = ChangedNode::cast(node);
+					nodesChangedTiles |= changedNode->is(ChangeFlags::TILES_CHANGED);
+				}
 				futureBounds_.expandToInclude(node->xy());
 			}
 			featureNodes_ += ref.tip().isNull() ? 1 : 0;
 		}
+		addFlags(nodesChangedTiles ? ChangeFlags::MEMBERS_CHANGED :
+			ChangeFlags::NONE);
+			// If any (feature) nodes changed tiles, we need to mark
+			// the way as members_changed so the node table is updated
+			// (Anonymous nodes are never flagged tiles_changed)
+			// TODO: Since tile changes are rare, should we let
+			//  the node change cascade, jsut like we do with
+			//  promotion/demotion? This would save us from checking
+			//  whether the node has changed in the fairly hot loop
+			//  above
 		return !defer;
 	}
 

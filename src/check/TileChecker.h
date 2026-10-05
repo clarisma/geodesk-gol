@@ -5,6 +5,7 @@
 #include <clarisma/data/HashMap.h>
 #include <clarisma/data/HashSet.h>
 #include <clarisma/validate/BinaryChecker.h>
+#include <geodesk/feature/RelationPtr.h>
 #include <geodesk/feature/WayPtr.h>
 #include <geodesk/feature/TilePtr.h>
 #include <geodesk/feature/Tip.h>
@@ -16,7 +17,7 @@ using namespace geodesk;
 class TileChecker : protected BinaryChecker
 {
 public:
-    TileChecker(Tip tip, Tile tile, TilePtr pTile);
+    TileChecker(const FeatureStore& store, Tip tip, Tile tile, TilePtr pTile);
 
     bool check();
 
@@ -83,8 +84,10 @@ private:
 		DataPtr p, Tex startTex, int step, int extraFlags,
 		FeatureTypes acceptedTypes);
 	void checkReferencedFeature(DataPtr p, TypedFeatureId parent, FeatureTypes acceptedTypes);
+	void checkForeignFeature(Tip tip, Tex tex, TypedFeatureId parent, FeatureTypes acceptedTypes);
 	uint32_t checkRelation(DataPtr p);
-	void checkRelationTable(DataPtr ppRels);
+	void checkRelationBody(RelationPtr rel);
+	void checkRelationTable(FeaturePtr member, DataPtr ppRels);
 	bool checkPointer(DataPtr pBase, int delta);
     bool checkAccess(DataPtr p, const char* what);
 	bool checkAccess(DataPtr p, const char* what, size_t size);
@@ -99,6 +102,7 @@ private:
 
     static constexpr uint32_t INVALID_INDEX = 0xffff'ffff;
 
+	const FeatureStore& store_;
     Tip tip_;
     Tile tile_;
     Box tileBounds_;

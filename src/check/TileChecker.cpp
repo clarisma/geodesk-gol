@@ -10,9 +10,11 @@
 #include <geodesk/feature/WayPtr.h>
 
 #include "clarisma/util/log.h"
+#include "geodesk/feature/FeatureStore.h"
 
-TileChecker::TileChecker(Tip tip, Tile tile, TilePtr pTile) :
+TileChecker::TileChecker(const FeatureStore& store, Tip tip, Tile tile, TilePtr pTile) :
     BinaryChecker(pTile.ptr(), pTile.totalSize()),
+    store_(store),
     tip_(tip),
     tile_(tile)
 {
@@ -325,6 +327,10 @@ uint32_t TileChecker::checkNode(DataPtr p, Box& actualLeafBounds)
     {
         error(p, "Node has area_flag set");
     }
+    if (flags & (FeatureFlags::MULTITILE_NORTH | FeatureFlags::MULTITILE_WEST))
+    {
+        error(p, "Node has multi-tile flags set");
+    }
     NodePtr node(feature);
     if (!tileBounds_.contains(node.xy()))
     {
@@ -346,6 +352,11 @@ uint32_t TileChecker::checkNode(DataPtr p, Box& actualLeafBounds)
         {
             error(p, "'Orphan' node is a relation member");
         }
+    }
+
+    if (feature.isRelationMember())
+    {
+        checkRelationTable(feature, p + 12);
     }
     return tags.keys;
 }
@@ -605,7 +616,7 @@ void TileChecker::checkWayBody(WayPtr way)
     {
         p -= 4;
         if (!checkAccess(p, "way body")) return;
-        checkRelationTable(p);
+        checkRelationTable(way, p);
     }
     if (way.hasFeatureNodes())
     {
@@ -661,8 +672,9 @@ void TileChecker::checkRelatedTable(FeaturePtr parent,
                 }
                 tipDelta >>= 1;     // signed
                 currentTip += tipDelta;
-                // TODO: set exports
             }
+            currentTex += member >> (4 + extraFlags);
+            checkForeignFeature(currentTip, currentTex, parentId, acceptedTypes);
         }
         else
         {
@@ -684,6 +696,36 @@ void TileChecker::checkRelatedTable(FeaturePtr parent,
             }
             checkReferencedFeature(pMember, parentId, acceptedTypes);
         }
+        if (extraFlags > 0)
+        {
+            // This is the member table of a relation,
+            // so we need to read and check the role
+
+            if (member & MemberFlags::DIFFERENT_ROLE)
+            {
+                if (!checkAccess(p, what, 2)) return;
+                int rawRole = p.getUnsignedShort();
+                if (rawRole & 1)	[[likely]]
+                {
+                    // common role
+                    int roleCode_ = rawRole >> 1;
+                    p += 2;
+                }
+                else
+                {
+                    if (!checkAccess(p, what, 4)) return;
+                    int rawRolePtr = p.getIntUnaligned();
+                    int relRolePtr = rawRolePtr >> 1;
+                    if (checkPointer(p, relRolePtr))
+                    {
+                        checkString(p + relRolePtr);
+                        // TODO: check to ensure we use global string
+                        //  if possible
+                    }
+                    p += 4;
+                }
+            }
+        }
     }
     while ((member & MemberFlags::LAST) == 0);
 }
@@ -700,16 +742,101 @@ void TileChecker::checkReferencedFeature(DataPtr p, TypedFeatureId parent, Featu
     }
 }
 
-void TileChecker::checkRelationTable(DataPtr ppRels)
+void TileChecker::checkForeignFeature(Tip tip, Tex tex, TypedFeatureId parent, FeatureTypes acceptedTypes)
 {
-    // TODO
+    // TODO: verify that tip is legal
+    TilePtr pTile = store_.fetchTile(tip);
+    if (!pTile)
+    {
+        warning("Can't check %06X: not loaded", tip);
+        return;
+    }
+    uint32_t totalSize = pTile.totalSize();
+    DataPtr ppExports = pTile + TileConstants::EXPORTS_OFS;
+    int relExports = ppExports.getInt();
+    if (relExports == 0) return; // no exports
+    DataPtr pExports = ppExports + relExports;
+    if (pExports < pTile + TileConstants::HEADER_SIZE ||
+        pExports >= pTile + totalSize - 8)
+    {
+        error(pExports, "%06X: Invalid export table pointer", tip);
+        return;
+    }
+    uint32_t exportCount = (pExports - 4).getUnsignedInt();
+    uint32_t slot = static_cast<uint32_t>(tex);
+    DataPtr ppFeature = pExports + slot * 4;
+    if (slot >= exportCount)
+    {
+        error(ppFeature, "%06X: Illegal TEX #%d", tip, slot);
+        return;
+    }
+    if (ppFeature >= pTile + totalSize - 4)
+    {
+        error(ppFeature, "%06X: Export table truncated", tip);
+        return;
+    }
+    int relFeature = ppFeature.getInt();
+    if (relFeature == 0)
+    {
+        error("%06X: Export #%d has been deleted", tip, slot);
+        return;
+    }
+    DataPtr pFeature = ppFeature + relFeature;
+    if (pFeature < pTile + TileConstants::HEADER_SIZE ||
+        pFeature >= pTile + totalSize - 16)
+    {
+        error(ppFeature, "%06X: TEX #%d references illegal location", tip, slot);
+        return;
+    }
+    FeaturePtr feature(pFeature);
+    if (!acceptedTypes.acceptFlags(feature.flags()))
+    {
+        char buf[32];
+        parent.format(buf);
+        error(pFeature, "%06X #%d: wrong related feature type for %s",
+            tip, tex, buf);
+    }
+}
+
+
+void TileChecker::checkRelationTable(FeaturePtr member, DataPtr ppRels)
+{
+    int relRels = ppRels.getInt();
+    if (!checkPointer(ppRels, relRels))
+    {
+        error(ppRels, "Invalid relation table pointer for %s/%llu",
+            member.typeName(), member.id());
+        return;
+    }
+    DataPtr p = ppRels + relRels;
+    checkRelatedTable(member, "relation table", p,
+        Tex::RELATIONS_START_TEX, 2, 0,
+        FeatureTypes::RELATIONS);
 }
 
 uint32_t TileChecker::checkRelation(DataPtr p)
 {
     RelationPtr rel(p);
-    return checkFeature2D(rel);
+    uint32_t actualKeys = checkFeature2D(rel);
+    checkRelationBody(rel);
+    return actualKeys;
 }
+
+void TileChecker::checkRelationBody(RelationPtr rel)
+{
+    DataPtr ppBody = rel.ptr() + 12;
+    int relBody = ppBody.getInt();
+    if (!checkPointer(ppBody, relBody)) return;
+    DataPtr p = rel.bodyptr();
+    if (rel.isRelationMember())
+    {
+        checkRelationTable(rel, p-4);
+    }
+    checkRelatedTable(rel, "member table", p,
+        Tex::MEMBERS_START_TEX, 2, 1,
+        FeatureTypes::ALL);
+}
+
 
 void TileChecker::checkExports(DataPtr ppExports)
 {
