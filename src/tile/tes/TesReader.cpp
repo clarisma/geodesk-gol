@@ -551,7 +551,9 @@ void TesReader::readWayChange(TWay* way)
 	}
 	else
 	{
-		if (flags & TesFlags::NODE_IDS_CHANGED)
+		// Geometry unchanged
+
+		if (flags & TesFlags::NODE_IDS_CHANGED)	[[unlikely]]
 		{
 			invalid(
 				"If NODE_IDS_CHANGED is set, GEOMETRY_CHANGED"
@@ -617,18 +619,37 @@ void TesReader::readWayChange(TWay* way)
 	{
 		if (memberTableSize > 0)
 		{
+			if (way->id() == 750583717)
+			{
+				LOGS << "Reading node table for way/" << way->id();
+			}
 			// TODO: spec change proposed, may need memberTableSize * 2
 			needsFixup = readWayNodeTable(bodyHandle - relationTablePtrSize,
 				pNewBody - relationTablePtrSize, memberTableSize);
+			if (way->id() == 750583717)
+			{
+				LOGS << "Read node table for way/" << way->id()
+					<< " of size " << memberTableSize << ", needsFixup = "
+					<< needsFixup;
+			}
 		}
 		else
 		{
 			needsFixup = false;
+			if (way->id() == 750583717)
+			{
+				LOGS << "Dropped node table of way/" << way->id();
+			}
 		}
 	}
 	else
 	{
 		memcpy(pNewBody.ptr() - newAnchor, pOldBody - body->anchor(), memberTableSize);
+		if (way->id() == 750583717)
+		{
+			LOGS << "Reused node table of way/" << way->id()
+				<< ", size = " << memberTableSize;
+		}
 	}
 
 	if (willBeRelationMember)
@@ -660,6 +681,13 @@ void TesReader::readWayChange(TWay* way)
 		(FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == 0) ?
 		TElement::Alignment::BYTE : TElement::Alignment::WORD);
 	body->setNeedsFixup(needsFixup);
+
+	if (way->id() == 750583717)
+	{
+		LOGS << "Body of way/" << way->id()
+			<< ": anchor = " << body->anchor()
+			<< ", needsFixup = " << body->needsFixup();
+	}
 }
 
 /**
