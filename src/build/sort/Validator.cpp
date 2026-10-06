@@ -427,7 +427,16 @@ void ValidatorWorker::exportNodes()
 		{
 			int specialNodeFlags =
 				static_cast<int>(hasSharedLocation) |
-					(static_cast<int>(isOrphan) << 1);
+				(static_cast<int>(isOrphan) << 1) |
+				(static_cast<int>(node->isWayNode()) << 2);
+
+			// 10/6/26: For a special node, we need to explicitly
+			// pass the waynode flag, because the Compiler
+			// processes ways before special-node records,
+			// and hence will otherwise fail to mark a node
+			// as a waynode because its promotion happens later
+			// (Fixes #8)
+
 			pileWriter_.writeSpecialNode(node->id(), specialNodeFlags);
 		}
 

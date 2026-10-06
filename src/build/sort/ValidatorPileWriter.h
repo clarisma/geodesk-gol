@@ -137,11 +137,11 @@ public:
 
 	void writeSpecialNode(uint64_t id, int specialNodeFlags)
 	{
-		assert((specialNodeFlags & 3) == specialNodeFlags);
+		assert((specialNodeFlags & 7) == specialNodeFlags);
 		Pile* pile = getLocal(ProtoGol::SPECIAL_GROUP);
 		uint8_t buf[16];
 		uint8_t* p = buf;
-		writeVarint(p, ((id - pile->prevId_) << 2) | specialNodeFlags);
+		writeVarint(p, ((id - pile->prevId_) << 3) | specialNodeFlags);
 		assert(p - buf <= sizeof(buf));
 		write(pile, buf, p - buf);
 		pile->prevId_ = id;

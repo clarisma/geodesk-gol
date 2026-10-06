@@ -31,7 +31,8 @@ namespace ProtoGol
 	enum SpecialNodeFlags
 	{
 		SHARED = 1,
-		ORPHAN = 2
+		ORPHAN = 2,
+		WAYNODE = 4
 	};
 
 	enum
