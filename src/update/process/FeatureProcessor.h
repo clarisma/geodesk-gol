@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
-#include "change/ChangeManager.h"
-#include "change/model/ChangedTile.h"
+#include "update/ChangeManager.h"
 
 using namespace geodesk;
 

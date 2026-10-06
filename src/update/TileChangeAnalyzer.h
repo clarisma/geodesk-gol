@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
@@ -7,7 +7,7 @@
 #include <clarisma/data/HashSet.h>
 #include <geodesk/feature/Tex.h>
 #include <geodesk/feature/WayNodeIterator.h>
-#include "change/model/CFeature.h"
+#include "update/model/CFeature.h"
 #include "tile/model/TileReaderBase.h"
 
 using namespace geodesk;

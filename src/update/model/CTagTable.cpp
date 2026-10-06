@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "CTagTable.h"
-
-#include <clarisma/cli/Console.h>
+#include "ChangeModel.h"
 #include <clarisma/util/Hash.h>
 #include <clarisma/util/log.h>
 #include <geodesk/feature/GlobalTagIterator.h>
 #include <geodesk/feature/LocalTagIterator.h>
-#include "ChangeModel.h"
 
 using namespace clarisma;
 

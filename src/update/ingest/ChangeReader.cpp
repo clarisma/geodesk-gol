@@ -1,11 +1,11 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "ChangeReader.h"
 #include <geodesk/feature/FeatureStore.h>
 #include <clarisma/util/log.h>
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangedNode.h"
+#include "update/model/ChangeModel.h"
+#include "update/model/ChangedNode.h"
 #include "tag/TagTableModel.h"
 
 // TODO: If version is missing from a change, set it to 1,

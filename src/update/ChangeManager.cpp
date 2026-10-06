@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "ChangeManager.h"
@@ -8,11 +8,11 @@
 #include <geodesk/query/ParentWaysQuery.h>
 
 #include "build/sort/SuperRelation.h"
-#include "change/model/ChangeModelDumper.h"
-#include "change/model/ChangedTile.h"
-#include "change/process/NodeProcessor.h"
-#include "change/process/WayProcessor.h"
-#include "change/process/RelationProcessor.h"
+#include "update/model/ChangeModelDumper.h"
+#include "update/model/ChangedTile.h"
+#include "update/process/NodeProcessor.h"
+#include "update/process/WayProcessor.h"
+#include "update/process/RelationProcessor.h"
 #include "geodesk/query/FeatureFinder.h"
 #include "osm/SuperRelationScore.h"
 

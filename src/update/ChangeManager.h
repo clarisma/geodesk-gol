@@ -1,10 +1,10 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
 #include "build/util/TileCatalog.h"
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangeStatistics.h"
+#include "update/model/ChangeModel.h"
+#include "update/model/ChangeStatistics.h"
 #include "ChangeWriter.h"
 #include "TileChangeAnalyzer.h"
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "ChangeWriter.h"
@@ -7,9 +7,9 @@
 #include <clarisma/cli/Console.h>
 #include <clarisma/util/log.h>
 
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangedNode.h"
-#include "change/model/ChangedTile.h"
+#include "update/model/ChangeModel.h"
+#include "update/model/ChangedNode.h"
+#include "update/model/ChangedTile.h"
 #include "tile/tes/TesFlags.h"
 
 // TODO: Careful with changed features, we may have a copy,

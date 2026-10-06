@@ -1,13 +1,13 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "ChangeIngester.h"
 
 #include <clarisma/zip/Zip.h>
-#include "change/Updater.h"
+#include "update/Updater.h"
 #include "ChangeReader.h"
 #include "ReplicationClient.h"
-#include "change/model/ChangeModel.h"
+#include "update/model/ChangeModel.h"
 
 
 // TODO: Make sure to set another task before this class is destroyed,

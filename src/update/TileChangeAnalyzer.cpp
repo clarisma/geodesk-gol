@@ -6,9 +6,9 @@
 #include <geodesk/feature/MemberIterator.h>
 #include <geodesk/feature/WayNodeIdIterator.h>
 
-#include "change/model/ChangeAction.h"
-#include "change/model/ChangeModel.h"
-#include "change/model/ChangedNode.h"
+#include "update/model/ChangeAction.h"
+#include "update/model/ChangeModel.h"
+#include "update/model/ChangedNode.h"
 
 // TODO: Don't clobber bboxes of changed features during
 //  the secondary search

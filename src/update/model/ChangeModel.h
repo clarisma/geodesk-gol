@@ -16,7 +16,7 @@
 #include "ChangedNode.h"
 #include "CRelationTable.h"
 #include "CTagTable.h"
-#include "change/UpdateSettings.h"
+#include "update/UpdateSettings.h"
 
 using namespace clarisma;
 

@@ -14,7 +14,7 @@
 
 #include "ingest/ChangeIngester.h"
 #include "ingest/ChangeReader.h"
-#include "change/model/ChangeStatistics.h"
+#include "model/ChangeStatistics.h"
 #include "tile/compiler/TileCompiler.h"
 
 // TODO: Need to commit tx if different replication URL has been set,

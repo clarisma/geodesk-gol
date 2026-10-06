@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #pragma once
@@ -6,7 +6,7 @@
 #include <clarisma/data/LinkedStack.h>
 #include <clarisma/util/BufferWriter.h>
 #include <geodesk/geom/Box.h>
-#include "change/model/CTagTable.h"
+#include "update/model/CTagTable.h"
 #include "TableEncoder.h"
 
 using namespace geodesk;

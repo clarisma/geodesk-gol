@@ -6,8 +6,8 @@
 #include <clarisma/util/SimpleXmlParser.h>
 #include <geodesk/geom/Coordinate.h>
 #include "tag/TagTableModel.h"
-#include "change/model/ChangeFlags.h"
-#include "change/model/CFeature.h"
+#include "update/model/ChangeFlags.h"
+#include "update/model/CFeature.h"
 
 using namespace clarisma;
 using namespace geodesk;

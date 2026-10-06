@@ -1,11 +1,11 @@
-// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #include "CRelationTable.h"
-
+#include "CFeature.h"
 #include <clarisma/util/Hash.h>
 
-#include "CFeature.h"
+
 
 CRelationTable::CRelationTable(std::span<CFeatureStub*> rels) :
     count_(static_cast<uint32_t>(rels.size()))
