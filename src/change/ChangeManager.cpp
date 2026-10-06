@@ -224,7 +224,7 @@ void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
     {
         WayPtr way = query.next();
         if (way.isNull()) break;
-        if (way.id() == 28833517)
+        if (way.id() == 97831916)
         {
             LOGS << "Notifying way/" << way.id() << " that one of its nodes "
                 "changed feature status";

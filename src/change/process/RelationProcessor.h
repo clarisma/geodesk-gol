@@ -251,6 +251,11 @@ private:
 								defer = true;
 								continue;
 							}
+
+							// If the child relation moved tiles, ensure that
+							// the parent relation's member table will be updated
+							addFlags(member2D->is(ChangeFlags::TILES_CHANGED) ?
+								ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE);
 						}
 						else
 						{
