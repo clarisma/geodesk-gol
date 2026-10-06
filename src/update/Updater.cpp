@@ -212,7 +212,8 @@ void Updater::readChangeFiles(std::span<const char*> files)
 }
 
 // void Updater::update(const char* changeFileName)
-void Updater::update(std::string_view url, std::span<const char*> files)
+void Updater::update(std::string_view url, std::span<const char*> files,
+    uint32_t targetRevision)
 {
     FeatureStore* store = model().store();
     std::string shortName(FilePath::name(store->fileName()));

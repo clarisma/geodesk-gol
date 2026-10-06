@@ -70,30 +70,6 @@ int UpdateCommand::run(char* argv[])
     if (res != 0) return res;
 
     std::vector<const char*> files;
-    /*
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4254.osc");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4255.osc");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4256.osc");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4257.osc");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4258.osc");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4259.osc");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4260.osc");
-    */
-    // files.push_back("e:\\geodesk\\mapdata\\updates\\de-4255.osc.gz");
-
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4255.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4256.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4257.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4258.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4259.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4260.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4261.osc.gz");
-
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4262.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4263.osc.gz");
-    files.push_back("e:\\geodesk\\mapdata\\updates\\de-4264.osc.gz");
-
-    // assert(_CrtCheckMemory());
 
     UpdateSettings settings;
     settings.setThreadCount(threadCount());
@@ -110,10 +86,7 @@ int UpdateCommand::run(char* argv[])
     // assert(_CrtCheckMemory());
 
     Updater updater(&store_, settings);
-    // ByteBlock osc = File::readAll("c:\\geodesk\\research\\planet-daily-4443.osc");
-    // ByteBlock osc = File::readAll("c:\\geodesk\\research\\planet-hourly-106663.osc");
-    updater.update(url_, files_);
-    // updater.update("c:\\geodesk\\research\\planet-daily-4443.osc");
+    updater.update(url_, files_, requestedRevision_);
 
     return 0;
 }

@@ -1,0 +1,16 @@
+<!--
+
+Verify that:
+
+- way/10 (park) stays an area
+- way/20 (fence) stays a linear way
+- relation/100 (grass) stays an area
+- relation/200 (site) stays a non-area
+
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="1" lon="32" lat="42"/>
+    </modify>
+</osmChange>

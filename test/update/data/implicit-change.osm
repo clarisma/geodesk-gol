@@ -1,0 +1,31 @@
+<osm version="0.6" generator="geodesk-gol-test">
+    <node id="1" version="1" lon="20" lat="40"/>
+    <node id="2" version="1" lon="30" lat="40"/>
+    <node id="3" version="1" lon="30" lat="35"/>
+    <node id="4" version="1" lon="20" lat="35"/>
+    <way id="10" version="1">
+        <nd ref="1"/>
+        <nd ref="2"/>
+        <nd ref="3"/>
+        <nd ref="4"/>
+        <nd ref="1"/>
+        <tag k="leisure" v="park"/>
+    </way>
+    <way id="20" version="1">
+        <nd ref="1"/>
+        <nd ref="2"/>
+        <nd ref="3"/>
+        <nd ref="4"/>
+        <nd ref="1"/>
+        <tag k="barrier" v="fence"/>
+    </way>
+    <relation id="100" version="1">
+        <member type="way" ref="20" role="outer"/>
+        <tag k="natural" v="grass"/>
+        <tag k="type" v="multipolygon"/>
+    </relation>
+    <relation id="200" version="1">
+        <member type="way" ref="20" role="outer"/>
+        <tag k="type" v="site"/>
+    </relation>
+</osm>

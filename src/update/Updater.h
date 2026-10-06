@@ -75,7 +75,8 @@ public:
 
 	explicit Updater(FeatureStore* store, UpdateSettings& settings);
 
-    void update(std::string_view url, std::span<const char*> files);
+    void update(std::string_view url, std::span<const char*> files,
+    	uint32_t targetRevision);
 
 	// TODO: Consider encapsulating as UpdateProgressTracker?
 	void beginUpdate(
