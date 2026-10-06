@@ -4,10 +4,10 @@
 #include "ChangeIngester.h"
 
 #include <clarisma/zip/Zip.h>
-#include "Updater.h"
+#include "change/Updater.h"
 #include "ChangeReader.h"
 #include "ReplicationClient.h"
-#include "model/ChangeModel.h"
+#include "change/model/ChangeModel.h"
 
 
 // TODO: Make sure to set another task before this class is destroyed,
