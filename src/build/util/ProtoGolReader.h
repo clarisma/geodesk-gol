@@ -244,8 +244,8 @@ protected:
 		{
 			int64_t id = static_cast<int64_t>(readVarint64(p));
 			if (id == 0) break;
-			int specialNodeFlags = static_cast<int>(id) & 3;
-			id = prevId + (id >> 2);
+			int specialNodeFlags = static_cast<int>(id) & 7;
+			id = prevId + (id >> 3);
 			prevId = id;
 			self().specialNode(id, specialNodeFlags);
 		}

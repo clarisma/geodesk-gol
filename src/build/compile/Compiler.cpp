@@ -241,6 +241,8 @@ void CompilerWorker::specialNode(uint64_t id, int specialNodeFlags)
 	{
 		node = promoteAnonymousMemberNode(id);
 	}
+	MutableFeaturePtr pFeature(node->feature());
+
 	if(!node->tags(tile_)->tags().isEmpty())
 	{
 		// TODO: tags() is inefficient, since it performs
@@ -254,13 +256,11 @@ void CompilerWorker::specialNode(uint64_t id, int specialNodeFlags)
 		assert(specialNodeFlags == 0 ||
 			specialNodeFlags==ProtoGol::SpecialNodeFlags::SHARED);
 
-		MutableFeaturePtr pFeature(node->feature());
 		pFeature.setFlag(FeatureFlags::SHARED_LOCATION,
 			specialNodeFlags & ProtoGol::SpecialNodeFlags::SHARED);
 	}
 	else
 	{
-		MutableFeaturePtr pFeature(node->feature());
 		if(specialNodeFlags & ProtoGol::SpecialNodeFlags::SHARED)
 		{
 			// TODO: Can we be sure that "geodesk:" keys are always local strings?
@@ -279,6 +279,8 @@ void CompilerWorker::specialNode(uint64_t id, int specialNodeFlags)
 		// TODO: make more efficient by using cached tag-tables
 		//  (duplicates/orphans are typically in clusters)
 	}
+	pFeature.setFlag(FeatureFlags::WAYNODE,
+		specialNodeFlags & ProtoGol::SpecialNodeFlags::WAYNODE);
 }
 
 void CompilerWorker::readExportTable(int count, const uint8_t*& p)

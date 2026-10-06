@@ -138,6 +138,11 @@ struct VLocalNode : VNode
 		return (idAndFlags & (WAY_NODE | RELATION_NODE | TAGGED_NODE)) == 0;
 	}
 
+	bool isWayNode() const
+	{
+		return (idAndFlags & WAY_NODE) != 0;
+	}
+
 	bool isRelationMember() const
 	{
 		return (idAndFlags & RELATION_NODE) != 0;
