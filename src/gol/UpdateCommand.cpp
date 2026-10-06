@@ -9,14 +9,14 @@
 #include <clarisma/validate/FileSizeParser.h>
 #include <clarisma/validate/Validate.h>
 
-#include "change/Updater.h"
+#include "update/Updater.h"
 
 UpdateCommand::Option UpdateCommand::UPDATE_OPTIONS[] =
 {
     { "buffer",				OPTION_METHOD(&UpdateCommand::setBufferSize) },
     { "B",	    			OPTION_METHOD(&UpdateCommand::setBufferSize) },
-{ "revision",				OPTION_METHOD(&UpdateCommand::setRevision) },
-{ "r",	    			OPTION_METHOD(&UpdateCommand::setRevision) }
+    { "revision",				OPTION_METHOD(&UpdateCommand::setRevision) },
+    { "r",	    			OPTION_METHOD(&UpdateCommand::setRevision) }
 };
 
 UpdateCommand::UpdateCommand()
