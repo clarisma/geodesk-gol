@@ -248,13 +248,15 @@ void CompilerWorker::specialNode(uint64_t id, int specialNodeFlags)
 		// TODO: tags() is inefficient, since it performs
 		//  a lookup; better to cache the handle of the
 		//  empty tag table and compare it directly
+		/*
 		if(specialNodeFlags != 0 &&
 			specialNodeFlags != ProtoGol::SpecialNodeFlags::SHARED)
 		{
 			LOGS << "Tagged node/" << id << " has special flags " << specialNodeFlags;
 		}
-		assert(specialNodeFlags == 0 ||
-			specialNodeFlags==ProtoGol::SpecialNodeFlags::SHARED);
+		*/
+		assert((specialNodeFlags & ProtoGol::SpecialNodeFlags::ORPHAN) == 0);
+		// If node has tags, it cannot be an orphan
 
 		pFeature.setFlag(FeatureFlags::SHARED_LOCATION,
 			specialNodeFlags & ProtoGol::SpecialNodeFlags::SHARED);
