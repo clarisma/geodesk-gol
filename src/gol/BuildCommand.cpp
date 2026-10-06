@@ -137,7 +137,7 @@ void BuildCommand::help()
 		"Keys to consider for tag-based indexing");
 	help.option("--max-key-indexes <n>",
 		"Maximum number of key-based sub-indexes "
-		"(0 - 30, default: 8)");
+		"(1 - 30, default: 8)");
 	help.option("--key-index-min-features <n>",
 		"Minimum number of features in a key index "
 		"(1 - 1000000, default: 300)");

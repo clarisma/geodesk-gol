@@ -109,7 +109,7 @@ public:
 
 	void setMaxKeyIndexes(int v)
 	{
-		maxKeyIndexes_ = Validate::intValue(v, 0, 30);
+		maxKeyIndexes_ = Validate::intValue(v, 1, 30);
 	}
 
 	void setMaxStrings(int64_t v)
