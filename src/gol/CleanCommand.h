@@ -15,6 +15,6 @@ public:
 private:
     static Option CLEAN_OPTIONS[];
 
-    bool setParam(int number, std::string_view value) override {}
+    bool setParam(int number, std::string_view value) override;
     void help() override;
 };

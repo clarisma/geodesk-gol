@@ -25,31 +25,13 @@ CleanCommand::CleanCommand()
         // TODO: concurrent mode
 }
 
-/*
+
 bool CleanCommand::setParam(int number, std::string_view value)
 {
     if (GolCommand::setParam(number, value)) return true;
-    if (number == 2)
-    {
-        if (UrlUtils::isUrl(value.data()))  // safe, is 0-terminated
-        {
-            url_ = value;
-            return true;
-        }
-    }
-
-    if (!url_.empty()) return false;
-        // If URL provided, no other params may follow
-
-    if (UrlUtils::isUrl(value.data()))
-    {
-        throw ValueException("Must be a local file");
-    }
-    files_.push_back(value.data());
-        // This is safe, as value is guaranteed to be 0-terminated
     return true;
 }
-*/
+
 
 int CleanCommand::run(char* argv[])
 {
