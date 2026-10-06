@@ -54,6 +54,9 @@ void DefaultCommand::help()
     help.subCommand("update", "Update a GOL from OSC files or a replication server");
 #endif
     help.subCommand("check", "Verify integrity");
+#ifdef GOL_EXPERIMENTAL
+    help.subCommand("clean", "Free up unused space inside a GOL");
+#endif
     help << "\nUse " << Console::WHITE << "gol help "
         << Console::FAINT_LIGHT_BLUE << "<command>" << Console::DEFAULT
         << " for detailed documentation.\n\n";

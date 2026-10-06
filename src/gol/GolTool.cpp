@@ -6,6 +6,7 @@
 #include <clarisma/cli/CliHelp.h>
 #include "BuildCommand.h"
 #include "CheckCommand.h"
+#include "CleanCommand.h"
 #include "CopyCommand.h"
 #include "DefaultCommand.h"
 #include "GetCommand.h"
@@ -29,6 +30,7 @@ int GolTool::run(char* argv[])
 		{ "build", &GolTool::build },
   		{ "check", &GolTool::check },
 #ifdef GOL_EXPERIMENTAL
+		{ "clean", &GolTool::clean },
 		{ "copy", &GolTool::copy },
 #endif
 #ifdef GOL_DIAGNOSTICS
@@ -84,6 +86,11 @@ int GolTool::check(char* argv[])
 }
 
 #ifdef GOL_EXPERIMENTAL
+int GolTool::clean(char* argv[])
+{
+	return CleanCommand().run(argv);
+}
+
 int GolTool::copy(char* argv[])
 {
 	return CopyCommand().run(argv);
