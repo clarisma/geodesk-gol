@@ -12,6 +12,7 @@
 #include "GetCommand.h"
 #include "InfoCommand.h"
 #include "InstallCommand.h"
+#include "DumpCommand.h"
 #include "DumpTilesCommand.h"
 #include "LoadCommand.h"
 #include "MapCommand.h"
@@ -34,6 +35,7 @@ int GolTool::run(char* argv[])
 		{ "copy", &GolTool::copy },
 #endif
 #ifdef GOL_DIAGNOSTICS
+		{ "dump", &GolTool::dump },
 		{ "dump-tiles", &GolTool::dumpTiles },
 		{ "test", &GolTool::test },
 #endif
@@ -98,6 +100,11 @@ int GolTool::copy(char* argv[])
 #endif
 
 #ifdef GOL_DIAGNOSTICS
+int GolTool::dump(char* argv[])
+{
+	return DumpCommand().run(argv);
+}
+
 int GolTool::dumpTiles(char* argv[])
 {
 	return DumpTilesCommand().run(argv);

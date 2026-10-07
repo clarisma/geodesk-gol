@@ -46,9 +46,9 @@ int CleanCommand::run(char* argv[])
         double workCompleted = 0;
         DataPtr pFree = store().pagePointer(
             store().header()->freeRangeIndex);
-        pFree += 8;
         for (int i = 0; i < freeRangeCount; i++)
         {
+            pFree += 8;
             uint64_t range = pFree.getUnsignedLong();
             uint32_t first = static_cast<uint32_t>(range >> 32);
             uint32_t size = static_cast<uint32_t>(range) >> 1;
