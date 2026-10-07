@@ -97,7 +97,7 @@ void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* ch
     assert(pTile);
     WayPtr pastWay(ref_.getFeature(pTile));
     assert(!pastWay.isNull());
-    way->setBounds(pastWay.bounds());
+    way->initFrom(pastWay);
         // We need to always initialize the bounds of a ChangedFeature2D
         // with its old bounds
     if (way->memberCount() == 0)

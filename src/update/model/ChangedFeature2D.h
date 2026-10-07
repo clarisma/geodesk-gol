@@ -87,6 +87,18 @@ public:
         // don't set BOUNDS_CHANGED
     }
 
+    void initFrom(FeaturePtr wayOrRel)
+    {
+        assert(!wayOrRel.isNull());
+        assert(!wayOrRel.isNode());
+        if (!isChangedExplicitly())
+        {
+            addFlags(wayOrRel.isArea() ?
+                ChangeFlags::FLAGGED_AREA : ChangeFlags::NONE);
+        }
+        setBounds(wayOrRel.bounds());
+    }
+
     void removeMember(CFeatureStub* member) noexcept;
 
     int removedRefcyleCount() const { return removedRefcyleCount_; }

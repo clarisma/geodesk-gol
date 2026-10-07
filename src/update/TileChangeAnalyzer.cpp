@@ -28,6 +28,14 @@
 //  the secondary scan. This may only affects implicitly changed
 //  features that haven't been found during initial scan
 
+// TODO: We should resolve shared_location nodes that may become
+//  unique_location in the TCA -- this way, we'll have all changed
+//  nodes at the end of the first search, instead of discovering
+//  these nodes during processing
+//  This is the logical place, because all the nodes that may be
+//  effected by a shared_location node moving are always in the
+//  same tile as that node
+
 /// - If relation is in the ChangeModel:
 ///   - Store its ref
 ///   - If it is explicitly changed:

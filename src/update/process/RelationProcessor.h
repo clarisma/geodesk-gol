@@ -93,6 +93,14 @@ private:
 				return true;
 			}
 		}
+		if (!relation().isChangedExplicitly())
+		{
+			// Keep the old area flag, unless this relation is
+			// changed explicitly (in that case, ChangeReader
+			// already sets the proper flag)
+			addFlags(relation().getFeature(mgr_.store()).isArea() ?
+				ChangeFlags::FLAGGED_AREA : ChangeFlags::NONE);
+		}
 		// assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
 		// TODO: check
 
