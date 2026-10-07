@@ -21,7 +21,7 @@ void HttpClient::closeAndThrow(HINTERNET& handle)
     throw HttpException(error);
 }
 
-HttpClient::HttpClient(std::string_view url)
+HttpClient::HttpClient(std::string_view url, std::string_view userAgent)
 {
     UrlView uv(url);
     host_ = Unicode::toWideString(uv.host());
@@ -40,6 +40,7 @@ HttpClient::HttpClient(std::string_view url)
         if (path.back() == '/') path.remove_suffix(1);
         path_ = path;
     }
+    userAgent_ = Unicode::toWideString(userAgent);
 }
 
 HttpClient::~HttpClient()

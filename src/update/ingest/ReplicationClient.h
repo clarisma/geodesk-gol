@@ -10,7 +10,9 @@ using namespace clarisma;
 class ReplicationClient : protected HttpClient
 {
 public:
-    explicit ReplicationClient(std::string_view url) : HttpClient(url) {}
+    explicit ReplicationClient(std::string_view url,
+        std::string_view userAgent) :
+        HttpClient(url, userAgent) {}
 
     struct State
     {

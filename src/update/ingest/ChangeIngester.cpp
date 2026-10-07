@@ -70,7 +70,8 @@ void ChangeIngester::performDownload()
     std::vector<std::byte> data;
     try
     {
-        ReplicationClient client(url_);
+        ReplicationClient client(url_, "geodesk-gol/" GEODESK_GOL_VERSION " (+https://www.geodesk.com)");
+            // TODO: Put UserAgent string in one common place
         ReplicationClient::State target = client.fetchState();
         FeatureStore* store = updater_.model().store();
 

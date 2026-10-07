@@ -16,10 +16,9 @@ class TileDownloadClient : public HttpResponseReader<TileDownloadClient>
 public:
 	TileDownloadClient(TileLoader& loader, const std::string_view& url) :
 		loader_(loader),
-		client_(url)
+		client_(url, "geodesk-gol/" GEODESK_GOL_VERSION " (+https://www.geodesk.com)")
+			// TODO: Put UserAgent string in one common place
 	{
-		// client_.setUserAgent("gol/" GEODESK_GOL_VERSION);
-		// TODO!!!
 		/*
 		client_.client().set_keep_alive(true);       // ensure we don't send Connection: close
 		client_.client().set_tcp_nodelay(true);      // avoid Nagle delays on small requests

@@ -20,9 +20,8 @@ namespace clarisma {
 class HttpClient
 {
 public:
-    explicit HttpClient(std::string_view url);
+    explicit HttpClient(std::string_view url, std::string_view userAgent);
     ~HttpClient();
-    void setUserAgent(const char* name);
     void setRedirects(int max);
     void setTimeout(int ms);
     void open();
