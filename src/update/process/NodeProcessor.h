@@ -43,6 +43,8 @@
 class NodeProcessor : public FeatureProcessor
 {
 public:
+	using enum ChangeFlags;
+
 	NodeProcessor(ChangeManager& mgr, ChangedNode& node) :
 		FeatureProcessor(mgr, node),
 		pastRef_(node.ref()),
@@ -69,7 +71,7 @@ public:
 			LOGS << "!!!";
 		}
 		processMembershipChanges();
-		if(is(ChangeFlags::DELETED))
+		if(is(DELETED))
 		{
 			// TODO: Deleting a missing node is a no-op
 			if(!pastTip_.isNull())
@@ -85,7 +87,7 @@ public:
 				remove(false, true);
 			}
 			node().setRef(CRef::MISSING);
-			addFlags(ChangeFlags::PROCESSED);
+			addFlags(PROCESSED);
 			tallyStats();
 			return;
 
@@ -121,7 +123,7 @@ public:
 		resolveFeatureStatus();
 		resolveTileChange();
 		propagateFeatureStatusChangeToWays();
-		addFlags(ChangeFlags::PROCESSED);
+		addFlags(PROCESSED);
 		tallyStats();
 
 		if (node().id() == 10816096480)
@@ -137,7 +139,7 @@ public:
 private:
 	void resolveTags()
 	{
-		if (is(ChangeFlags::TAGS_CHANGED))
+		if (is(TAGS_CHANGED))
 		{
 			assert(node().tagTable());
 			willHaveTags_ = node().tagTable() != &CTagTable::EMPTY;
@@ -156,8 +158,7 @@ private:
 
 	void resolveMemberStatus()
 	{
-		if(isAny(ChangeFlags::ADDED_TO_RELATION |
-			ChangeFlags::REMOVED_FROM_RELATION))
+		if(isAny(ADDED_TO_RELATION | REMOVED_FROM_RELATION))
 		{
 			willBeRelationMember_ = node().peekParentRelations() != nullptr;
 		}
@@ -174,7 +175,7 @@ private:
 		willBelongToWay_ = node().isFutureWaynode();
 		if (!willBelongToWay_)
 	    {
-	        if (is(ChangeFlags::REMOVED_FROM_WAY))
+	        if (is(REMOVED_FROM_WAY))
 	        {
 	            // If the node has been removed from a way, we now need
 	            // to check if it still belongs to at least one way
@@ -215,16 +216,16 @@ private:
 	    }
 
 		ChangeFlags flagsToAdd = willBelongToWay_ ?
-			ChangeFlags::FLAGGED_WAYNODE : ChangeFlags::NONE;
+			FLAGGED_WAYNODE : NONE;
 	    flagsToAdd |= (hasBelongedToWay_ != willBelongToWay_) ?
-	        ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE;
+	        FLAGS_CHANGED : NONE;
 		addFlags(flagsToAdd);
 	}
 
 	void resolveCoincidentLocation()
 	{
 	    wasCoincident_ = pastFeatureFlags_ & FeatureFlags::SHARED_LOCATION;
-		willBeCoincident_ = is(ChangeFlags::FLAGGED_SHARED_LOCATION);
+		willBeCoincident_ = is(FLAGGED_SHARED_LOCATION);
 
 	    if (wasCoincident_) [[unlikely]]
 	    {
@@ -243,14 +244,14 @@ private:
 	        	pastTip_, pastNode_.xy());
 	        if (!willBeCoincident_)
 	        {
-	            if (is(ChangeFlags::GEOMETRY_CHANGED))
+	            if (is(GEOMETRY_CHANGED))
 	            {
 	                // If the formerly coincident node moved, and it is
 	                // not coincident at its new location, it loses its
 	                // SHARED_LOCATION flag (already cleared, but we
 	                // need to mark the flag change so the node will be
 	                // updated)
-	                addFlags(ChangeFlags::FLAGS_CHANGED);
+	                addFlags(FLAGS_CHANGED);
 	            }
 	            else
 	            {
@@ -270,7 +271,7 @@ private:
 	        }
 	    }
 		addFlags(wasCoincident_ != willBeCoincident_ ?
-			ChangeFlags::FLAGS_CHANGED : ChangeFlags::NONE);
+			FLAGS_CHANGED : NONE);
 	}
 
 	/// Needs:
@@ -293,16 +294,16 @@ private:
 		willBeOrphan_ = !willHaveTags_ && !willBeRelationMember_ && !willBelongToWay_;
 
 		addFlags(willBeDuplicate_ || willBeOrphan_ ?
-			ChangeFlags::FLAGGED_EXCEPTION_NODE : ChangeFlags::NONE);
+			FLAGGED_EXCEPTION_NODE : NONE);
 
 		if (wasDuplicate_ != willBeDuplicate_ || wasOrphan_ != willBeOrphan_) [[unlikely]]
 		{
-			addFlags(ChangeFlags::FLAGS_CHANGED);
+			addFlags(FLAGS_CHANGED);
 			if (willBeOrphan_ || willBeDuplicate_)
 			{
 				node().setTagTable(mgr_.getExceptionNodeTags(
 					willBeDuplicate_, willBeOrphan_));
-				addFlags(ChangeFlags::TAGS_CHANGED);
+				addFlags(TAGS_CHANGED);
 			}
 		}
 	}
@@ -333,7 +334,7 @@ private:
 	        if(!futureTip.isNull())
 	        {
 	            node().setRef(CRef::ofNew(futureTip));
-	            addFlags(ChangeFlags::NEW_TO_NORTHWEST | ChangeFlags::TILES_CHANGED);
+	            addFlags(NEW_TO_NORTHWEST | TILES_CHANGED);
 	            // If node moves to another tile, we will need to write its tags
 	            //  and rels
 	            if (!node().tagTable())
@@ -343,7 +344,7 @@ private:
 	                assert(tags);
 	                node().setTagTable(tags);
 	            }
-	            if (!is(ChangeFlags::RELTABLE_LOADED))
+	            if (!is(RELTABLE_LOADED))
 	            {
 	                node().setParentRelations(model().getRelationTable(pastRef_));
 	            }
@@ -367,7 +368,7 @@ private:
 	    		// Only push node to tiles if it has actual changes
 	    		ChangedTile* futureTile = mgr_.getChangedTile(futureTip);
 	    		futureTile->changedNodes().push(&node());
-	    		if (is(ChangeFlags::GEOMETRY_CHANGED))
+	    		if (is(GEOMETRY_CHANGED))
 	    		{
 	    			// If node is (and was) a feature node and has moved,
 	    			// its parent relations (if any) may implicitly change
@@ -383,9 +384,9 @@ private:
 	    			Box pastBounds = pastXY_;
 	    			Box futureBounds = node().xy();
 	    			model().memberChanged(&node(), pastBounds, futureBounds,
-						ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::BOUNDS_CHANGED |
-							(isAny(ChangeFlags::DELETED | ChangeFlags::TILES_CHANGED) ?
-								ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE));
+						GEOMETRY_CHANGED | BOUNDS_CHANGED |
+							(isAny(DELETED | TILES_CHANGED) ?
+								MEMBERS_CHANGED : NONE));
 
 	    			// If a node's geometry changes, its bounds are always changed
 	    			// (This is important because parent relations only consider
@@ -406,7 +407,7 @@ private:
 	        //  --> If we don't push it to the changedNodes stack,
 	        //      why would ChangeWriter write it to the TES??
 	        //      (because it is referenced by a way -- but check)
-	        clearFlags(ChangeFlags::TAGS_CHANGED | ChangeFlags::GEOMETRY_CHANGED);
+	        clearFlags(TAGS_CHANGED | GEOMETRY_CHANGED);
 	        setRef(node().ref() == CRef::MISSING ?
 	            CRef::MISSING : CRef::ANONYMOUS_NODE);
 	    }
