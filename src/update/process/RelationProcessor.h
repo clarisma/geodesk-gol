@@ -37,6 +37,8 @@
 class RelationProcessor : public Feature2dProcessor
 {
 public:
+	using enum ChangeFlags;
+
 	RelationProcessor(ChangeManager& mgr, ChangedFeature2D& relation) :
 		Feature2dProcessor(mgr, relation)
 	{
@@ -45,7 +47,7 @@ public:
 
 	void process()
 	{
-		if (!is(ChangeFlags::PROCESSED))
+		if (!is(PROCESSED))
 		{
 			if (!tryProcess())
 			{
@@ -77,7 +79,7 @@ private:
 			LOGS << feature_.typedId() << " (Version " << feature_.version()
 				 << ") at " << feature_.ref() << " / " << feature_.refSE();
 		}
-		if (!is(ChangeFlags::RELTABLE_LOADED))
+		if (!is(RELTABLE_LOADED))
 		{
 			// Only process membership changes if the
 			// reltable hasn't been loaded (which already caused
@@ -89,7 +91,7 @@ private:
 			if (!relation().isChangedExplicitly())
 			{
 				// Missing feature
-				addFlags(ChangeFlags::PROCESSED);
+				addFlags(PROCESSED);
 				return true;
 			}
 		}
@@ -99,18 +101,18 @@ private:
 			// changed explicitly (in that case, ChangeReader
 			// already sets the proper flag)
 			addFlags(relation().getFeature(mgr_.store()).isArea() ?
-				ChangeFlags::FLAGGED_AREA : ChangeFlags::NONE);
+				FLAGGED_AREA : NONE);
 		}
 		// assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
 		// TODO: check
 
-		if (is(ChangeFlags::DELETED))	[[unlikely]]
+		if (is(DELETED))	[[unlikely]]
 		{
 			processDeleted();
 		}
 		else
 		{
-			if (isAny(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::BOUNDS_CHANGED))
+			if (isAny(MEMBERS_CHANGED | BOUNDS_CHANGED))
 			{
 				ensureMembersLoaded();
 				if (!computeBounds()) return false;
@@ -118,7 +120,7 @@ private:
 				{
 					if (missingMembers_ < members().size())	[[likely]]
 					{
-						addFlags(ChangeFlags::MEMBERS_CHANGED);
+						addFlags(MEMBERS_CHANGED);
 						int netMissingMembers = missingMembers_ -
 							relation().removedRefcyleCount();
 							// Child relations that are removed to break
@@ -133,7 +135,7 @@ private:
 					else
 					{
 						// All members missing => delete relation
-						addFlags(ChangeFlags::DELETED);
+						addFlags(DELETED);
 						processDeleted();
 						futureBounds_ = pastBounds_;
 						// avoids possible tile assignment
@@ -141,7 +143,7 @@ private:
 				}
 				if (relation().removedRefcyleCount())	[[unlikely]]
 				{
-					addFlags(ChangeFlags::MEMBERS_CHANGED);
+					addFlags(MEMBERS_CHANGED);
 					// TODO: Flag change needed? Done earlier?
 					setLocalTagWithNumber("geodesk:removed_refcycles",
 						relation().removedRefcyleCount());
@@ -149,7 +151,7 @@ private:
 				if (futureBounds_ != pastBounds_)
 				{
 					updateBounds();
-					if (is(ChangeFlags::TILES_CHANGED))
+					if (is(TILES_CHANGED))
 					{
 						// TODO: If this relation changes tiles, all its
 						//  members must update their reltables
@@ -157,13 +159,13 @@ private:
 				}
 				else
 				{
-					clearFlags(ChangeFlags::BOUNDS_CHANGED);
+					clearFlags(BOUNDS_CHANGED);
 					// Relations are marked BOUNDS_CHANGED during
 					// cascades to indicate that their bounds *may*
 					// change; once we've actually computed the bounds,
 					// we know for sure and can clear the flag
 				}
-				if (!is(ChangeFlags::DELETED))	[[likely]]
+				if (!is(DELETED))	[[likely]]
 				{
 					identifyPotentialTexChanges();
 				}
@@ -192,7 +194,7 @@ private:
 
 
 		// Don't assign to tiles yet, needs to happen in process() itself
-		addFlags(ChangeFlags::PROCESSED);
+		addFlags(PROCESSED);
 
 		return true;
 	}
@@ -241,7 +243,7 @@ private:
 				if(member->isChanged())	[[unlikely]]
 				{
 					ChangedFeature2D* member2D = ChangedFeature2D::cast(member);
-					if(!member2D->is(ChangeFlags::PROCESSED))	[[unlikely]]
+					if(!member2D->is(PROCESSED))	[[unlikely]]
 					{
 						// Member way or relation has not been
 						// processed yet
@@ -262,8 +264,8 @@ private:
 
 							// If the child relation moved tiles, ensure that
 							// the parent relation's member table will be updated
-							addFlags(member2D->is(ChangeFlags::TILES_CHANGED) ?
-								ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE);
+							addFlags(member2D->is(TILES_CHANGED) ?
+								MEMBERS_CHANGED : NONE);
 						}
 						else
 						{
@@ -346,9 +348,9 @@ private:
 
 			if (memberTip != relTip || memberTipSE != relTipSE)
 			{
-				if (member->typedId() == TypedFeatureId::ofWay(1340662848))
+				if (member->typedId() == TypedFeatureId::ofRelation(9474207))
 				{
-					LOGS << "!!!";
+					LOGS << "Member " << member->typedId();
 				}
 				// member is foreign
 				if (!member->isFutureForeign())
@@ -381,7 +383,7 @@ private:
 				//  Check if it may have one, add to CM
 			}
 
-			if (is(ChangeFlags::TILES_CHANGED))
+			if (is(TILES_CHANGED))
 			{
 				// If the relation's tiles changed, we need to
 				// force each member to update its reltable

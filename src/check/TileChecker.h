@@ -4,6 +4,7 @@
 #pragma once
 #include <clarisma/data/HashMap.h>
 #include <clarisma/data/HashSet.h>
+#include <clarisma/util/Pointers.h>
 #include <clarisma/validate/BinaryChecker.h>
 #include <geodesk/feature/RelationPtr.h>
 #include <geodesk/feature/WayPtr.h>
@@ -79,6 +80,7 @@ private:
 	bool checkFeatureBounds2D(FeaturePtr feature);
 	uint32_t checkFeature2D(FeaturePtr feature);
 	uint32_t checkWay(DataPtr p);
+	void checkBodies();
 	void checkWayBody(WayPtr way);
 	void checkRelatedTable(FeaturePtr parent, const char* what,
 		DataPtr p, Tex startTex, int step, int extraFlags,
@@ -99,6 +101,10 @@ private:
     void checkTagValue(DataPtr p, int type);
     const ShortVarString* checkString(DataPtr p);
 	void checkExports(DataPtr ppExports);
+	int handleOf(FeaturePtr feature) const
+	{
+		return Pointers::delta32(feature.ptr(), start());
+	}
 
     static constexpr uint32_t INVALID_INDEX = 0xffff'ffff;
 
@@ -108,6 +114,7 @@ private:
     Box tileBounds_;
 	HashMap<DataPtr,TagTableInfo> tagTables_;
 	HashSet<TypedFeatureId> features_;
+	HashSet<int> featureHandles_;
 	Stats stats_;
 };
 

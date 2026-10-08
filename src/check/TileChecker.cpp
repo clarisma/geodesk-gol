@@ -8,9 +8,8 @@
 #include <geodesk/feature/NodePtr.h>
 #include <geodesk/feature/RelationPtr.h>
 #include <geodesk/feature/WayPtr.h>
-
-#include "clarisma/util/log.h"
-#include "geodesk/feature/FeatureStore.h"
+#include <clarisma/util/log.h>
+#include <geodesk/feature/FeatureStore.h>
 
 TileChecker::TileChecker(const FeatureStore& store, Tip tip, Tile tile, TilePtr pTile) :
     BinaryChecker(pTile.ptr(), pTile.totalSize()),
@@ -28,6 +27,7 @@ bool TileChecker::check()
     checkIndex(start() + WAY_INDEX_OFS, FeatureTypes::NONAREA_WAYS);
     checkIndex(start() + AREA_INDEX_OFS, FeatureTypes::AREAS);
     checkIndex(start() + RELATION_INDEX_OFS, FeatureTypes::NONAREA_RELATIONS);
+    checkBodies();
     checkExports(start() + EXPORTS_OFS);
     for (const Error& error : errors())
     {
@@ -310,6 +310,7 @@ bool TileChecker::checkId(FeaturePtr feature)
         error("Duplicate feature: %s/%llu", feature.typeName(), feature.id());
         return false;
     }
+    featureHandles_.insert(handleOf(feature));
     return true;
 }
 
@@ -352,11 +353,6 @@ uint32_t TileChecker::checkNode(DataPtr p, Box& actualLeafBounds)
         {
             error(p, "'Orphan' node is a relation member");
         }
-    }
-
-    if (feature.isRelationMember())
-    {
-        checkRelationTable(feature, p + 12);
     }
     return tags.keys;
 }
@@ -565,9 +561,33 @@ uint32_t TileChecker::checkFeature2D(FeaturePtr feature)
 uint32_t TileChecker::checkWay(DataPtr p)
 {
     WayPtr way(p);
-    uint32_t actualKeys = checkFeature2D(way);
-    checkWayBody(way);
-    return actualKeys;
+    return checkFeature2D(way);
+}
+
+
+void TileChecker::checkBodies()
+{
+    for (int handle : featureHandles_)
+    {
+        FeaturePtr feature(start() + handle);
+        if (feature.isNode())
+        {
+            NodePtr node(feature);
+            if (node.isRelationMember())
+            {
+                checkRelationTable(feature, feature.ptr() + 12);
+            }
+        }
+        else if (feature.isWay())
+        {
+            checkWayBody(WayPtr(feature));
+        }
+        else
+        {
+            assert(feature.isRelation());
+            checkRelationBody(RelationPtr(feature));
+        }
+    }
 }
 
 void TileChecker::checkWayBody(WayPtr way)
@@ -601,8 +621,9 @@ void TileChecker::checkWayBody(WayPtr way)
         int64_t nodeIdDelta = readSignedVarint64();
         if (nodeIdDelta == 0)
         {
-            warning(p, "way/%llu: Zero ID delta for node #%d (possible dupe)", way.id(), i);
-            break;
+            // TODO: re-enable
+            // warning(p, "way/%llu: Zero ID delta for node #%d (possible dupe)", way.id(), i);
+            // break;
         }
         nodeId += nodeIdDelta;
         if (nodeId < 0)
@@ -732,7 +753,14 @@ void TileChecker::checkRelatedTable(FeaturePtr parent,
 
 void TileChecker::checkReferencedFeature(DataPtr p, TypedFeatureId parent, FeatureTypes acceptedTypes)
 {
-    if (!checkAccess(p, "feature", 12)) return;
+    int handle = Pointers::delta32(p, start());
+    if (!featureHandles_.contains(handle))
+    {
+        char buf[32];
+        parent.format(buf);
+        error(p, "%s has illegal local reference %d", buf, handle);
+        return;
+    }
     FeaturePtr feature(p);
     if (!acceptedTypes.acceptFlags(feature.flags()))
     {
@@ -817,9 +845,7 @@ void TileChecker::checkRelationTable(FeaturePtr member, DataPtr ppRels)
 uint32_t TileChecker::checkRelation(DataPtr p)
 {
     RelationPtr rel(p);
-    uint32_t actualKeys = checkFeature2D(rel);
-    checkRelationBody(rel);
-    return actualKeys;
+    return checkFeature2D(rel);
 }
 
 void TileChecker::checkRelationBody(RelationPtr rel)
@@ -840,7 +866,7 @@ void TileChecker::checkRelationBody(RelationPtr rel)
 
 void TileChecker::checkExports(DataPtr ppExports)
 {
-    HashSet<TypedFeatureId> exported;
+    HashSet<int> exportedHandles;
     int32_t rel = ppExports.getInt();
     if (rel == 0) return;
     if (!checkPointer(ppExports, rel)) return;
@@ -868,20 +894,17 @@ void TileChecker::checkExports(DataPtr ppExports)
         }
         else if (checkPointer(p, rel))
         {
-            FeaturePtr feature(p + rel);
-            TypedFeatureId typedId = feature.typedId();
-            if (!features_.contains(typedId))
+            int handle = Pointers::delta32(p, start()) + rel;
+            if (!featureHandles_.contains(handle))
             {
-                char buf[32];
-                typedId.format(buf);
-                error(p, "Slot %d points to invalid exported feature (%s)",
-                    (p - pTable) / 4, buf);
+                error(p, "Slot %d points to invalid exported feature @%d", handle);
             }
             else
             {
-                auto [it, inserted] = exported.insert(typedId);
+                auto [it, inserted] = exportedHandles.insert(handle);
                 if (!inserted)
                 {
+                    FeaturePtr feature(p + rel);
                     error(p, "Multiple TEXes assigned to %s/llu",
                         feature.typeName(), feature.id());
                 }

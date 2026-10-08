@@ -19,6 +19,9 @@ public:
 		MemberTableIterator(body->handle(), newTable),
 		adjust_(body->location() + static_cast<int>(body->anchor()) - body->handle())
 	{
+#ifndef NDEBUG
+		body_ = body;
+#endif
 	}
 	
 	void fix(const TileModel& tile)
@@ -28,6 +31,15 @@ public:
 			if (!isForeign())
 			{
                 TReferencedElement* m = tile.getElement(localHandle());
+#ifndef NDEBUG
+				if (!m)
+				{
+					LOGS << tile.tile() << ": "
+						<< "Failed to obtain member " << memberNumber_
+						<< " via handle " << localHandle()
+						<< " for " << body_->constFeature()->typedId();
+				}
+#endif
 				assert(m);
 				int32_t relPtr = m->location() + m->anchor() -
 					((currentOfs_ + adjust_) & 0xffff'fffc);
@@ -47,9 +59,16 @@ public:
 				*/
 				MutableDataPtr(pTile_ + currentRoleOfs_).putIntUnaligned(relPtr << 1);
 			}
+#ifndef NDEBUG
+			memberNumber_++;
+#endif
 		}
 	}
 
 private:
 	int_fast32_t adjust_;
+#ifndef NDEBUG
+	const TRelationBody* body_;
+	int memberNumber_ = 0;
+#endif
 };
