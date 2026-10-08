@@ -3,6 +3,7 @@
 
 #pragma once
 #include "FeatureProcessor.h"
+#include "geodesk/geom/FixedLonLat.h"
 
 // TODO: A feature staus change is a tile change, makes
 //  cascading logic easier: cascade geometry, tiles
@@ -66,7 +67,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 4897242884)
+		if (node().id() == 21432484)
 		{
 			LOGS << "!!!";
 		}
@@ -175,13 +176,30 @@ private:
 		willBelongToWay_ = node().isFutureWaynode();
 		if (!willBelongToWay_)
 	    {
-	        if (is(REMOVED_FROM_WAY))
+	        if (is(REMOVED_FROM_WAY) && !is(GEOMETRY_CHANGED))
 	        {
 	            // If the node has been removed from a way, we now need
 	            // to check if it still belongs to at least one way
 	            // We assume the answer is "no"
 
-	        	ParentWaysQuery query(mgr_.store(), node().xy(), pastNode_);
+	        	if (node().id() == 21432484)
+	        	{
+	        		LOGS << node().typedId() << " was at "
+	        			<< FixedLonLat(pastXY_) << ", now at "
+	        			<< FixedLonLat(node().xy());
+	        	}
+
+	        	// assert(!is(GEOMETRY_CHANGED));
+
+	        	// This does not work for anon nodes that have been
+	        	// moved, because we don't have a way to store their
+	        	// past location (which we need for a parent search)
+	        	// But a moved anon node will cause all its past parent
+	        	// ways to become implicitly changed, so we have to
+	        	// already mark it as future waynode when we discover
+	        	// that implicit way change
+
+	        	ParentWaysQuery query(mgr_.store(), pastXY_, pastNode_);
 	            for (;;)
 	            {
 	                WayPtr way = query.next();

@@ -19,7 +19,7 @@ public:
 	//  Collapse into FLAGGED_WAYNODE?
 	void process()
 	{
-		if (way().id() == 148607079)
+		if (way().id() == 682409966)
 		{
 			LOGS << "!!!";
 		}

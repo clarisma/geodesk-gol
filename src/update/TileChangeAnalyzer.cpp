@@ -293,7 +293,7 @@ void TileChangeAnalyzer::compareWayNodes(ChangedFeature2D* changed, WayPtr way)
                 // case whenever a node is dropped), as it doesn't matter then
                 addAction<NodeRemovedFromWay>(node.id, node.xy, refOfWayNode(node));
                 // TODO: check if this action is safe to repeat (same node may be dropped
-                //  multiple times form same way)
+                //  multiple times from same way)
             }
         }
         CFeature* futureNode = (*pFutureNode)->get();
@@ -357,9 +357,28 @@ void TileChangeAnalyzer::scanWayNodes(WayPtr way)
         WayNodeIterator::WayNode node = iter.next();
         if(node.id == 0) break;
         auto [nodeGeometryChanged, modelNode] = checkWayNode(node);
-        wayGeometryChanged |= nodeGeometryChanged;
+        // wayGeometryChanged |= nodeGeometryChanged;
+        if (nodeGeometryChanged)    [[unlikely]]
+        {
+            assert(modelNode->isChanged());
+            ChangedNode* changedNode = ChangedNode::cast(modelNode);
+            addAction<ImplicitWayGeometryChange>(way.id(),
+                refOfLocal(way), way.hasNorthwestTwin(),
+                changedNode);
+
+            // We need to generate this action for each moved node
+            // individually, so we can mark the node as belonging
+            // to a way (if the way hasn't been explicitly changed)
+            // This prevents us from wrongly marking the node as an
+            // orphan if it has also been dropped from another way
+            // (We can't check if it belongs to any ways via a
+            // parent-way query, because we would need its past xy
+            // for that, which we cannot store in a ChangedNode
+            // for anon nodes)
+        }
     }
 
+    /*
     if(wayGeometryChanged)
     {
         // The way's geometry changed, since one or more nodes have
@@ -371,6 +390,7 @@ void TileChangeAnalyzer::scanWayNodes(WayPtr way)
         addAction<ImplicitWayGeometryChange>(way.id(),
             refOfLocal(way), way.hasNorthwestTwin());
     }
+    */
 }
 
 

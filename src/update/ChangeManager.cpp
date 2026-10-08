@@ -72,6 +72,18 @@ void ChangeManager::preProcessRelations()
                         // appears multiple times in same relation
 
                         ChangedFeatureBase* member = model_.getChanged(memberId);
+                        if (!member->isNode() && !member->isChangedExplicitly())
+                        {
+                            if (member->typedId() == TypedFeatureId::ofWay(682409966))
+                            {
+                                LOGS << member->typedId() << " added to rel";
+                            }
+                            ChangedFeature2D::cast(member)->initFrom(
+                                member->getFeature(store()));
+                            // TODO: Consolidate this, we need to do
+                            //  this anytime we may be creating
+                            //  an implicitly changed feature
+                        }
                         model_.addMembership(member, rel);
                     }
                     hasChildRelations |= memberId.isRelation();

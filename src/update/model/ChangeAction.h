@@ -138,11 +138,16 @@ public:
 class ImplicitWayGeometryChange : public ChangeAction
 {
 public:
-    ImplicitWayGeometryChange(uint64_t id, CRef ref, bool isRefSE) :
+    ImplicitWayGeometryChange(uint64_t id, CRef ref, bool isRefSE,
+        ChangedNode* node) :
         ChangeAction(IMPLICIT_WAY_GEOMETRY_CHANGE, FeatureType::WAY, id,
-            ref, isRefSE) {}
+            ref, isRefSE),
+            node_(node) {}
 
     void apply(ChangeModel& model, ChangedFeatureBase* changed) const;
+
+private:
+    ChangedNode* node_;
 };
 
 

@@ -3,6 +3,7 @@
 
 #include "ChangeAction.h"
 #include "ChangeModel.h"
+#include "geodesk/feature/FeatureBase.h"
 
 // TODO: Let TCA do all the principal work; e.g. retrieve nodes of
 //  implicitly changed ways while the tile is "hot" and stash
@@ -18,6 +19,12 @@ void ChangeAction::apply(ChangeModel& model)
     //  we could pass the pointer to the stub in order to avoid
     //  looking up the feature by typedId
     ChangedFeatureBase* changed = model.getChanged(typedId());
+
+    if (typedId() == TypedFeatureId::ofWay(818433058))
+    {
+        LOGS << "!!!";
+    }
+
     if (ref_ != CRef::UNKNOWN)  [[likely]]
     {
         if(isRefSE_)    [[unlikely]]
@@ -32,6 +39,21 @@ void ChangeAction::apply(ChangeModel& model)
         else
         {
             changed->offerRef(ref_);
+        }
+        if (!changed->isNode())
+        {
+            ChangedFeature2D* changed2d = ChangedFeature2D::cast(changed);
+            FeaturePtr feature = ref_.getFeature(model.store());
+            changed2d->initFrom(feature);
+
+            // TODO: WE need to consolidate this, there are lots
+            //  of places where we may be creating an implicit
+            //  feature change, and hence need to get the original
+            //  area flag and bounds
+            //  Ideally, the TCA should look up the change already
+            //  Maybe make actions more granular
+            //  Move as much of the decision-making into the TCA
+            //  because it executes in parallel
         }
     }
 
@@ -70,7 +92,7 @@ void ChangeAction::apply(ChangeModel& model)
 
 void MembershipChange::Added::apply(ChangedFeatureBase* changed)
 {
-    if (changed->typedId() == TypedFeatureId::ofNode(2422945180))
+    if (changed->typedId() == TypedFeatureId::ofWay(682409966))
     {
         LOGS << "ChangeAction: " << changed->typedId() << " added to "
             << parentRelation_->typedId();
@@ -103,6 +125,14 @@ void ImplicitWayGeometryChange::apply(ChangeModel& model, ChangedFeatureBase* ch
     if (way->memberCount() == 0)
     {
         way->setMembers(model.loadWayNodes(ref_.tip(), pTile, pastWay));
+    }
+    if (!way->isChangedExplicitly())
+    {
+        // If a node causes a geometry change to a way that has
+        // not been explicitly changed, we know it will belong
+        // to that way, hence it will be a future way node
+        // and cannot become an orphan
+        node_->markAsFutureWaynode();
     }
     way->addFlags(ChangeFlags::GEOMETRY_CHANGED);
 }
