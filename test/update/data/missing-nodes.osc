@@ -7,12 +7,12 @@ Verify that:
 - node/7 becomes an orphan
 - node/8 becomes an orphan
 - node/9 becomes an orphan
-- way/1 has 2 nodes (node/1 & node/3), tagged "missing_nodes=1"
-- way/2 has 2 nodes (node/4 twice), tagged "missing_nodes=2"
-- way/3 is deleted (all nodes missing)
-- rel/1 has geom change
-- rel/2 has geom change
-- rel/3 is deleted (its sole member way/3 has been deleted)
+- way/10 has 2 nodes (node/1 & node/3), tagged "missing_nodes=1"
+- way/20 has 2 nodes (node/4 twice), tagged "missing_nodes=2"
+- way/30 is deleted (all nodes missing)
+- rel/100 has geom change
+- rel/200 has geom change
+- rel/300 is deleted (its sole member way/3 has been deleted)
 -->
 
 <osmChange version="0.6" generator="geodesk-gol-test">
