@@ -36,6 +36,7 @@
 // TODO: When do we check whether a feature loses its TEX as a result
 //  of being dropped from a relation?
 
+using enum ChangeFlags;
 
 void ChangeManager::preProcessRelations()
 {
@@ -703,7 +704,7 @@ ChangedNode* ChangeManager::findUniqueLocationNode(Tip tip, Coordinate xy)
         if (f && f->isChanged())
         {
             ChangedNode* changed = ChangedNode::cast(f);
-            if (changed->is(ChangeFlags::GEOMETRY_CHANGED))
+            if (changed->isAny(GEOMETRY_CHANGED | DELETED))
             {
                 continue;
             }

@@ -67,7 +67,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 21432484)
+		if (node().id() == 14048831006)
 		{
 			LOGS << "!!!";
 		}
@@ -84,6 +84,11 @@ public:
 				// so we can cascade
 				// (Once we clear refs, we can no longer fetch
 				// the original table)
+
+				if (pastFeatureFlags_ & FeatureFlags::SHARED_LOCATION)
+				{
+					mgr_.findUniqueLocationNode(pastTip_, pastXY_);
+				}
 
 				remove(false, true);
 			}

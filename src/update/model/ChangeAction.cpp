@@ -20,7 +20,7 @@ void ChangeAction::apply(ChangeModel& model)
     //  looking up the feature by typedId
     ChangedFeatureBase* changed = model.getChanged(typedId());
 
-    if (typedId() == TypedFeatureId::ofWay(818433058))
+    if (typedId() == TypedFeatureId::ofWay(682409966))
     {
         LOGS << "!!!";
     }
@@ -40,21 +40,25 @@ void ChangeAction::apply(ChangeModel& model)
         {
             changed->offerRef(ref_);
         }
-        if (!changed->isNode())
-        {
-            ChangedFeature2D* changed2d = ChangedFeature2D::cast(changed);
-            FeaturePtr feature = ref_.getFeature(model.store());
-            changed2d->initFrom(feature);
+    }
 
-            // TODO: WE need to consolidate this, there are lots
-            //  of places where we may be creating an implicit
-            //  feature change, and hence need to get the original
-            //  area flag and bounds
-            //  Ideally, the TCA should look up the change already
-            //  Maybe make actions more granular
-            //  Move as much of the decision-making into the TCA
-            //  because it executes in parallel
+    if (!changed->isNode())
+    {
+        ChangedFeature2D* changed2d = ChangedFeature2D::cast(changed);
+        FeaturePtr feature = changed2d->getFeature(model.store());
+        if (!feature.isNull()) [[likely]]
+        {
+            changed2d->initFrom(feature);
         }
+
+        // TODO: WE need to consolidate this, there are lots
+        //  of places where we may be creating an implicit
+        //  feature change, and hence need to get the original
+        //  area flag and bounds
+        //  Ideally, the TCA should look up the change already
+        //  Maybe make actions more granular
+        //  Move as much of the decision-making into the TCA
+        //  because it executes in parallel
     }
 
     switch (action_)
