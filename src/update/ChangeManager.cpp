@@ -79,8 +79,13 @@ void ChangeManager::preProcessRelations()
                             {
                                 LOGS << member->typedId() << " added to rel";
                             }
-                            ChangedFeature2D::cast(member)->initFrom(
-                                member->getFeature(store()));
+                            FeaturePtr memberFeature =
+                                member->getFeature(store());
+                            if (!memberFeature.isNull())
+                            {
+                                ChangedFeature2D::cast(member)->initFrom(
+                                    memberFeature);
+                            }
                             // TODO: Consolidate this, we need to do
                             //  this anytime we may be creating
                             //  an implicitly changed feature
