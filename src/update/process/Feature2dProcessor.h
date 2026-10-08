@@ -148,8 +148,16 @@ private:
 		CRef futureRefNW = pastRefNW;
 		CRef futureRefSE = pastRefSE;
 
-	    if (pastTipNW != futureTipNW)
+		if (feature_.typedId() == TypedFeatureId::ofWay(148607079))
+		{
+			LOGS << feature_.typedId() << " was in " << pastRefNW << " / " << pastRefSE;
+			LOGS << feature_.typedId() << " will be in " << futureTipNW << " / " << futureTipSE;
+		}
+
+	    if (futureTipNW != pastTipNW)
 	    {
+	    	// The NW tile changed
+	    	//
 	    	// If tile change, always ensure reltable is loaded
 	    	// (We'll need it in the new tile); once the ref
 	    	// is updated, we're no longer able to get the feature
@@ -160,9 +168,14 @@ private:
 	        tileChanges |= ChangeFlags::TILES_CHANGED;
 	        if (futureTipNW != pastTipSE)
 	        {
+	        	// The NW is a new tile
+
 	            tileChanges |= ChangeFlags::NEW_TO_NORTHWEST;
 	            if (pastTipNW != futureTipSE)
 	            {
+	            	// The new SE ref isn't using the old NW
+	            	// tile, so we remove the feature from it
+
 	            	if (!pastTipNW.isNull())
 	            	{
 	            		// remove from past NW tile
@@ -173,6 +186,8 @@ private:
 	        }
 	        else
 	        {
+	        	// The NW is reusing the SE tile
+
 	        	if (!pastTipNW.isNull())
 	        	{
 	        		// remove from past NW tile
@@ -190,19 +205,26 @@ private:
 	        }
 	    }
 
-	    if (pastTipSE != futureTipSE)
+	    if (futureTipSE != pastTipSE)
 	    {
+	    	// The SE tile has changed
+
 	    	ensureReltableLoaded();
 	    		// TODO: do we need this? looks like we do this later
 
 	        tileChanges |= ChangeFlags::TILES_CHANGED;
 	        if (futureTipSE != pastTipNW)
 	        {
-	            if (!pastTipSE.isNull() && futureTipNW != pastTipSE)
-	            {
-	                // remove from past SE tile
-	            	remove(true);
-	            }
+	        	// The SE is a new tile
+
+	        	if (pastTipSE != futureTipNW)
+	        	{
+	        		if (!pastTipSE.isNull())
+	        		{
+	        			// remove from past SE tile
+	        			remove(true);
+	        		}
+	        	}
 	            if (futureTipSE.isNull())
 	            {
 	                futureRefSE = CRef::SINGLE_TILE;
@@ -215,6 +237,14 @@ private:
 	        }
 	        else
 	        {
+	        	// The SE is reusing the NW tile
+
+	        	if (!pastTipSE.isNull())
+	        	{
+	        		// remove from past SE tile
+	        		remove(true);
+	        	}
+
 	            // Set NW tile as new SE tile
 	            // (feature simply moved NW)
 	        	if (pastRefNW.isUnresolved())
