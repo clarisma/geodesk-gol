@@ -29,12 +29,14 @@ bool TileChecker::check()
     checkIndex(start() + RELATION_INDEX_OFS, FeatureTypes::NONAREA_RELATIONS);
     checkBodies();
     checkExports(start() + EXPORTS_OFS);
+    bool anyErrors = false;
     for (const Error& error : errors())
     {
         ConsoleWriter out;
         out.blank() << tip_ << "  " << error.location() << ": " << error.message();
+        anyErrors |= error.severity() > Error::Severity::WARNING;
     }
-    return true;
+    return !anyErrors;
 }
 
 bool TileChecker::checkPointer(DataPtr pBase, int delta)

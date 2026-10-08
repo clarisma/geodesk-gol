@@ -3,21 +3,21 @@
     <node id="2" version="1" lon="90" lat="45"/>
     <node id="3" version="1" lon="90" lat="-45"/>
     <node id="4" version="1" lon="-90" lat="-45"/>
-    <way id="1" version="1">
+    <way id="10" version="1">
         <nd ref="1"/>
         <nd ref="2"/>
     </way>
-    <way id="2" version="1">
+    <way id="20" version="1">
         <nd ref="2"/>
         <nd ref="3"/>
     </way>
-    <relation id="1" version="1">
-        <member type="way" ref="1"/>
-        <member type="way" ref="2"/>
+    <relation id="100" version="1">
+        <member type="way" ref="10"/>
+        <member type="way" ref="20"/>
         <member type="node" ref="3"/>
         <member type="node" ref="4"/>
     </relation>
-    <relation id="2" version="1">
-        <member type="way" ref="2"/>
+    <relation id="200" version="1">
+        <member type="way" ref="20"/>
     </relation>
 </osm>    

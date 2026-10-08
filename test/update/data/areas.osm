@@ -5,7 +5,7 @@
     <node id="2" version="1" lon="90" lat="45"/>
     <node id="3" version="1" lon="90" lat="-45"/>
     <node id="4" version="1" lon="-90" lat="-45"/>
-    <way id="1" version="1">
+    <way id="10" version="1">
         <nd ref="1"/>
         <nd ref="2"/>
         <nd ref="3"/>
@@ -13,7 +13,7 @@
         <nd ref="1"/>
         <tag k="area" v="yes"/>
     </way>
-    <way id="2" version="1">
+    <way id="20" version="1">
         <nd ref="1"/>
         <nd ref="2"/>
         <nd ref="3"/>

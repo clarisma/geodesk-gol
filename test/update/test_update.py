@@ -52,7 +52,10 @@ def perform_update_test(name, gol_tool, tmp_path):
     assert res.returncode == 0
 
     # Exercise the update functionality being tested.
-    gol_tool.run(["update", updated_gol, osc_file, "-d"])
+    res = gol_tool.run(["update", updated_gol, osc_file, "-d"])
+    assert res.returncode == 0
+    res = gol_tool.run(["check", updated_gol, "-d"])
+    assert res.returncode == 0
 
     updated_xml = tmp_path / f"{name}-updated.xml"
     rebuilt_xml = tmp_path / f"{name}-rebuilt.xml"
@@ -62,11 +65,8 @@ def perform_update_test(name, gol_tool, tmp_path):
     res = gol_tool.run(["query", rebuilt_gol, "*", "-o", rebuilt_xml])
     assert res.returncode == 0
 
-    # TODO: We're not committing the tiles yet
-    """
-    assert updated_xml.read_text().splitlines() == \
-        rebuilt_xml.read_text().splitlines()
-    """
+    assert updated_xml.read_text(encoding="utf-8").splitlines() == \
+        rebuilt_xml.read_text(encoding="utf-8").splitlines()
 
 def test_update(gol_tool, tmp_path):
     print(f"tmp_path = {tmp_path}")

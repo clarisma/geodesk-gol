@@ -74,7 +74,7 @@ public:
 private:
 	bool tryProcess()
 	{
-		if (relation().id() == 2144774)
+		if (relation().id() == 2773916)
 		{
 			LOGS << feature_.typedId() << " (Version " << feature_.version()
 				 << ") at " << feature_.ref() << " / " << feature_.refSE();
@@ -261,11 +261,6 @@ private:
 								defer = true;
 								continue;
 							}
-
-							// If the child relation moved tiles, ensure that
-							// the parent relation's member table will be updated
-							addFlags(member2D->is(TILES_CHANGED) ?
-								MEMBERS_CHANGED : NONE);
 						}
 						else
 						{
@@ -273,6 +268,12 @@ private:
 							continue;
 						}
 					}
+					// If the child moved tiles, ensure that
+					// the parent relation's member table will be updated
+					// (Really only need to do this for relations,
+					//  since nodes and ways cascade)
+					addFlags(member2D->is(TILES_CHANGED) ?
+						MEMBERS_CHANGED : NONE);
 					if(member2D->ref() == CRef::MISSING)	[[unlikely]]
 					{
 						missingMembers_++;

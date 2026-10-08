@@ -10,7 +10,7 @@ Verify that:
             <tag k="shop" v="bakery"/>
         </node>
         <node id="6" version="1" lon="90" lat="-45"/>
-        <way id="1" version="2">
+        <way id="10" version="2">
             <nd ref="5"/>
             <nd ref="2"/>
             <nd ref="6"/>

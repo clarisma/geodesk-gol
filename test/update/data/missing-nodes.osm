@@ -8,12 +8,12 @@
     <node id="7" version="1" lon="-180" lat="0"/>
     <node id="8" version="1" lon="-30" lat="0"/>
     <node id="9" version="1" lon="170" lat="0"/>
-    <way id="1" version="1">
+    <way id="10" version="1">
         <nd ref="1"/>
         <nd ref="2"/>
         <nd ref="3"/>
     </way>
-    <way id="2" version="1">
+    <way id="20" version="1">
         <nd ref="4"/>
         <nd ref="5"/>
         <nd ref="6"/>
@@ -21,18 +21,18 @@
         <tag k="highway" v="residential"/>
         <tag k="maxspeed" v="50"/>
     </way>
-    <way id="3" version="1">
+    <way id="30" version="1">
         <nd ref="7"/>
         <nd ref="8"/>
         <nd ref="9"/>
     </way>
-    <relation id="1" version="1">
-        <member type="way" ref="1"/>
+    <relation id="100" version="1">
+        <member type="way" ref="10"/>
     </relation>
-    <relation id="2" version="1">
-        <member type="way" ref="2"/>
+    <relation id="200" version="1">
+        <member type="way" ref="20"/>
     </relation>
-    <relation id="3" version="1">
-        <member type="way" ref="3"/>
+    <relation id="300" version="1">
+        <member type="way" ref="30"/>
     </relation>
 </osm>

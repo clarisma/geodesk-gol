@@ -17,12 +17,12 @@ Verify that:
 
 <osmChange version="0.6" generator="geodesk-gol-test">
     <modify>
-        <way id="1" version="2">
+        <way id="10" version="2">
             <nd ref="1"/>
             <nd ref="555"/>
             <nd ref="3"/>
         </way>
-        <way id="2" version="2">
+        <way id="20" version="2">
             <nd ref="4"/>
             <nd ref="555"/>
             <nd ref="666"/>
@@ -30,7 +30,7 @@ Verify that:
             <tag k="highway" v="residential"/>
             <tag k="name" v="Prospect Street"/>
         </way>
-        <way id="3" version="2">
+        <way id="30" version="2">
             <nd ref="777"/>
             <nd ref="555"/>
             <nd ref="666"/>
