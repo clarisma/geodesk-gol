@@ -7,6 +7,8 @@
 class WayProcessor : public Feature2dProcessor
 {
 public:
+	using enum ChangeFlags;
+
 	WayProcessor(ChangeManager& mgr, ChangedFeature2D& way) :
 		Feature2dProcessor(mgr, way)
 	{
@@ -27,7 +29,7 @@ public:
 			if (!way().isChangedExplicitly())
 			{
 				// Missing feature
-				addFlags(ChangeFlags::PROCESSED);
+				addFlags(PROCESSED);
 				return;
 			}
 		}
@@ -41,14 +43,14 @@ public:
 		// It's ok for pastBounds to be uninitialized
 		//  in cases such as membership change
 
-		if (is(ChangeFlags::DELETED))	[[unlikely]]
+		if (is(DELETED))	[[unlikely]]
 		{
 			processDeleted();
 		}
 		else
 		{
-			if (isAny(ChangeFlags::GEOMETRY_CHANGED |
-				ChangeFlags::WAYNODE_IDS_CHANGED | ChangeFlags::MEMBERS_CHANGED))
+			if (isAny(GEOMETRY_CHANGED |
+				WAYNODE_IDS_CHANGED | MEMBERS_CHANGED))
 			{
 				ensureNodesLoaded();
 				if (!computeBounds()) [[unlikely]]
@@ -63,8 +65,8 @@ public:
 					if (missingNodes_ == way().memberCount())
 					{
 						// All nodes are missing => delete the way
-						addFlags(ChangeFlags::DELETED);
-						clearFlags(ChangeFlags::MEMBERS_CHANGED);
+						addFlags(DELETED);
+						clearFlags(MEMBERS_CHANGED);
 						processDeleted();
 						futureBounds_ = pastBounds_;
 							// avoids possible tile assignment
@@ -78,12 +80,12 @@ public:
 				{
 					updateBounds();
 				}
-				if(isAny(ChangeFlags::TILES_CHANGED | ChangeFlags::MEMBERS_CHANGED))
+				if(isAny(TILES_CHANGED | MEMBERS_CHANGED))
 				{
 					identifyPotentialTexChanges();
 				}
 			}
-			if (is(ChangeFlags::RELTABLE_CHANGED))	[[unlikely]]
+			if (is(RELTABLE_CHANGED))	[[unlikely]]
 			{
 				if (getRefSE() != CRef::SINGLE_TILE)  [[unlikely]]
 				{
@@ -93,20 +95,19 @@ public:
 					}
 				}
 			}
-			if (!is(ChangeFlags::DELETED))	[[likely]]
+			if (!is(DELETED))	[[likely]]
 			{
 				assignToTiles();
 			}
 		}
 
-		if (isAny(ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::DELETED))
+		if (isAny(GEOMETRY_CHANGED | DELETED))
 		{
 			ChangeFlags flags = way().flags();
 			model().memberChanged(&way(), pastBounds_, futureBounds_,
-				(isAny(ChangeFlags::DELETED | ChangeFlags::TILES_CHANGED) ?
-					(ChangeFlags::MEMBERS_CHANGED | ChangeFlags::GEOMETRY_CHANGED | ChangeFlags::BOUNDS_CHANGED) : ChangeFlags::NONE) |
-						(flags & (ChangeFlags::GEOMETRY_CHANGED |
-							ChangeFlags::BOUNDS_CHANGED)));
+				(isAny(DELETED | TILES_CHANGED) ?
+					(MEMBERS_CHANGED | GEOMETRY_CHANGED | BOUNDS_CHANGED) : NONE) |
+						(flags & (GEOMETRY_CHANGED | BOUNDS_CHANGED)));
 			// TODO: Check these flags
 		}
 
@@ -127,8 +128,8 @@ public:
 		// TODO: TEX changes
 
 		addFlags(featureNodes_ ?
-			(ChangeFlags::PROCESSED | ChangeFlags::WAY_WILL_HAVE_FEATURE_NODES) :
-			ChangeFlags::PROCESSED);
+			(PROCESSED | WAY_WILL_HAVE_FEATURE_NODES) :
+			PROCESSED);
 		tallyStats();
 	}
 
@@ -166,7 +167,7 @@ private:
 				}
 				futureBounds_.expandToInclude(node->xy());
 			}
-			featureNodes_ += ref.tip().isNull() ? 1 : 0;
+			featureNodes_ += ref.tip().isNull() ? 0 : 1;
 		}
 		addFlags(nodesChangedTiles ? ChangeFlags::MEMBERS_CHANGED :
 			ChangeFlags::NONE);
