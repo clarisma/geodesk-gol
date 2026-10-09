@@ -67,7 +67,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 3530680394)
+		if (node().id() == 21718216)
 		{
 			LOGS << node().typedId();
 		}
@@ -194,56 +194,59 @@ private:
 		willBelongToWay_ = node().isFutureWaynode();
 		if (!willBelongToWay_)
 	    {
-	        if (is(REMOVED_FROM_WAY) && !is(GEOMETRY_CHANGED))
+	        if (is(REMOVED_FROM_WAY))
 	        {
-	            // If the node has been removed from a way, we now need
-	            // to check if it still belongs to at least one way
-	            // We assume the answer is "no"
-
-	        	if (node().id() == 21432484)
+	        	if (!is(GEOMETRY_CHANGED))
 	        	{
-	        		LOGS << node().typedId() << " was at "
-	        			<< FixedLonLat(pastXY_) << ", now at "
-	        			<< FixedLonLat(node().xy());
+	        		// If the node has been removed from a way, we now need
+	        		// to check if it still belongs to at least one way
+	        		// We assume the answer is "no"
+
+	        		if (node().id() == 21432484)
+	        		{
+	        			LOGS << node().typedId() << " was at "
+							<< FixedLonLat(pastXY_) << ", now at "
+							<< FixedLonLat(node().xy());
+	        		}
+
+	        		// assert(!is(GEOMETRY_CHANGED));
+
+	        		// This does not work for anon nodes that have been
+	        		// moved, because we don't have a way to store their
+	        		// past location (which we need for a parent search)
+	        		// But a moved anon node will cause all its past parent
+	        		// ways to become implicitly changed, so we have to
+	        		// already mark it as future waynode when we discover
+	        		// that implicit way change
+
+	        		ParentWaysQuery query(mgr_.store(), pastXY_, pastNode_);
+	        		for (;;)
+	        		{
+	        			WayPtr way = query.next();
+	        			if (way.isNull()) break;
+	        			CFeature* feature = model().peekFeature(
+							TypedFeatureId::ofWay(way.id()));
+	        			if (feature == nullptr || !feature->isChanged())
+	        			{
+	        				// If the anon node belonged to a way that is not
+	        				// tracked by the model or hasn't changed, we know
+	        				// it still belongs to that way
+	        				willBelongToWay_ = true;
+	        				break;
+	        			}
+	        			ChangedFeatureBase* changed = ChangedFeatureBase::cast(feature);
+	        			if (!changed->isChangedExplicitly() && !changed->isDeleted())
+	        			{
+	        				// The way was changed, but not explicitly (hence no
+	        				// change in waynodes), and it hasn't been deleted
+	        				// (remember, deletions can also be implicit!);
+	        				// i.e. the way only changed geometry, which means
+	        				// it will continue to include the node --> not orphan
+	        				willBelongToWay_ = true;
+	        				break;
+	        			}
+	        		}
 	        	}
-
-	        	// assert(!is(GEOMETRY_CHANGED));
-
-	        	// This does not work for anon nodes that have been
-	        	// moved, because we don't have a way to store their
-	        	// past location (which we need for a parent search)
-	        	// But a moved anon node will cause all its past parent
-	        	// ways to become implicitly changed, so we have to
-	        	// already mark it as future waynode when we discover
-	        	// that implicit way change
-
-	        	ParentWaysQuery query(mgr_.store(), pastXY_, pastNode_);
-	            for (;;)
-	            {
-	                WayPtr way = query.next();
-	                if (way.isNull()) break;
-	                CFeature* feature = model().peekFeature(
-	                	TypedFeatureId::ofWay(way.id()));
-	                if (feature == nullptr || !feature->isChanged())
-	                {
-	                    // If the anon node belonged to a way that is not
-	                    // tracked by the model or hasn't changed, we know
-	                    // it still belongs to that way
-	                    willBelongToWay_ = true;
-	                    break;
-	                }
-	                ChangedFeatureBase* changed = ChangedFeatureBase::cast(feature);
-	                if (!changed->isChangedExplicitly() && !changed->isDeleted())
-	                {
-	                    // The way was changed, but not explicitly (hence no
-	                    // change in waynodes), and it hasn't been deleted
-	                    // (remember, deletions can also be implicit!);
-	                    // i.e. the way only changed geometry, which means
-	                    // it will continue to include the node --> not orphan
-	                    willBelongToWay_ = true;
-	                    break;
-	                }
-	            }
 	        }
 	        else
 	        {

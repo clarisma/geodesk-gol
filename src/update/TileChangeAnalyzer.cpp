@@ -438,7 +438,7 @@ CRef TileChangeAnalyzer::refOfWayNode(const WayNodeIterator::WayNode& node) cons
 TileChangeAnalyzer::WayNodeCheckResult TileChangeAnalyzer::checkWayNode(
     const WayNodeIterator::WayNode& node)
 {
-    if(node.id == 1086081182)
+    if(node.id == 21718216)
     {
         LOGS << "Checking node/" << node.id;
     }
@@ -455,16 +455,21 @@ TileChangeAnalyzer::WayNodeCheckResult TileChangeAnalyzer::checkWayNode(
             {
                 geometryChanged = true;
             }
-            // TODO: Is this true, though? What if the anon node
-            //  later turns into a feature node (e.g. duplicate)
-            //  --> OK. If anon node turns into feature node, we have to
-            //      write all its properties anyway
-            /*      // we don't care about geometry change of anon node
             else
             {
-                ChangedNode::cast(f)->clearFlags(ChangeFlags::GEOMETRY_CHANGED);
+                if (node.feature.isNull())
+                {
+                    // Clear the flag only if this is an anonymous node
+                    // (Feature nodes are already handled by readNode(),
+                    // which expects exclusive access to the changed-node
+                    // For anon nodes, multiple threads may manipulate
+                    // its flags (since there can be copies in multiple
+                    // ways, in multiple tiles), so we use the concurrent
+                    // form here
+                    ChangedNode::cast(f)->clearFlagsConcurrent(
+                        ChangeFlags::GEOMETRY_CHANGED);
+                }
             }
-            */
             return {geometryChanged,f};
                 // Skip the check for coincident nodes below;
                 // if the node has changed, this check has already

@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include <clarisma/util/log.h>
 #include "CFeature.h"
 #include "ChangeAction.h"
 #include "ChangeFlags.h"
+#include <clarisma/util/log.h>
+#include <atomic>
 
 class ChangedFeatureBase;
 class CRelationTable;
@@ -15,6 +16,8 @@ class CTagTable;
 class ChangedFeatureStub : public CFeature
 {
 public:
+    using ChangeFlagsBits = std::underlying_type_t<ChangeFlags>;
+
     explicit ChangedFeatureStub(ChangedFeatureBase* feature) :
         CFeature(CHANGED | REPLACED,
             reinterpret_cast<CFeature*>(feature)->type(),
@@ -79,7 +82,7 @@ public:
 
     bool isDeleted() const
     {
-        return (flags_ & ChangeFlags::DELETED) != ChangeFlags::NONE;
+        return test(flags(), ChangeFlags::DELETED);
     }
 
     bool isChangedExplicitly() const
@@ -90,7 +93,7 @@ public:
 
     bool hasActualChanges() const
     {
-        return (flags_ & (
+        return (static_cast<ChangeFlags>(flags_) & (
             ChangeFlags::TAGS_CHANGED |
             ChangeFlags::GEOMETRY_CHANGED |
             ChangeFlags::MEMBERS_CHANGED |
@@ -103,43 +106,52 @@ public:
             != ChangeFlags::NONE;
     }
 
-    ChangeFlags flags() const noexcept { return flags_; }
-
-    bool is(ChangeFlags flags) const noexcept
+    ChangeFlags flags() const noexcept
     {
-        return test(flags_, flags);
+        return static_cast<ChangeFlags>(flags_);
     }
 
-    bool isAny(ChangeFlags flags) const noexcept
+    bool is(ChangeFlags f) const noexcept
     {
-        return testAny(flags_, flags);
+        return test(flags(), f);
+    }
+
+    bool isAny(ChangeFlags f) const noexcept
+    {
+        return testAny(flags(), f);
     }
 
     void setFlags(ChangeFlags flags)
     {
-        flags_ = flags;
+        flags_ = static_cast<uint32_t>(flags);
     }
 
     void addFlags(ChangeFlags flags)
     {
-        flags_ |= flags;
+        flags_ |= static_cast<uint32_t>(flags);
     }
 
     void clearFlags(ChangeFlags flags)
     {
-        flags_ &= ~flags;
+        flags_ &= ~static_cast<uint32_t>(flags);
+    }
+
+    void clearFlagsConcurrent(ChangeFlags flags)
+    {
+        std::atomic_ref ref(flags_);
+        ref.fetch_and(~static_cast<uint32_t>(flags), std::memory_order_relaxed);
     }
 
     void addMembershipChange(MembershipChange* action)
     {
-        assert(!test(flags_, ChangeFlags::RELTABLE_LOADED));
+        assert(!test(flags(), ChangeFlags::RELTABLE_LOADED));
         action->setNext(membershipChanges_);
         membershipChanges_ = action;
     }
 
     const MembershipChange* membershipChanges() const
     {
-        assert(!test(flags_, ChangeFlags::RELTABLE_LOADED));
+        assert(!is(ChangeFlags::RELTABLE_LOADED));
         return membershipChanges_;
     }
 
@@ -149,14 +161,14 @@ public:
     ///
     const CRelationTable* peekParentRelations() const
     {
-        if (!test(flags_, ChangeFlags::RELTABLE_LOADED) &&
+        if (!is(ChangeFlags::RELTABLE_LOADED) &&
             parentRelations_ != nullptr)
         {
             LOGS << typedId()
                 << ": Attempt to dereference a reltable which"
                 << " has not been processed or retrieved";
         }
-        assert(test(flags_, ChangeFlags::RELTABLE_LOADED) ||
+        assert(is(ChangeFlags::RELTABLE_LOADED) ||
             parentRelations_ == nullptr);
         return parentRelations_;
     }
@@ -164,7 +176,7 @@ public:
     void setParentRelations(const CRelationTable* rels)
     {
         parentRelations_ = rels;
-        flags_ |= ChangeFlags::RELTABLE_LOADED;
+        addFlags(ChangeFlags::RELTABLE_LOADED);
     }
 
     ChangedFeatureBase* next() const noexcept
@@ -176,7 +188,7 @@ public:
 protected:
     ChangedFeatureBase(FeatureType type, uint64_t id) :
         ChangedFeatureStub(type, id),
-        flags_(ChangeFlags::NONE),
+        flags_(0),
         version_(0),
         tags_(nullptr),
         membershipChanges_(nullptr)
@@ -195,7 +207,7 @@ protected:
     }
     */
 
-    ChangeFlags flags_;
+    ChangeFlagsBits flags_;  // ChangeFlags
     uint32_t version_;
     const CTagTable* tags_;
     union
