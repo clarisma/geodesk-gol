@@ -574,12 +574,13 @@ void TesWriter::writeExportTable()
 	TFeature** features = exports->features();
 	assert(features);
 	size_t count = exports->count();
-	out_.writeVarint(count << 1);
+	out_.writeVarint((count << 2) | 3);
+		// v2 style: 0 = 1, 1 = 1 to signal replace
 	for(int i=0; i<count; i++)
 	{
 		TFeature* feature = features[i];
-		assert(feature);
-		out_.writeVarint(feature->location());
+		// assert(feature);
+		out_.writeVarint(feature ? (feature->location() + 1) : 0);
 	}
 }
 
