@@ -235,11 +235,28 @@ CRef TileChangeAnalyzer::refOfLocal(FeaturePtr feature) const
 
 void TileChangeAnalyzer::compareTags(ChangedFeatureBase* f, FeaturePtr p)
 {
+    if (p.typedId() == TypedFeatureId::ofNode(306261143))
+    {
+        LOGS << "!!!";
+    }
     TagTablePtr pTags = p.tags();
     const CTagTable* tags = f->tagTable();
-    if(!tags)
+    if(tags == &CTagTable::EMPTY)
     {
-        if(!pTags.isEmpty()) return;
+        // Empty tags in change
+        if(!pTags.isEmpty())
+        {
+            // Existing tags aren't empty
+            if (!p.isExceptionNode())  [[likely]]
+            {
+                // For exception nodes, the synthetic tags are
+                // considered "empty", so we only return for
+                // ways, relations and "normal" nodes
+                return;
+            }
+            // for exception nodes, we fall through to the
+            // statements that clear TAGS_CHANGED
+        }
     }
     else
     {
@@ -375,6 +392,9 @@ void TileChangeAnalyzer::scanWayNodes(WayPtr way)
             // parent-way query, because we would need its past xy
             // for that, which we cannot store in a ChangedNode
             // for anon nodes)
+
+            // TODO: we could simply mark the node (using a
+            //  concurrency-safe form of marking)
         }
     }
 

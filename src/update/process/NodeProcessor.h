@@ -67,9 +67,9 @@ public:
 
 	void process()
 	{
-		if (node().id() == 14048831006)
+		if (node().id() == 3530680394)
 		{
-			LOGS << "!!!";
+			LOGS << node().typedId();
 		}
 		processMembershipChanges();
 		if(is(DELETED))
@@ -149,6 +149,19 @@ private:
 		{
 			assert(node().tagTable());
 			willHaveTags_ = node().tagTable() != &CTagTable::EMPTY;
+			/*
+			if (pastFeatureFlags_ & FeatureFlags::EXCEPTION_NODE)  [[unlikely]]
+			{
+				// If the node was an orphan or duplicate, empty tags
+				// in the change instructions means no tags change
+				// TODO: The TCA should have identified this already
+				//  and cleared TAGS_CHANGED
+				if (!willHaveTags_)
+				{
+					clearFlags(TAGS_CHANGED);
+				}
+			}
+			*/
 		}
 		else
 		{
@@ -327,6 +340,14 @@ private:
 				node().setTagTable(mgr_.getExceptionNodeTags(
 					willBeDuplicate_, willBeOrphan_));
 				addFlags(TAGS_CHANGED);
+			}
+			else
+			{
+				if (!willHaveTags_)
+				{
+					node().setTagTable(&CTagTable::EMPTY);
+					addFlags(TAGS_CHANGED);
+				}
 			}
 		}
 	}
