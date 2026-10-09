@@ -67,7 +67,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 21718216)
+		if (node().id() == 2485099190)
 		{
 			LOGS << node().typedId();
 		}
@@ -93,42 +93,71 @@ public:
 				remove(false, true);
 			}
 			node().setRef(CRef::MISSING);
-			addFlags(PROCESSED);
-			tallyStats();
-			return;
 
-			// TODO: If node was a feature, a delete has to be modify
-			//  any parent ways & relations via cascade, because we
-			//  cannot be guaranteed that the node has been removed
-			//  from those parents (we cannot assume that the osc
-			//  respects referential integrity)
+			// If node was a feature, a delete has to be modify
+			// any parent ways & relations via cascade, because we
+			// cannot be guaranteed that the node has been removed
+			// from those parents (we cannot assume that the osc
+			// respects referential integrity)
+			// That's why we fall through to the end
 		}
-
-		if (node().xy().isNull())    [[unlikely]]
+		else
 		{
-			// TODO: Can we just avoid this scenario that CRef is
-			//  set but x/y is not, so we don't have to fix it here?
+			if (node().xy().isNull())    [[unlikely]]
+			{
+				// TODO: Can we just avoid this scenario that CRef is
+				//  set but x/y is not, so we don't have to fix it here?
 
-			if (!pastNode_.isNull())
-			{
-				node().setXY(pastNode_.xy());
+				if (!pastNode_.isNull())
+				{
+					node().setXY(pastNode_.xy());
+				}
+				if (node().xy().isNull())
+				{
+					node().setRef(CRef::MISSING);
+					return;
+				}
+				// TODO: still need to propagate
 			}
-			if (node().xy().isNull())
-			{
-				node().setRef(CRef::MISSING);
-				return;
-			}
-			// TODO: still need to propagate
+
+			resolveTags();
+			resolveMemberStatus();
+			resolveWaynodeStatus();
+			resolveCoincidentLocation();
+			resolveExceptionStatus();
+			resolveFeatureStatus();
+			resolveTileChange();
 		}
-
-		resolveTags();
-		resolveMemberStatus();
-		resolveWaynodeStatus();
-		resolveCoincidentLocation();
-		resolveExceptionStatus();
-		resolveFeatureStatus();
-		resolveTileChange();
 		propagateFeatureStatusChangeToWays();
+		if (isAny(DELETED | GEOMETRY_CHANGED))
+		{
+			// TODO: We can probably make this more efficient,
+			//  need to do this only if node has been deleted
+			//  or will be a relation member
+
+			// If node is (and was) a feature node and has moved,
+			// its parent relations (if any) may implicitly change
+			// (If node is added to a relation for the first time,
+			// we won't need to call this method, since its parent
+			// relations by definition already explicitly change)
+			// model_.cascadeMemberChange(pastNode, node);
+
+			if (node().id() == 7898016044)
+			{
+				LOGS << "Cascading geometry change of node/" << node().id();
+			}
+			Box pastBounds = pastXY_;
+			Box futureBounds = node().xy();
+			model().memberChanged(&node(), pastBounds, futureBounds,
+				GEOMETRY_CHANGED | BOUNDS_CHANGED |
+					(isAny(DELETED | TILES_CHANGED) ?
+						MEMBERS_CHANGED : NONE));
+
+			// If a node's geometry changes, its bounds are always changed
+			// (This is important because parent relations only consider
+			// bounds change of a member when determining whether their
+			// own bounds could have changed)
+		}
 		addFlags(PROCESSED);
 		tallyStats();
 
@@ -370,7 +399,6 @@ private:
 
 		// TODO: Check this, we need the future TIP for indexing
 
-
 	    if(futureTip != pastTip_)
 	    {
 	        if(!pastTip_.isNull())
@@ -415,35 +443,6 @@ private:
 	    		// Only push node to tiles if it has actual changes
 	    		ChangedTile* futureTile = mgr_.getChangedTile(futureTip);
 	    		futureTile->changedNodes().push(&node());
-	    		if (is(GEOMETRY_CHANGED))
-	    		{
-	    			// If node is (and was) a feature node and has moved,
-	    			// its parent relations (if any) may implicitly change
-	    			// (If node is added to a relation for the first time,
-	    			// we won't need to call this method, since its parent
-	    			// relations by definition already explicitly change)
-	    			// model_.cascadeMemberChange(pastNode, node);
-
-	    			if (node().id() == 7898016044)
-	    			{
-	    				LOGS << "Cascading geometry change of node/" << node().id();
-	    			}
-	    			Box pastBounds = pastXY_;
-	    			Box futureBounds = node().xy();
-	    			model().memberChanged(&node(), pastBounds, futureBounds,
-						GEOMETRY_CHANGED | BOUNDS_CHANGED |
-							(isAny(DELETED | TILES_CHANGED) ?
-								MEMBERS_CHANGED : NONE));
-
-	    			// If a node's geometry changes, its bounds are always changed
-	    			// (This is important because parent relations only consider
-	    			// bounds change of a member when determining whether their
-	    			// own bounds could have changed)
-	    			//
-	    			// TODO: This is in the wrong place
-	    			// TODO: move down, must also call if deleted
-	    			// TODO: must also cascade MEMBERS_CHANGED if tiles changed
-	    		}
 	    	}
 	    }
 	    else
