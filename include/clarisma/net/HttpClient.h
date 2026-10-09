@@ -35,6 +35,7 @@ public:
     std::string_view path() const { return urlView_.path(); }
 #endif
     void get(const char* url, std::vector<std::byte>& data);
+    void getUnzippedGzip(const char* url, std::vector<std::byte>& data) const;
 
 private:
 

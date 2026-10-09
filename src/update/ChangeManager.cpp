@@ -75,7 +75,7 @@ void ChangeManager::preProcessRelations()
                         ChangedFeatureBase* member = model_.getChanged(memberId);
                         if (!member->isNode() && !member->isChangedExplicitly())
                         {
-                            if (member->typedId() == TypedFeatureId::ofWay(682409966))
+                            if (member->typedId() == TypedFeatureId::ofRelation(5160381))
                             {
                                 LOGS << member->typedId() << " added to rel";
                             }

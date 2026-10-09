@@ -452,6 +452,14 @@ private:
 			assert(!changed->is(ChangeFlags::PROCESSED));
 			// Need to remove feature from stacks so it doesn't get
 			// processed in the second round of processing
+			if (!changed->isNode())
+			{
+				ChangedFeature2D::cast(changed)->initFrom(
+					changed->getFeature(mgr_.store()));
+				// TODO: consolidate this, we have lots of
+				//  instances where an implicitly changed
+				//  feature needs to be initialized
+			}
 			ChangedFeatureBase* popped;
 			switch (member->type())
 			{

@@ -96,7 +96,7 @@ void ChangeAction::apply(ChangeModel& model)
 
 void MembershipChange::Added::apply(ChangedFeatureBase* changed)
 {
-    if (changed->typedId() == TypedFeatureId::ofWay(682409966))
+    if (changed->typedId() == TypedFeatureId::ofRelation(5160381))
     {
         LOGS << "ChangeAction: " << changed->typedId() << " added to "
             << parentRelation_->typedId();
