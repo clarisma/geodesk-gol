@@ -633,7 +633,7 @@ void TileChangeAnalyzer::applyActions()
 #ifdef GOL_DIAGNOSTICS
     if (Console::verbosity() >= Console::Verbosity::VERBOSE)
     {
-        ConsoleWriter() << "Applied " << count << " change actions.";
+        ConsoleWriter().timestamp() << "Applied " << count << " change actions.";
     }
 #endif
 }

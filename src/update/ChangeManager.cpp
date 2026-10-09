@@ -197,6 +197,10 @@ void ChangeManager::postProcess()
 
 void ChangeManager::processNodes()
 {
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Processing nodes...";
+    }
     LinkedStack nodes(std::move(model_.changedNodes()));
     while(!nodes.isEmpty())
     {
@@ -214,6 +218,10 @@ void ChangeManager::processNodes()
 
 void ChangeManager::processWays()
 {
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Processing ways...";
+    }
     LinkedStack ways(std::move(model_.changedWays()));
     while(!ways.isEmpty())
     {
@@ -225,6 +233,10 @@ void ChangeManager::processWays()
 
 void ChangeManager::processRelations()
 {
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Processing relations...";
+    }
     LinkedStack relations(std::move(model_.changedRelations()));
     while(!relations.isEmpty())
     {
