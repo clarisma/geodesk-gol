@@ -60,7 +60,8 @@ void ReplicationClient::fetch(uint32_t revision, std::vector<std::byte>& data)
 
     // TODO: Implement for Linux; disabled for now
 
-#ifdef GOL_EXPERIMENTAL
+
+    /*
     HttpResponse response = get(path);
     int status = response.status();
     if (status != 200) [[unlikely]]
@@ -72,7 +73,11 @@ void ReplicationClient::fetch(uint32_t revision, std::vector<std::byte>& data)
         throw HttpException("Server returned error %d", status);
     }
     response.readUnzippedGzip(data);
-#endif
+    */
+
+    // TODO: Improve error handling
+
+    getUnzippedGzip(path, data);
 }
 
 ReplicationClient::State ReplicationClient::fetchState(uint32_t revision)

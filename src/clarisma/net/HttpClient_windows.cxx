@@ -133,9 +133,15 @@ void HttpClient::get(const char* url, std::vector<std::byte>& data)
     response.read(data);
 }
 
-void HttpClient::getUnzippedGzip(const char* url, std::vector<std::byte>& data) const
+void HttpClient::getUnzippedGzip(const char* path, std::vector<std::byte>& data)
 {
-  
+    HttpResponse response = get(path);
+    int status = response.status();
+    if (status != 200) [[unlikely]]
+    {
+        throw HttpException("%s: Server returned error %d", path, status);
+    }
+    response.readUnzippedGzip(data);
 }
 
 } // namespace clarisma
