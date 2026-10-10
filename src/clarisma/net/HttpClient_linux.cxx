@@ -15,7 +15,7 @@ HttpClient::HttpClient(std::string_view url, std::string_view userAgent) :
     client_(origin_)
 {
     client_.set_keep_alive(true);
-    client_.set_default_headers({{ "User-Agent", userAgent }});
+    client_.set_default_headers({{ "User-Agent", std::string(userAgent) }});
 }
 
 HttpClient::~HttpClient()

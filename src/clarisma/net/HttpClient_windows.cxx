@@ -133,4 +133,9 @@ void HttpClient::get(const char* url, std::vector<std::byte>& data)
     response.read(data);
 }
 
+void HttpClient::getUnzippedGzip(const char* url, std::vector<std::byte>& data) const
+{
+  
+}
+
 } // namespace clarisma
