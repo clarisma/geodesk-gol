@@ -58,9 +58,6 @@ void ReplicationClient::fetch(uint32_t revision, std::vector<std::byte>& data)
     char* p = formatRevisionPath(path, revision);
     strcpy(p, ".osc.gz");   // NOLINT safe
 
-    // TODO: Implement for Linux; disabled for now
-
-
     /*
     HttpResponse response = get(path);
     int status = response.status();
