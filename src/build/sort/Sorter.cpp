@@ -351,7 +351,10 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
         if (nodePile == 0)  [[unlikely]]
         {
             // Console::msg("node/%lld not found in node index", nodeId);
-            Console::msg("Rejected way/%lld (missing node/%lld)", id, nodeId);
+            if(Console::verbosity() >= Console::Verbosity::VERBOSE)
+            {
+                Console::msg("Rejected way/%lld (missing node/%lld)", id, nodeId);
+            }
             children_.clear();
             tempWriter_.clear();
             return;
@@ -368,7 +371,10 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
 
     if(children_.size() < 2)  [[unlikely]]
     {
-        Console::msg("Rejected way/%lld with %lld nodes", id, children_.size());
+        if(Console::verbosity() >= Console::Verbosity::VERBOSE)
+        {
+            Console::msg("Rejected way/%lld with %lld nodes", id, children_.size());
+        }
         children_.clear();
         tempWriter_.clear();
         return;

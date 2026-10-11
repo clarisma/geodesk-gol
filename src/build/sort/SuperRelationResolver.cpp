@@ -21,13 +21,19 @@ const std::vector<SuperRelation*>* SuperRelationResolver::resolve()
         {
             resolve(rel);
         }
-        if (rel->tilePair_.isNull())
+        if (rel->tilePair_.isNull())  [[unlikely]]
         {
-            // TODO: omitted empty relation
+            if(Console::verbosity() >= Console::Verbosity::VERBOSE)
+            {
+                Console::msg("Rejected empty relation/%lld", rel->id());
+            }
         }
-        else if (rel->level_ > MAX_RELATION_LEVEL)
+        else if (rel->level_ > MAX_RELATION_LEVEL)  [[unlikely]]
         {
-            // TODO: omitted excessively nested relation
+            if(Console::verbosity() >= Console::Verbosity::VERBOSE)
+            {
+                Console::msg("Rejected relation/%lld: nested too deeply", rel->id());
+            }
         }
         else
         {
