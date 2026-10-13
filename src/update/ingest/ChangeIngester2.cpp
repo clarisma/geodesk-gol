@@ -4,8 +4,10 @@
 #include "ChangeIngester2.h"
 #include "ChangeReader.h"
 #include "Replication.h"
+#include "clarisma/thread/Threads.h"
 #include "update/Updater.h"
 
+#define GEODESK_GOL_UPDATE_INGESTER2
 #ifdef GEODESK_GOL_UPDATE_INGESTER2
 
 // Common errors:
@@ -23,7 +25,7 @@ ChangeIngester::ChangeIngester(Updater& updater, std::string_view url,
 {
 }
 
-void ChangeIngester::download(uint32_t maxThreads)
+ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
 {
     FeatureStore* store = updater_.model().store();
 
@@ -51,11 +53,15 @@ void ChangeIngester::download(uint32_t maxThreads)
     if (current.revision >= desiredTargetRevision_)
     {
         // TODO: already current
-        return;
+        return Status::NO_UPDATES;
     }
 
     baseRevision_ = current.revision;
     currentRevision_ = baseRevision_;
+
+    updater_.beginUpdate(baseRevision_, current.timestamp,
+        availableTarget.revision, availableTarget.timestamp);
+        // TODO
 
     uint32_t totalTickets = desiredTargetRevision_ - current.revision;
     client = nullptr;
@@ -90,6 +96,7 @@ void ChangeIngester::download(uint32_t maxThreads)
     {
         thread.join();
     }
+    return Status::FETCHED_ALL; // TODO: error handling
 }
 
 
@@ -103,17 +110,21 @@ void ChangeIngester::performDownload()
         auto [client, ticket ] = coordinator_.takeConnectionAndTicket();
         if (!client) break;
 
+        char path[256];
+        formatPath(path, ticket, sizeof(path));
+        LOGS << Threads::currentThreadId() << ": Downloading " << path;
+
         int attempt = 0;
         for (;;)
         {
-            char path[256];
-            formatPath(path, ticket, sizeof(path));
             try
             {
                 client->getUnzippedGzip(path, data);
             }
             catch (std::exception& e)
             {
+                coordinator_.releaseConnection(client);
+                LOGS << "Error: " << e.what();
                 data.clear();
                 if (attempt < MAX_RETRIES)
                 {
@@ -121,14 +132,18 @@ void ChangeIngester::performDownload()
                     std::this_thread::sleep_for(
                         std::chrono::milliseconds(ms));
                     attempt++;
+                    LOGS << "  Retry attempt " << attempt;
+                    client = coordinator_.takeConnection();
                     continue;
                 }
                 // TODO: enqueue error instead of data to
                 //  signal that ingestion failed
+                LOGS << "Failed, giving up";
                 queue_.put(ticket, std::move(data));
                     // TODO: for now, post empty vector to signal end
                 return;
             }
+            coordinator_.releaseConnection(client);
             queue_.put(ticket, std::move(data));
             break;
         }
@@ -161,7 +176,8 @@ bool ChangeIngester::processTask(std::vector<std::byte>& data)
 void ChangeIngester::formatPath(char* path, uint32_t ticket, size_t maxPath) const
 {
     // TODO
-    Replication::formatPath(path, baseRevision_ + ticket + 1);
+    char *p = Replication::formatPath(path, baseRevision_ + ticket + 1);
+    memcpy(p, ".osc.gz", 8);
 }
 
 #endif

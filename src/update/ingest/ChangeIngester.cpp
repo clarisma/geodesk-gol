@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#define GEODESK_GOL_UPDATE_INGESTER2
 #ifndef GEODESK_GOL_UPDATE_INGESTER2
 
 #include "ChangeIngester.h"

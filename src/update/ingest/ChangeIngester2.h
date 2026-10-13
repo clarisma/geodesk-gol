@@ -18,7 +18,18 @@ public:
     ChangeIngester(Updater& updater, std::string_view url,
         int maxConnections);
 
-    void download(uint32_t maxThreads);
+    enum class Status
+    {
+        NO_UPDATES,
+        FETCHED_ALL,
+        FETCHED_SOME_ERRORS,
+        FETCHED_SOME_BUFFER_FULL,
+    };
+
+    Status download(uint32_t maxThreads);
+    std::string_view error() const { return error_; }
+    uint32_t currentRevision() const { return currentRevision_; }
+        // TODO: define semantics
 
 private:
     static constexpr int QUEUE_SIZE = 8;
@@ -41,4 +52,5 @@ private:
     uint32_t currentRevision_ = 0;
     uint32_t desiredTargetRevision_ = 0;
     uint32_t targetRevision_ = 0;
+    std::string error_;
 };

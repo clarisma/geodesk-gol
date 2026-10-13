@@ -12,7 +12,7 @@
 #include <geodesk/query/TileIndexWalker.h>
 #include <tile/tes/TesChecker.h>
 
-#include "ingest/ChangeIngester.h"
+#include "ingest/ChangeIngester2.h"
 #include "ingest/ChangeReader.h"
 #include "model/ChangeStatistics.h"
 #include "tile/compiler/TileCompiler.h"
@@ -268,9 +268,8 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     if (!url.empty())
     {
         Console::get()->start("Checking for updates...");
-        ChangeIngester ingester(*this);
-        ingester.download(url);
-        auto status = ingester.status();
+        ChangeIngester ingester(*this, url, 2); // TODOL conns
+        auto status = ingester.download(4);   // TODO: maxthreads
         auto error = ingester.error();
         if(status == ChangeIngester::Status::NO_UPDATES)
         {
