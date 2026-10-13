@@ -10,13 +10,16 @@
 #include <clarisma/validate/Validate.h>
 
 #include "update/Updater.h"
+#include "update/ingest/DownloadCoordinator.h"
 
 UpdateCommand::Option UpdateCommand::UPDATE_OPTIONS[] =
 {
-    { "buffer",				OPTION_METHOD(&UpdateCommand::setBufferSize) },
-    { "B",	    			OPTION_METHOD(&UpdateCommand::setBufferSize) },
-    { "revision",				OPTION_METHOD(&UpdateCommand::setRevision) },
-    { "r",	    			OPTION_METHOD(&UpdateCommand::setRevision) }
+    { "buffer",			OPTION_METHOD(&UpdateCommand::setBufferSize) },
+    { "B",	    		OPTION_METHOD(&UpdateCommand::setBufferSize) },
+    { "C",				OPTION_METHOD(&UpdateCommand::setConnections) },
+    { "connections",	OPTION_METHOD(&UpdateCommand::setConnections) },
+    { "revision",		OPTION_METHOD(&UpdateCommand::setRevision) },
+    { "r",	    		OPTION_METHOD(&UpdateCommand::setRevision) }
 };
 
 UpdateCommand::UpdateCommand()
@@ -57,6 +60,13 @@ int UpdateCommand::setBufferSize(std::string_view s)
     return 1;
 }
 
+int UpdateCommand::setConnections(std::string_view s)
+{
+    connections_ = Validate::intValue(s.data(), 1,
+        DownloadCoordinator::MAX_CONNECTIONS);
+    return 1;
+}
+
 int UpdateCommand::setRevision(std::string_view s)
 {
     requestedRevision_ = Validate::longValue(s.data(), // safe (0-terminated)
@@ -80,6 +90,7 @@ int UpdateCommand::run(char* argv[])
         // TODO: maxMemory() not impleemnted for MacOS, returns 0
     }
     settings.setBufferSize(bufferSize_);
+    settings.setConnections(connections_);
     LOGS << "Buffer size = " << FileSize(bufferSize_);
     LOGS << "Max memory = " << SystemInfo::maxMemory();
     settings.complete();

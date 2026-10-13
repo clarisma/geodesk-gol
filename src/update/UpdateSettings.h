@@ -14,10 +14,12 @@ public:
     void setThreadCount(int count) { threadCount_ = count; }
     size_t bufferSize() const { return bufferSize_; }
     void setBufferSize(size_t size) { bufferSize_ = size; }
+    void setConnections(int connections) { connections_ = connections; }
     void complete();
 
 private:
     std::vector<AreaClassifier::Entry> areaRules_;
     size_t bufferSize_ = 0;
     int threadCount_ = 0;
+    int connections_ = 0;
 };

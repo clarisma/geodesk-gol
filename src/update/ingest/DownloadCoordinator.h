@@ -44,7 +44,7 @@ public:
 
     static constexpr int MAX_CONNECTIONS = 8;
 
-    HttpClient* createConnectionUnlocked();
+    HttpClient* createInitialConnectionUnlocked();
 
     /// Requests a ticket and connection, blocking until both
     /// are available. Returns nullptr to signal that downloading
@@ -68,6 +68,7 @@ public:
 
 private:
     HttpClient* takeConnectionFast();
+    HttpClient* createConnection();
 
     std::string_view origin_;
     std::string_view userAgent_;

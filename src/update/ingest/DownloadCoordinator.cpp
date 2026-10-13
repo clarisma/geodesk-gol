@@ -3,8 +3,18 @@
 
 #include "DownloadCoordinator.h"
 
+HttpClient* DownloadCoordinator::createInitialConnectionUnlocked()
+{
+    assert(clients_.empty());
+    HttpClient* client = createConnection();
+    availableConnectionBitset_ = 1;
+        // The initial connection is considered available;
+        // since we're operating in non-concurrent mode,
+        // there is no expectation for the caller to release it
+    return client;
+}
 
-HttpClient* DownloadCoordinator::createConnectionUnlocked()
+HttpClient* DownloadCoordinator::createConnection()
 {
     clients_.emplace_back(origin_, userAgent_);
     return &clients_.back();
@@ -22,7 +32,7 @@ HttpClient* DownloadCoordinator::takeConnectionFast()
         availableConnectionBitset_ &= ~(1ULL << n);
         return &clients_[n];
     }
-    return createConnectionUnlocked();
+    return createConnection();
 }
 
 HttpClient* DownloadCoordinator::takeConnection()
