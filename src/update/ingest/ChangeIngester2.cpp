@@ -6,6 +6,14 @@
 #include "Replication.h"
 #include "update/Updater.h"
 
+#ifdef GEODESK_GOL_UPDATE_INGESTER2
+
+// Common errors:
+// - No connection, timeout, etc --> retry
+// - 404 for state.txt: Might not be a replication endpoint
+// - 404 for .osc.gz: Revision x is missing
+
+
 ChangeIngester::ChangeIngester(Updater& updater, std::string_view url,
     int maxConnections) :
     updater_(updater),
@@ -155,3 +163,5 @@ void ChangeIngester::formatPath(char* path, uint32_t ticket, size_t maxPath) con
     // TODO
     Replication::formatPath(path, baseRevision_ + ticket + 1);
 }
+
+#endif

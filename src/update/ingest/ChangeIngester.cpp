@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#ifndef GEODESK_GOL_UPDATE_INGESTER2
+
 #include "ChangeIngester.h"
 
 #include <clarisma/zip/Zip.h>
@@ -177,3 +179,5 @@ void ChangeIngester::processTask(std::vector<std::byte>& data)
     // updater_.reportFileRead(osc.size());
     updater_.reportFileRead(data.size());
 }
+
+#endif

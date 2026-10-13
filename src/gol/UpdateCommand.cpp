@@ -110,6 +110,7 @@ void UpdateCommand::help()
         "Apply changes from a replication server or local files.");
     help.option("-r, --revision <n> | latest",
         "Target revision (default: latest)");
+    help.option("-C, --connections", "Max connections when downloading (default: 2)\n");
 	areaOptions(help);
     generalOptions(help);
 }
