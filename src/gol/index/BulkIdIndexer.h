@@ -6,6 +6,10 @@
 #include <cstdint>
 #include <memory>
 
+// TODO: The final run doesn't need runLength, because we
+//  already know it terminates at the next separator
+//  (or max-ID) -- but should we keep it anyway?
+//  We'll have to look at the decoding side first
 
 
 class BulkIdIndexer
