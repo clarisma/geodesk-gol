@@ -286,8 +286,8 @@ void QueryCommand::interactive()
         "    except subprocess.CalledProcessError:\n"
         "        quit()\n"
         "    from geodesk import *\n"
-        "features = Features(r'" << golPath_ << "')\n"
-        "globals()[r'" << golName << "'] = features\n'";
+        "features = Features(r\"" << golPath_ << "\")\n"
+        "globals()[r\"" << golName << "\"] = features\n'";
 #endif
     script_.writeByte(0);  // important: must write 0-terminator
 

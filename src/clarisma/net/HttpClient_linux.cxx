@@ -1,11 +1,12 @@
 // Copyright (c) 2025 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#include <clarisma/io/IOException.h>
 #include <clarisma/net/HttpClient.h>
 #include <clarisma/net/HttpException.h>
-#include <clarisma/io/IOException.h>
 #include <clarisma/net/UrlView.h>
 #include <clarisma/util/log.h>
+#include <clarisma/zip/ZipException.h>
 
 namespace clarisma {
 
@@ -54,12 +55,24 @@ void HttpClient::close()
 }
 
 
+std::string HttpClient::path(const char* path) const
+{
+    if (path[0] == '/') return path;
+    std::string fullPath(urlView_.path());
+    if (path[0])
+    {
+        fullPath += '/';
+        fullPath += path;
+    }
+    return fullPath;
+}
+
 void HttpClient::get(const char* url, std::vector<std::byte>& data)
 {
     data.clear();
 
     int status = 0;
-    auto result = client_.Get(url,
+    auto result = client_.Get(path(url),
         [&](const httplib::Response& response)
         {
             status = response.status;
@@ -87,7 +100,7 @@ void HttpClient::get(const char* url, std::vector<std::byte>& data)
 
 
 void HttpClient::getUnzippedGzip(
-    const char* path, std::vector<std::byte>& data)
+    const char* url, std::vector<std::byte>& data)
 {
     constexpr size_t BUFFER_SIZE = 16 * 1024;
 
@@ -104,7 +117,7 @@ void HttpClient::getUnzippedGzip(
 
     try
     {
-        auto result = client_.Get(path,
+        auto result = client_.Get(path(url),
             [&](const httplib::Response& response)
             {
                 status = response.status;

@@ -33,6 +33,7 @@ public:
 #else
     httplib::Client& client() { return client_; }
     std::string_view path() const { return urlView_.path(); }
+    std::string path(const char* path) const;
 #endif
     void get(const char* url, std::vector<std::byte>& data);
     void getUnzippedGzip(const char* path, std::vector<std::byte>& data);
