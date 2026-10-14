@@ -1,14 +1,11 @@
 // Copyright (c) 2026 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#include "ChangeIngester2.h"
+#include "ChangeIngester.h"
 #include "ChangeReader.h"
 #include "Replication.h"
 #include "clarisma/thread/Threads.h"
 #include "update/Updater.h"
-
-#define GEODESK_GOL_UPDATE_INGESTER2
-#ifdef GEODESK_GOL_UPDATE_INGESTER2
 
 // Common errors:
 // - No connection, timeout, etc --> retry
@@ -244,4 +241,3 @@ void ChangeIngester::formatPath(char* path, uint32_t ticket, size_t maxPath) con
     memcpy(p, ".osc.gz", 8);
 }
 
-#endif

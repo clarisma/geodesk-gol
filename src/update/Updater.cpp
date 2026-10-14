@@ -12,7 +12,7 @@
 #include <geodesk/query/TileIndexWalker.h>
 #include <tile/tes/TesChecker.h>
 
-#include "ingest/ChangeIngester2.h"
+#include "ingest/ChangeIngester.h"
 #include "ingest/ChangeReader.h"
 #include "model/ChangeStatistics.h"
 #include "tile/compiler/TileCompiler.h"
