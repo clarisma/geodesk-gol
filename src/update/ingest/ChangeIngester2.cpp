@@ -181,16 +181,17 @@ bool ChangeIngester::processTask(std::vector<std::byte>& data)
         << data.size() << " bytes (uncompressed)";
     data[data.size()-1] = static_cast<std::byte>(0);
     // force null-terminator, possibly overwriting > of final closing tag
-    try
-    {
-        ChangeReader reader(updater_.model(), reinterpret_cast<char*>(data.data()));
-        reader.read();
-    }
-    catch (std::exception& e)
-    {
-        // TODO: set exception as error
-        return false;
-    }
+
+    // For now, we don't catch exceptions cause due to an invalid ocs file;
+    // we let these bubble up and abort the entire update
+    // If we caught them and stopped ingest (as we do with transport
+    // errors or gzip-related errors), we would wind up with a model
+    // that may contain parts of the invalid osc file, which violates
+    // our atomicity guarantee
+
+    ChangeReader reader(updater_.model(), reinterpret_cast<char*>(data.data()));
+    reader.read();
+
     updater_.reportFileRead(data.size());
     return true;
 }

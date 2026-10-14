@@ -1,6 +1,9 @@
 // Copyright (c) 2025 Clarisma / GeoDesk contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#define GEODESK_GOL_UPDATE_INGESTER2
+#ifndef GEODESK_GOL_UPDATE_INGESTER2
+
 #include "ReplicationClient.h"
 #include <cmath>
 #include <clarisma/math/Decimal.h>
@@ -165,3 +168,5 @@ ReplicationClient::State ReplicationClient::findCurrentState(
         }
     }
 }
+
+#endif
