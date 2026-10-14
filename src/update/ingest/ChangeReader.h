@@ -25,6 +25,7 @@ class ChangeReader : protected SimpleXmlParser
 public:
     ChangeReader(ChangeModel& model, char* xml);
     void read();
+    DateTime latestTimestamp() const  {return latestTimestamp_; }
 
 private:
     void readChanges();
@@ -58,4 +59,6 @@ private:
     TagTableModel tags_;
     std::vector<CFeatureStub*> members_;
     std::vector<CFeature::Role> roles_;
+    std::string_view latestTimestampStr_;
+    DateTime latestTimestamp_;
 };

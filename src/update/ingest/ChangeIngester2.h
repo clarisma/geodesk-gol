@@ -31,8 +31,8 @@ public:
 
     Status download(uint32_t maxThreads);
     std::string_view error() const { return error_; }
-    uint32_t currentRevision() const { return currentRevision_; }
-    DateTime currentTimestamp() const { return currentTimestamp_; }
+    uint32_t latestRevision() const { return latestRevision_; }
+    DateTime latestTimestamp() const { return latestTimestamp_; }
         // TODO: define semantics
 
 private:
@@ -55,9 +55,9 @@ private:
     StaticVector<std::thread, MAX_THREADS> threads_;
     size_t bufferSize_ = 0;
     uint32_t baseRevision_ = 0;
-    uint32_t currentRevision_ = 0;
+    uint32_t latestRevision_ = 0;
     uint32_t desiredTargetRevision_ = 0;
     uint32_t targetRevision_ = 0;
-    DateTime currentTimestamp_;
+    DateTime latestTimestamp_;
     std::string error_;
 };

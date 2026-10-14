@@ -16,7 +16,10 @@ HttpClient* DownloadCoordinator::createInitialConnectionUnlocked()
 
 HttpClient* DownloadCoordinator::createConnection()
 {
-    LOGS << "Creating connection #" << clients_.size();
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::log("Creating connection #%zu", clients_.size());
+    }
     clients_.emplace_back(origin_, userAgent_);
     return &clients_.back();
 }

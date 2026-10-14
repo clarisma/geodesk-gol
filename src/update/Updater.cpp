@@ -264,6 +264,7 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     start();
 
     uint32_t newRevision = 0;
+    DateTime newTimestamp;
 
     updateStart_ = DateTime::now();
     if (!url.empty())
@@ -281,10 +282,11 @@ void Updater::update(std::string_view url, std::span<const char*> files,
         {
             throw std::runtime_error(std::string(error));
         }
-        newRevision = ingester.currentRevision();
+        newRevision = ingester.latestRevision();
+        newTimestamp = ingester.latestTimestamp();
         if (status != ChangeIngester::Status::FETCHED_ALL)
         {
-            reportPartialUpdate(newRevision, ingester.currentTimestamp(), error);
+            reportPartialUpdate(newRevision, ingester.latestTimestamp(), error);
         }
     }
     else
@@ -322,6 +324,7 @@ void Updater::update(std::string_view url, std::span<const char*> files,
         //  so we can detect any lock conflicts before doing
         //  any work
     transaction_.targetSnapshot().revision = newRevision;
+    transaction_.targetSnapshot().revisionTimestamp = newTimestamp;
     if (!url.empty())
     {
         transaction_.setReplicationUrl(url);

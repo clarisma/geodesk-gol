@@ -52,6 +52,8 @@ void ChangeReader::read()
         << ", buckets = " << model_.features().bucket_count();
     LOGS << model_.stringCount() << " strings in model";
     LOGS << model_.tagTableCount() << " tags tables in model";
+
+    latestTimestamp_ = DateTime(latestTimestampStr_, "%Y-%m-%dT%H:%M:%SZ");
 }
 
 void ChangeReader::readChanges()
@@ -335,6 +337,13 @@ int ChangeReader::readFeatureAttributes()
             // TODO: clipping
             xy_.y = Mercator::yFromLat(doubleValue());
             attributes_ |= ATTR_LAT;
+        }
+        else if(attr == "timestamp")
+        {
+            std::string_view ts = value();
+            if(ts > latestTimestampStr_) latestTimestampStr_ = ts;
+                // We use lexical comparison because it is cheaper
+                // than parsing the timestamp into a DateTime
         }
     }
 }

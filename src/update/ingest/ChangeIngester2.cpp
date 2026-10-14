@@ -48,9 +48,7 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
             store->revisionTimestamp(), availableTarget);
     }
 
-    // TODO
     desiredTargetRevision_ = availableTarget.revision;
-    currentTimestamp_ = availableTarget.timestamp;
 
     if (current.revision >= desiredTargetRevision_)
     {
@@ -59,7 +57,7 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     }
 
     baseRevision_ = current.revision;
-    currentRevision_ = baseRevision_;
+    latestRevision_ = baseRevision_;
 
     updater_.beginUpdate(baseRevision_, current.timestamp,
         availableTarget.revision, availableTarget.timestamp);
@@ -97,7 +95,7 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
         catch (std::exception& ex)
         {
             error_ = ex.what();
-            currentRevision_ = baseRevision_;
+            latestRevision_ = baseRevision_;
             break;
         }
         if (ticketsProcessed == totalTickets) break;
@@ -107,11 +105,12 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     uint32_t ticketsIssued = coordinator_.stop();
     assert(ticketsProcessed <= ticketsIssued);
 
-    if (currentRevision_ == desiredTargetRevision_) [[likely]]
+    if (latestRevision_ == desiredTargetRevision_) [[likely]]
     {
         status = Status::FETCHED_ALL;
+        latestTimestamp_ = availableTarget.timestamp;
     }
-    else if (currentRevision_ > baseRevision_)
+    else if (latestRevision_ > baseRevision_)
     {
         status = Status::FETCHED_SOME_ERRORS;
     }
@@ -205,10 +204,10 @@ bool ChangeIngester::processTask(std::vector<std::byte>& data)
         return false;
     }
 
-    currentRevision_++;
-    updater_.setReadingTask(currentRevision_);
+    latestRevision_++;
+    updater_.setReadingTask(latestRevision_);
 
-    LOGS << "  Processing " << currentRevision_ << ": "
+    LOGS << "  Processing " << latestRevision_ << ": "
         << data.size() << " bytes (uncompressed)";
     data[data.size()-1] = static_cast<std::byte>(0);
     // force null-terminator, possibly overwriting > of final closing tag
@@ -222,10 +221,15 @@ bool ChangeIngester::processTask(std::vector<std::byte>& data)
 
     ChangeReader reader(updater_.model(), reinterpret_cast<char*>(data.data()));
     reader.read();
+    DateTime ts = reader.latestTimestamp();
+    if (ts > latestTimestamp_) [[likely]]
+    {
+        latestTimestamp_ = ts;
+    }
     if (Console::verbosity() >= Console::Verbosity::VERBOSE)
     {
         Console::log("Ingested revision %d (%llu bytes)",
-            currentRevision_, data.size());
+            latestRevision_, data.size());
     }
 
     updater_.reportFileRead(data.size());
