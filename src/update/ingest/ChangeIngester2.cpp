@@ -21,7 +21,8 @@ ChangeIngester::ChangeIngester(Updater& updater, std::string_view url,
     updater_(updater),
     coordinator_(url, "geodesk-gol/" GEODESK_GOL_VERSION " (+https://www.geodesk.com)", maxConnections),
     // TODO: Put UserAgent string in one common place)
-    queue_(QUEUE_SIZE)
+    queue_(QUEUE_SIZE),
+    url_(url)
 {
 }
 
@@ -87,7 +88,11 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     for (;;)
     {
         std::vector<std::byte> data = queue_.take();
-        if (!processTask(data)) break;
+        if (!processTask(data))
+        {
+            queue_.clear();
+            break;
+        }
         ticketsProcessed++;
         if (ticketsProcessed == totalTickets) break;
     }
@@ -135,7 +140,10 @@ void ChangeIngester::performDownload()
                     attempt++;
                     LOGS << "  Retry attempt " << attempt;
                     client = coordinator_.takeConnection();
-                    continue;
+                    if (client) continue;
+                        // If we got a nullptr client, that
+                        // means downloading is shutting down,
+                        // and we give up
                 }
                 // TODO: enqueue error instead of data to
                 //  signal that ingestion failed
@@ -164,13 +172,18 @@ bool ChangeIngester::processTask(std::vector<std::byte>& data)
         << data.size() << " bytes (uncompressed)";
     data[data.size()-1] = static_cast<std::byte>(0);
     // force null-terminator, possibly overwriting > of final closing tag
-    ChangeReader reader(updater_.model(), reinterpret_cast<char*>(data.data()));
-
-    //assert(_CrtCheckMemory());
-    reader.read();
-    // updater_.reportFileRead(osc.size());
+    try
+    {
+        ChangeReader reader(updater_.model(), reinterpret_cast<char*>(data.data()));
+        reader.read();
+    }
+    catch (std::exception& e)
+    {
+        // TODO: set exception as error
+        return false;
+    }
     updater_.reportFileRead(data.size());
-    return true; // TODO: exceptions
+    return true;
 }
 
 
