@@ -87,14 +87,14 @@ std::pair<HttpClient*, uint32_t> DownloadCoordinator::takeConnectionAndTicket()
 
 uint32_t DownloadCoordinator::setTotalTickets(uint32_t totalTickets)
 {
-    uint32_t prevTotalTickets;
+    uint32_t ticketsIssued;
     {
         std::unique_lock lock(mutex_);
-        prevTotalTickets = totalTickets_;
+        ticketsIssued = currentTicket_;
         totalTickets_ = totalTickets;
     }
     available_.notify_all();
-    return prevTotalTickets;
+    return ticketsIssued;
 }
 
 

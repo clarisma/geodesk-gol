@@ -88,17 +88,37 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     for (;;)
     {
         std::vector<std::byte> data = queue_.take();
-        if (!processTask(data))
+        ticketsProcessed++;
+        try
         {
-            queue_.clear();
+            if (!processTask(data)) break;
+        }
+        catch (std::exception& ex)
+        {
+            error_ = ex.what();
+            currentRevision_ = baseRevision_;
             break;
         }
-        ticketsProcessed++;
         if (ticketsProcessed == totalTickets) break;
     }
 
-    Status status = Status::FETCHED_ALL;
+    Status status;
     uint32_t ticketsIssued = coordinator_.stop();
+    assert(ticketsProcessed <= ticketsIssued);
+
+    if (currentRevision_ == desiredTargetRevision_) [[likely]]
+    {
+        status = Status::FETCHED_ALL;
+    }
+    else if (currentRevision_ == baseRevision_)
+    {
+        status = Status::FETCHED_SOME_ERRORS;
+    }
+    else
+    {
+        status = Status::FAILED;
+    }
+
     while (ticketsProcessed < ticketsIssued)
     {
         // Drain the queue to unblock any workers that
@@ -106,13 +126,12 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
         // we've quit processing due to an error
         queue_.take();
         ticketsProcessed++;
-        status = Status::FETCHED_SOME_ERRORS;
     }
     for (auto& thread : threads_)
     {
         thread.join();
     }
-    return status; // TODO: error handling
+    return status;
 }
 
 

@@ -24,6 +24,7 @@ public:
         FETCHED_ALL,
         FETCHED_SOME_ERRORS,
         FETCHED_SOME_BUFFER_FULL,
+        FAILED
     };
 
     Status download(uint32_t maxThreads);
