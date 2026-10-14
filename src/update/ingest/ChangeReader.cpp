@@ -53,7 +53,11 @@ void ChangeReader::read()
     LOGS << model_.stringCount() << " strings in model";
     LOGS << model_.tagTableCount() << " tags tables in model";
 
-    latestTimestamp_ = DateTime(latestTimestampStr_, "%Y-%m-%dT%H:%M:%SZ");
+    if (!latestTimestampStr_.empty())   [[likely]]
+    {
+        latestTimestamp_ = DateTime(latestTimestampStr_,
+            "%Y-%m-%dT%H:%M:%SZ");
+    }
 }
 
 void ChangeReader::readChanges()
