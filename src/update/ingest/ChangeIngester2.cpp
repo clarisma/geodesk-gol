@@ -97,14 +97,23 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
         if (ticketsProcessed == totalTickets) break;
     }
 
-    coordinator_.setTotalTickets(0);
+    Status status = Status::FETCHED_ALL;
+    uint32_t ticketsIssued = coordinator_.stop();
+    while (ticketsProcessed < ticketsIssued)
+    {
+        // Drain the queue to unblock any workers that
+        // are waiting to submit later osc files after
+        // we've quit processing due to an error
+        queue_.take();
+        ticketsProcessed++;
+        status = Status::FETCHED_SOME_ERRORS;
+    }
     for (auto& thread : threads_)
     {
         thread.join();
     }
-    return Status::FETCHED_ALL; // TODO: error handling
+    return status; // TODO: error handling
 }
-
 
 
 void ChangeIngester::performDownload()

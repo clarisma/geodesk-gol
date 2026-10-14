@@ -60,10 +60,10 @@ public:
     /// Releases the given connection back to the pool.
     ///
     void releaseConnection(const HttpClient* client);
-    void setTotalTickets(uint32_t totalTickets);
-    void endDownloads()
+    uint32_t setTotalTickets(uint32_t totalTickets);
+    uint32_t stop()
     {
-        setTotalTickets(0);
+        return setTotalTickets(0);
     }
 
 private:
