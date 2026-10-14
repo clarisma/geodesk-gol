@@ -65,7 +65,7 @@ Replication::State Replication::fetchState(HttpClient& client, uint32_t revision
 }
 
 /// The following function is adapted from PyOsmium
-/// by Sarah Hoffman and others.
+/// by Sarah Hoffmann and others.
 /// https://github.com/osmcode/pyosmium/blob/master/src/osmium/replication/server.py
 ///
 /// The original work is licensed as follows:

@@ -89,6 +89,7 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
         std::vector<std::byte> data = queue_.take();
         if (!processTask(data)) break;
         ticketsProcessed++;
+        if (ticketsProcessed == totalTickets) break;
     }
 
     coordinator_.setTotalTickets(0);
