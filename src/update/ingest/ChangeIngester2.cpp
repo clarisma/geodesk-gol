@@ -222,6 +222,11 @@ bool ChangeIngester::processTask(std::vector<std::byte>& data)
 
     ChangeReader reader(updater_.model(), reinterpret_cast<char*>(data.data()));
     reader.read();
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::log("Ingested revision %d (%llu bytes)",
+            currentRevision_, data.size());
+    }
 
     updater_.reportFileRead(data.size());
     return true;
