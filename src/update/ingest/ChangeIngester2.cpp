@@ -50,6 +50,7 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
 
     // TODO
     desiredTargetRevision_ = availableTarget.revision;
+    currentTimestamp_ = availableTarget.timestamp;
 
     if (current.revision >= desiredTargetRevision_)
     {
@@ -110,7 +111,7 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     {
         status = Status::FETCHED_ALL;
     }
-    else if (currentRevision_ == baseRevision_)
+    else if (currentRevision_ > baseRevision_)
     {
         status = Status::FETCHED_SOME_ERRORS;
     }
@@ -155,10 +156,11 @@ void ChangeIngester::performDownload()
             {
                 client->getUnzippedGzip(path, data);
             }
-            catch (std::exception& e)
+            catch (std::exception& ex)
             {
                 coordinator_.releaseConnection(client);
-                LOGS << "Error: " << e.what();
+                std::string_view error = ex.what();
+                LOGS << "Error: " << error;
                 data.clear();
                 if (attempt < MAX_RETRIES)
                 {
@@ -176,6 +178,9 @@ void ChangeIngester::performDownload()
                 // TODO: enqueue error instead of data to
                 //  signal that ingestion failed
                 LOGS << "Failed, giving up";
+                data.resize(error.size() + 2);
+                data[0] = ERROR_MARKER;
+                memcpy(&data[1], error.data(), error.size() + 1);
                 queue_.put(ticket, std::move(data));
                     // TODO: for now, post empty vector to signal end
                 return;
@@ -190,8 +195,15 @@ void ChangeIngester::performDownload()
 
 bool ChangeIngester::processTask(std::vector<std::byte>& data)
 {
-    // TODO: enhanced error handling
-    if (data.empty()) return false;
+    if (data.empty()) [[unlikely]]
+    {
+        return false;
+    }
+    if (data[0] == ERROR_MARKER)  [[unlikely]]
+    {
+        error_ = reinterpret_cast<const char*>(&data[1]);
+        return false;
+    }
 
     currentRevision_++;
     updater_.setReadingTask(currentRevision_);

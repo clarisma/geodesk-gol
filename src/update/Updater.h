@@ -82,6 +82,9 @@ public:
 	void beginUpdate(
 		uint32_t fromRevision, DateTime fromTimestamp,
 		uint32_t toRevision, DateTime toTimestamp);
+
+	void reportPartialUpdate(uint32_t toRevision, DateTime toTimestamp,
+		std::string_view error);
 	void setReadingTask(uint32_t revision);
 	void reportFileRead(size_t uncompressedSize);
 
@@ -120,8 +123,8 @@ private:
 
 	// TODO: Consider encapsulating as UpdateProgressTracker?
 	void calculateWork(int timespanInSeconds);
-	static void printRevision(ConsoleWriter& out, const char* leader,
-		uint32_t revision, DateTime timestamp, DateTime now);
+	void printRevision(ConsoleWriter& out, const char* leader,
+		uint32_t revision, DateTime timestamp);
 
 	ChangeManager changes_;
 	std::string updateFileName_;
@@ -147,6 +150,7 @@ private:
 	int changeFileCount_ = 0;
 
 	FeatureStore::Transaction transaction_;
+	DateTime updateStart_;
 
 #ifdef GOL_DIAGNOSTICS
 	std::filesystem::path dumpPath_;

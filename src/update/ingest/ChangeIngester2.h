@@ -8,6 +8,8 @@
 #include <clarisma/data/StaticVector.h>
 #include <clarisma/thread/SequencedBlockingQueue.h>
 
+#include "clarisma/util/DateTime.h"
+
 class Updater;
 
 using namespace clarisma;
@@ -30,6 +32,7 @@ public:
     Status download(uint32_t maxThreads);
     std::string_view error() const { return error_; }
     uint32_t currentRevision() const { return currentRevision_; }
+    DateTime currentTimestamp() const { return currentTimestamp_; }
         // TODO: define semantics
 
 private:
@@ -37,6 +40,8 @@ private:
     static constexpr uint32_t MAX_THREADS = 8;
     static constexpr int MAX_RETRIES = 3;
     static constexpr int INITIAL_RETRY_DELAY = 250;
+
+    static constexpr std::byte ERROR_MARKER = static_cast<std::byte>('~');
 
     void performDownload();
     bool processTask(std::vector<std::byte>& data);
@@ -53,5 +58,6 @@ private:
     uint32_t currentRevision_ = 0;
     uint32_t desiredTargetRevision_ = 0;
     uint32_t targetRevision_ = 0;
+    DateTime currentTimestamp_;
     std::string error_;
 };

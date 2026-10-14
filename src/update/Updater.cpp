@@ -265,6 +265,7 @@ void Updater::update(std::string_view url, std::span<const char*> files,
 
     uint32_t newRevision = 0;
 
+    updateStart_ = DateTime::now();
     if (!url.empty())
     {
         Console::get()->start("Checking for updates...");
@@ -273,14 +274,18 @@ void Updater::update(std::string_view url, std::span<const char*> files,
         auto error = ingester.error();
         if(status == ChangeIngester::Status::NO_UPDATES)
         {
-            if (!error.empty())
-            {
-                throw std::runtime_error(std::string(error));
-            }
             Console::end().success() << "No updates available\n";
             return;
         }
+        if (status == ChangeIngester::Status::FAILED)
+        {
+            throw std::runtime_error(std::string(error));
+        }
         newRevision = ingester.currentRevision();
+        if (status != ChangeIngester::Status::FETCHED_ALL)
+        {
+            reportPartialUpdate(newRevision, ingester.currentTimestamp(), error);
+        }
     }
     else
     {
@@ -455,7 +460,7 @@ void Updater::calculateWork(int timespanInSeconds)
 
 
 void Updater::printRevision(ConsoleWriter& out, const char* leader, uint32_t revision,
-    DateTime timestamp, DateTime now)
+    DateTime timestamp)
 {
     constexpr int REVISION_MAX_DIGITS = 8;
     char buf[64];
@@ -465,7 +470,7 @@ void Updater::printRevision(ConsoleWriter& out, const char* leader, uint32_t rev
     // TODO: may underflow buffer if >8 digits!
     out.writeBytes(buf, REVISION_MAX_DIGITS);
     out << Console::DEFAULT << " • " << timestamp << " (";
-    Format::timeAgo(buf, (now - timestamp) / 1000);
+    Format::timeAgo(buf, (updateStart_ - timestamp) / 1000);
     out << buf << ")\n";
 }
 
@@ -478,11 +483,10 @@ void Updater::beginUpdate(
     assert(changeFileCount_ > 0);
     calculateWork((toTimestamp - fromTimestamp) / 1000);
 
-    DateTime now = DateTime::now();
     ConsoleWriter out;
     out.blank();        // ensures that progress bar is fully overwritten
-    printRevision(out, "    from ", fromRevision, fromTimestamp, now);
-    printRevision(out, "      to ", toRevision, toTimestamp, now);
+    printRevision(out, "    from ", fromRevision, fromTimestamp);
+    printRevision(out, "      to ", toRevision, toTimestamp);
     out.flush();
     setReadingTask(fromRevision+1);
     // TODO: this causes the task display to print twice, can we add
@@ -490,10 +494,19 @@ void Updater::beginUpdate(
     //  (We would then call this method *before* writing to the Console)
 }
 
+void Updater::reportPartialUpdate(uint32_t toRevision, DateTime toTimestamp,
+    std::string_view error)
+{
+    ConsoleWriter out;
+    out.blank();        // ensures that progress bar is fully overwritten
+    printRevision(out, "stops at ", toRevision, toTimestamp);
+    out << "Problem: " << Console::HIGHLIGHT_YELLOW << error << Console::DEFAULT;
+}
+
 void Updater::setReadingTask(uint32_t revision)
 {
     char* buf = displayBuffer_[useAltDisplay_];
-    char* p = Format::integer(buf + sizeof(READING_TASK_PREFIX-1), revision);
+    char* p = Format::integer(buf + sizeof(READING_TASK_PREFIX)-1, revision);
     memcpy(p, "...", 4);
     Console::get()->setTask(buf);
     useAltDisplay_ = !useAltDisplay_;
