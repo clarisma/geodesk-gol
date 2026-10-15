@@ -48,9 +48,8 @@ private:
 	TRelation* getRelation(uint32_t number) const;
 
 	template <typename... Args>
-	static void invalid(const char* message, Args... args) 
+	static void invalid(const char* message, Args... args)
 	{
-		printf(message, args...);
 		throw TesException(message, args...);
 	}
 
