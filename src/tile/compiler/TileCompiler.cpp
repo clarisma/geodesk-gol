@@ -31,7 +31,6 @@ void TileCompiler::addChanges(const TesArchiveEntry& entry, const uint8_t* data)
     addChanges(block);
 }
 
-
 ByteBlock TileCompiler::compile()
 {
     const FeatureStore::Settings& settings = store_->header()->settings;
@@ -49,5 +48,8 @@ ByteBlock TileCompiler::compile()
     layout.placeBodies();
 
     uint8_t* newTileData = tile_.write(layout);
-    return { newTileData, static_cast<size_t>(layout.size()) };
+    return { newTileData, static_cast<size_t>(layout.size() + 4) };
+        // TODO: cleanup; layout.size() currently only covers
+        //  the size excluding the checksum; should Tile::write()
+        //  increase size by 4 to account for the checksum?
 }

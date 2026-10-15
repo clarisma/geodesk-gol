@@ -1,0 +1,909 @@
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#include "ChangeManager.h"
+#include <clarisma/io/FilePath.h>
+#include <clarisma/util/Pointers.h>
+#include <geodesk/feature/ParentRelationIterator.h>
+#include <geodesk/query/ParentWaysQuery.h>
+
+#include "build/sort/SuperRelation.h"
+#include "update/model/ChangeModelDumper.h"
+#include "update/model/ChangedTile.h"
+#include "update/process/NodeProcessor.h"
+#include "update/process/WayProcessor.h"
+#include "update/process/RelationProcessor.h"
+#include "geodesk/query/FeatureFinder.h"
+#include "osm/SuperRelationScore.h"
+
+// TODO: When do we process the membership changes of members
+//  of a deleted relation? ==> during scan in TCA
+
+// TODO:
+//  We must process all geometrically changed relations *before*
+//  non-geometrically changed relations, because a geometric change in a child relation
+//  may turn a non-geometrically changed relation into a geometrically changed relation;
+//  but at this point, we may have already processed that relation (because we don't
+//  iterate and process members unless a relation has geometry changes)
+//  Hence we must defer all relations that don't have geometry changes, until
+//  all relations with geometric changes have been processed
+//  Caution! This may deadlock if a geom-changed rel has a non-geom-changed rel
+//   as a member. In that case, we must not process the child -- we simply take its
+//   past bounds
+
+// TODO: Avoid pushing unchanged features to tiles
+
+// TODO: When do we check whether a feature loses its TEX as a result
+//  of being dropped from a relation?
+
+using enum ChangeFlags;
+
+void ChangeManager::preProcessRelations()
+{
+    // Add the memberships of newly-created relations
+    // to their members (We need to do this *before*
+    // we process the members themselves)
+
+    HashSet<TypedFeatureId> memberSet;
+    ChangedFeature2D* rel = model_.changedRelations().first();
+    while (rel)
+    {
+        if(rel->isChangedExplicitly()) [[likely]]
+        {
+            if (rel->ref() == CRef::UNKNOWN)
+            {
+                // TODO: need to check if both refs are unknown,
+                //  because we may have only found the SE twin of
+                //  a twin-tile relation
+
+                // If a relation is changed explicitly and
+                // it has not been found, this means it has
+                // been newly created; we need to add memberships
+                // for all its members (for existing relations,
+                // TileChangeAnalyzer will perform this step)
+                bool hasChildRelations = false;
+                for (CFeatureStub* memberStub : rel->members())
+                {
+                    // TODO: We could avoid the lookup by typedId
+                    TypedFeatureId memberId = memberStub->typedId();
+                    auto result = memberSet.insert(memberId);
+                    if (result.second)  // actually inserted
+                    {
+                        // Only add a single membership, even if member
+                        // appears multiple times in same relation
+
+                        ChangedFeatureBase* member = model_.getChanged(memberId);
+                        if (!member->isNode() && !member->isChangedExplicitly())
+                        {
+                            if (member->typedId() == TypedFeatureId::ofRelation(5160381))
+                            {
+                                LOGS << member->typedId() << " added to rel";
+                            }
+                            FeaturePtr memberFeature =
+                                member->getFeature(store());
+                            if (!memberFeature.isNull())
+                            {
+                                ChangedFeature2D::cast(member)->initFrom(
+                                    memberFeature);
+                            }
+                            // TODO: Consolidate this, we need to do
+                            //  this anytime we may be creating
+                            //  an implicitly changed feature
+                        }
+                        model_.addMembership(member, rel);
+                    }
+                    hasChildRelations |= memberId.isRelation();
+                }
+                memberSet.clear();
+                rel->addFlags(hasChildRelations ?
+                    ChangeFlags::WILL_BE_SUPER_RELATION : ChangeFlags::NONE);
+                // TODO: Move super-relation detection to ChangeReader?
+                //  Currently duplicated in TileChangeAnalyzer::checkMembers()
+            }
+        }
+        rel = rel->next();
+    }
+
+    // Cascade geometry changes of relations to any of their parent
+    // relations (We can't consolidate this with the previous step,
+    // because we need to have the membership changes, since we're
+    // retrieving relation tables (into which any membership changes
+    // are merged)
+    // Box maxBounds = Box::ofWorld();
+    rel = model_.changedRelations().first();
+        // TODO: We need to move the stack locally, because cascading
+        //  may add new relations (though that's probably benign)
+
+    // TODO: Is a change in area status of a member considered
+    //  a geometric change in the parent relation?
+
+    while (rel)
+    {
+        // LOGS << "Marking and checking " << rel->typedId();
+        ChangeFlags flags = rel->flags();
+        if(testAny(flags, ChangeFlags::MEMBERS_CHANGED |
+            ChangeFlags::DELETED))
+        {
+            // If a relation's members have changed, we mark
+            //  all of its parents as having changed GEOMETRY
+            //  and BOUNDS (this forces processing, which may
+            //  clear these flags); if the relation is deleted,
+            //  we mark its direct parents MEMBERS_CHANGED, as well
+            //  (in case the .osc files don't remove the deleted
+            //   relation from its parents)
+            ChangeFlags cascadeFlags = ChangeFlags::GEOMETRY_CHANGED |
+                ChangeFlags::BOUNDS_CHANGED |
+                    (test(flags, ChangeFlags::DELETED) ?
+                        ChangeFlags::MEMBERS_CHANGED : ChangeFlags::NONE);
+            LinkedRelation linked {rel,nullptr};
+            checkParentRelations(&linked, cascadeFlags);
+        }
+        rel = rel->next();
+    }
+}
+
+void ChangeManager::preProcess()
+{
+    LOGS << "Pre-processing changes...";
+    preProcessRelations();
+}
+
+void ChangeManager::process()
+{
+    LOGS << "Processing changes...";
+
+    // Nodes will need to be processed in a potential second turn,
+    // because there may be implicitly changed nodes (added to a
+    // relation) that haven't been found during the initial search
+    processNodes();
+    processWays();
+    processRelations();
+
+    // TODO: Inform Updater to perform secondary search
+}
+
+void ChangeManager::postProcess()
+{
+    LOGS << "Processing changes...";
+
+    // model_.determineTexLosers();
+    resolveExports();
+
+    // TODO: process nodes, ways, relations whose reltables need to be
+    //  updated because their parent relations have moved tiles
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::DEBUG)
+    {
+        ChangeModelDumper dumper(model_);
+        std::string dumpPath(FilePath::withoutExtension(
+            model_.store()->fileName()));
+        dumpPath += "-change-model.txt";
+        dumper.dump(dumpPath.c_str());
+    }
+#endif
+
+#ifdef GOL_UPDATE_STATISTICS
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        stats_.report();
+    }
+#endif
+
+
+    LOGS << "Post-processed changes.";
+    LOGS << changedTileCount() << " tiles changed.";
+}
+
+
+void ChangeManager::processNodes()
+{
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Processing nodes...";
+    }
+    LinkedStack nodes(std::move(model_.changedNodes()));
+    while(!nodes.isEmpty())
+    {
+        ChangedNode* node = nodes.pop();
+        NodeProcessor (*this, *node).process();
+    }
+    if (!model_.changedNodes().isEmpty())   [[unlikely]]
+    {
+        // Pick up any coincident nodes that turn into
+        //  unique-location nodes
+        processNodes();
+    }
+}
+
+
+void ChangeManager::processWays()
+{
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Processing ways...";
+    }
+    LinkedStack ways(std::move(model_.changedWays()));
+    while(!ways.isEmpty())
+    {
+        ChangedFeature2D* way = ways.pop();
+        WayProcessor (*this, *way).process();
+    }
+}
+
+
+void ChangeManager::processRelations()
+{
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        ConsoleWriter().timestamp() << "Processing relations...";
+    }
+    LinkedStack relations(std::move(model_.changedRelations()));
+    while(!relations.isEmpty())
+    {
+        ChangedFeature2D* rel = relations.pop();
+        RelationProcessor (*this, *rel).process();
+    }
+}
+
+
+// TODO: move to ChangeModel -- no, relies on TileCatalog
+void ChangeManager::wayNodeFeatureStatusChanged(Coordinate xy, NodePtr node)
+{
+    ParentWaysQuery query(store(), xy, node);
+    for (;;)
+    {
+        WayPtr way = query.next();
+        if (way.isNull()) break;
+        if (way.id() == 97831916)
+        {
+            LOGS << "Notifying way/" << way.id() << " that one of its nodes "
+                "changed feature status";
+        }
+        ChangedFeature2D* changedWay =
+            model_.getChangedFeature2D(FeatureType::WAY, way.id());
+        changedWay->initFrom(way);
+        CRef ref = getRef(way);
+        if (!way.hasNorthwestTwin()) [[likely]]
+        {
+            changedWay->offerRef(ref);
+        }
+        else
+        {
+            changedWay->offerRefSE(ref);
+        }
+        changedWay->addFlags(ChangeFlags::MEMBERS_CHANGED);
+    }
+}
+
+
+/// Past bounds must be set
+///
+/// @param feature
+/// @return  1   if at least one ref has been resolved
+///          0   if feature is missing
+///         -1   if feature refs are unknown (search required)
+///
+// TODO: This may be wrong, because it looks up the tile of
+//  the topLeft/bottomRight coordinate; in reality, the
+//  true twin-tile may be at a lower zoom level, we need to
+//  look at the bounds of the feature to determine its level
+int ChangeManager::normalizeRefs(CFeature* feature) const
+{
+    // For twin-tile features, we may have only one of the twins.
+    // If the one ref is MISSING, we will set it to either UNRESOLVED
+    // (i.e. we know the TIP, but don't have its offset or TEX),
+    // or SINGLE_TILE (SE part only)
+
+    if (feature->typedId() == TypedFeatureId::ofWay(38728241))
+    {
+        LOGS << "Normalizing refs for " << feature->typedId()
+            << "(" << feature << "): " << feature->ref() << " / " << feature->refSE();
+    }
+
+    assert(feature->type() != FeatureType::NODE);
+    CRef ref = feature->ref();
+    Tip tip = ref.tip();
+    if(!tip.isNull())   [[likely]]
+    {
+        CRef refSE = feature->refSE();
+        if (refSE == CRef::SINGLE_TILE) [[likely]]
+        {
+            if (feature->typedId() == TypedFeatureId::ofRelation(8945512))
+            {
+                LOGS << "Already normalized: " << feature->typedId();
+            }
+            return 1;
+        }
+        if (feature->refSE().tip().isNull())
+        {
+            Box pastBounds = ref.getFeature(store()).bounds();
+            Box tileBounds = tileCatalog_.tileOfTip(tip).bounds();
+            refSE = CRef::SINGLE_TILE;
+            if(pastBounds.maxX() > tileBounds.maxX() ||
+                pastBounds.minY() < tileBounds.minY())
+            {
+                // The feature's bounds extend past the right or
+                // bottom edge of its NW tile, which means it has
+                // a SE tile
+
+                if (feature->typedId() == TypedFeatureId::ofRelation(2144774))
+                {
+                    LOGS << "000321 = " << tileCatalog_.tileOfTip(Tip(0x321));
+                    LOGS << "000325 = " << tileCatalog_.tileOfTip(Tip(0x325));
+                    TilePair tp = tileCatalog_.tilePair(pastBounds);
+                    LOGS << "Tile pair = " << tp.first() << " / " << tp.second();
+                }
+                TilePair tp = tileCatalog_.tilePair(pastBounds);
+                assert(tileCatalog_.tipOfTile(tp.first()) == tip);
+                assert(tp.hasSecond());
+                Tip tipSE = tileCatalog_.tipOfTile(tp.second());
+                assert(!tipSE.isNull());
+                refSE = CRef::ofUnresolved(tipSE);
+
+                if (feature->typedId() == TypedFeatureId::ofRelation(2144774))
+                {
+                    LOGS << "tipSE = " << tipSE;
+                    LOGS << "refSE = " << refSE;
+                }
+            }
+            feature->setRefSE(refSE);
+        }
+    }
+    else
+    {
+        ref = feature->refSE();
+        tip = ref.tip();
+        if (tip.isNull())
+        {
+            if (memberSearchCompleted_)
+            {
+                feature->setRef(CRef::MISSING);
+                return 0;
+            }
+
+            // TODO: Look up feature in index, issue
+            //  search request
+            return -1;
+        }
+
+        Box pastBounds = ref.getFeature(store()).bounds();
+        Box tileBounds = tileCatalog_.tileOfTip(tip).bounds();
+        assert(pastBounds.minX() < tileBounds.minX() ||
+            pastBounds.maxY() > tileBounds.maxY());
+
+        // If we only have an SE ref, the feature *must* have
+        // a NW tile (TODO: make these runtime checks instead
+        //  of asserts -- if these constraints are violated,
+        //  this means the GOL is corrupt)
+
+        TilePair tp = tileCatalog_.tilePair(pastBounds);
+        assert(tp.hasSecond());
+        assert(tileCatalog_.tipOfTile(tp.second()) == tip);
+        Tip tipNW = tileCatalog_.tipOfTile(tp.first());
+        assert(!tipNW.isNull());
+        ref = CRef::ofUnresolved(tipNW);
+        feature->setRef(ref);
+    }
+
+    if (feature->typedId() == TypedFeatureId::ofWay(38728241))
+    {
+        LOGS << "Refs after normalization of " << feature->typedId()
+            << ": " << feature->ref() << " / " << feature->refSE();
+    }
+
+    return 1;
+}
+
+
+const CTagTable* ChangeManager::getExceptionNodeTags(bool duplicate, bool orphan)
+{
+    assert(duplicate || orphan);
+    const CTagTable** pTable = orphan ?
+        (duplicate ? &duplicateOrphanNodeTags_ : &orphanNodeTags_) :
+            &duplicateNodeTags_;
+    if (*pTable == nullptr)
+    {
+        *pTable = model_.createExceptionNodeTags(duplicate, orphan);
+    }
+    return *pTable;
+}
+
+// We need the TIP where this coordinate is located, so we can
+//  build a ref for the remaining unique node, in case we have to
+//  add it to the change model
+ChangedNode* ChangeManager::findUniqueLocationNode(Tip tip, Coordinate xy)
+{
+    auto it = uniqueLocationNodes_.find(xy);
+    if (it != uniqueLocationNodes_.end()) return it->second;
+    ChangedNode* node = model_.nodeAtFutureLocation(xy);
+    if (node && node->is(ChangeFlags::FLAGGED_SHARED_LOCATION))
+    {
+        uniqueLocationNodes_[xy] = nullptr;
+        return nullptr;
+    }
+
+    NodePtr  soleRemainingNode;
+    Query query(model_.store(), Box(xy), FeatureTypes::NODES);
+    for (;;)
+    {
+        FeaturePtr otherNode = query.next();
+        if (otherNode.isNull()) break;
+        assert(otherNode.isNode());
+        CFeature* f = model_.peekFeature(TypedFeatureId::ofNode(otherNode.id()));
+        if (f && f->isChanged())
+        {
+            ChangedNode* changed = ChangedNode::cast(f);
+            if (changed->isAny(GEOMETRY_CHANGED | DELETED))
+            {
+                continue;
+            }
+        }
+        if (!soleRemainingNode.isNull())
+        {
+            // There are more than one node remaining at this location
+            uniqueLocationNodes_[xy] = nullptr;
+            return nullptr;
+        }
+        soleRemainingNode = NodePtr(otherNode);
+    }
+    if (!soleRemainingNode.isNull())
+    {
+        node = model_.getChangedNode(soleRemainingNode.id());
+        if (!node->is(ChangeFlags::PROCESSED))
+        {
+            // Don't clobber node ref if it has been processed
+            // already; if demoted, it may now be ANONYMOUS_NODE
+            node->setXY(xy);
+            TilePtr tile = model_.store()->fetchTile(tip);
+            node->offerRef(CRef::ofMaybeExported(
+                tip, tile.handleOf(soleRemainingNode)));
+        }
+        uniqueLocationNodes_[xy] = node;
+    }
+    return node;
+}
+
+
+CRef ChangeManager::getRef(FeaturePtr feature) const
+{
+    Tip tip;
+    if (feature.isNode()) [[unlikely]]
+    {
+        tip = tileCatalog_.tipOfCoordinateSlow(NodePtr(feature).xy());
+    }
+    else
+    {
+        TilePair tp = tileCatalog_.tilePair(feature.bounds());
+        tip = tileCatalog_.tipOfTile(
+            tp[feature.hasNorthwestTwin() ? 1 : 0]);
+    }
+    return CRef::ofMaybeExported(tip,
+        store()->fetchTile(tip).handleOf(feature));
+}
+
+
+ChangedTile* ChangeManager::getChangedTile(Tip tip)
+{
+    assert(!tip.isNull());
+    auto it = changedTiles_.find(tip);
+    if(it != changedTiles_.end()) return it->second;
+    Arena& arena = model_.arena();
+    ChangedTile* changedTile = arena.create<ChangedTile>(tip,
+        tileCatalog_.tileOfTip(tip), store()->fetchTile(tip));
+    changedTiles_[tip] = changedTile;
+    return changedTile;
+}
+
+void ChangeManager::remove(ChangedFeatureBase* feature, bool fromSE, bool useOriginal)
+{
+    CRef ref = feature->ref(fromSE);
+    Tip tip = ref.tip();
+    if (tip.isNull())
+    {
+        LOGS << "Attempt to remove missing " << feature->typedId();
+    }
+    assert(!tip.isNull());
+    ChangedTile* tile = getChangedTile(tip);
+
+    // TODO: Always make a copy so we don't need this check?
+    ChangedFeatureStub* maybeCopy = feature;
+    if (!useOriginal)
+    {
+        maybeCopy = model_.copy(feature);
+    }
+
+    tile->deletedFeatures(feature->type()).push(maybeCopy);
+    if (ref.mayHaveTex())
+    {
+        texChange(feature, fromSE, false);
+    }
+}
+
+void ChangeManager::texChange(CFeature* feature, bool inSE, bool texNeeded)
+{
+    if (feature->typedId() == TypedFeatureId::ofWay(1340662848))
+    {
+        LOGS << "!!!";
+    }
+    /*
+    LOGS << feature->typedId() << (texNeeded ? " will need TEX" :
+        " will not need TEX");
+    */
+    assert(feature->type() != FeatureType::NODE || !inSE);
+        // Nodes are single-tile and hence can only be in a NW tile
+
+    int32_t handle;
+    CRef ref = feature->ref(inSE);
+    Tip tip = ref.tip();
+    if (tip.isNull())
+    {
+        LOGS << "Bad ref for " << feature->typedId() << ": " << ref
+            << (inSE ? " (SE tile)" : " (NW tile)");
+    }
+    assert(!tip.isNull());
+    ChangedTile* changedTile = getChangedTile(tip);
+    if (ref.isNew())
+    {
+        assert(texNeeded);
+            // For a new ref, requesting a new TEX is the only
+            // valid TEX change; a new ref cannot have a TEX
+            // that needs dropping
+        handle = 0;
+    }
+    else
+    {
+        TilePtr pTile = store()->fetchTile(tip);
+        assert(pTile);
+        // TODO: What happens if the tile is not loaded?
+        FeaturePtr fp = ref.tryGetFeature(pTile);
+        if (fp.isNull())    [[unlikely]]
+        {
+            assert (feature->type() != FeatureType::NODE);
+            // We cannot perform alt-tile resolution
+            // for nodes, because nodes are single-tile
+            CRef otherRef = feature->ref(!inSE);
+            Tip otherTip = otherRef.tip();
+            if (otherTip.isNull())
+            {
+                LOGS << "Cannot resolve " << feature->typedId() << ": "
+                    << ref << " / " << otherRef << ", inSE = " << inSE
+                    << ", texNeeded = " << texNeeded;
+            }
+            assert(!otherTip.isNull());
+            TilePtr pTileOther = store()->fetchTile(otherTip);
+            // TODO: what happens if the other tile is not loaded?
+            assert(pTileOther);
+            // Retrieve the feature from the other tile
+            // fp = otherRef.getFeature(pTileOther);
+            fp = otherRef.tryGetFeature(pTileOther);
+            if (fp.isNull())
+            {
+                LOGS << "Cannot retrieve feature " << feature->typedId() <<
+                    " via " << feature->ref() << " / " << feature->refSE();
+            }
+            assert(!fp.isNull());
+            Box bounds = fp.bounds();
+            Coordinate corner = inSE ? bounds.bottomRight() : bounds.topLeft();
+            bounds = corner;
+            FeatureFinder finder;
+            // Now look up the feature in the original tile
+            fp = finder.find(pTile, feature->typedId(), bounds);
+            assert(!fp.isNull());
+        }
+        handle = pTile.handleOf(fp);
+    }
+    changedTile->texChange(handle, texNeeded ? feature : nullptr);
+
+    if (feature->typedId() == TypedFeatureId::ofRelation(2144774))
+    {
+        LOGS << "Noted tex change for " << feature->typedId()
+            << " in " << changedTile->tip() << " at handle " << handle
+            << " using pointer " << feature;
+    }
+
+    if (!texNeeded)
+    {
+        ref = CRef::ofNotExported(tip, handle);
+        if (inSE)
+        {
+            feature->setRefSE(ref);
+        }
+        else
+        {
+            feature->setRef(ref);
+        }
+    }
+}
+
+
+// TODO: possible replacement for checkExport()
+/*
+void Updater::mayGainOrLoseTex(CFeature* member, ChangedFeature2D* parent)
+{
+    assert((member->isChanged() &&
+        ChangedFeatureBase::cast(member)->is(ChangeFlags::TILES_CHANGED)) ||
+        parent->is(ChangeFlags::TILES_CHANGED));
+
+    if(member->isFutureForeign())
+    {
+        if (!member->ref().isExported())
+        {
+            // Member is not_exported or maybe_exported
+            model_.mayGainTex(member);
+        }
+    }
+    else if (member->ref().mayHaveTex() && parent->is(ChangeFlags::TILES_CHANGED))
+    {
+        // If the feature may have a TEX and it is local,
+        // and either the feature or its parent moved tiles,
+        // that means it may lose its TEX
+        // In a later step, we'll check if it is foreign in any
+        // other way or relation
+        model_.mayLoseTex(member);
+    }
+}
+*/
+
+
+// Rules for orphan nodes:
+//   Node becomes an orphan:
+//   - If node won't belong to any relation and won't have tags:
+//     - ,It is flagged MAY_BECOME_ORPHAN, and
+//   - It is NOT flagged ADDED_TO
+
+
+/// A node becomes an orphan if it
+///   1) has no tags,
+///   2) does not belong to any way
+///   3) does not belong to any relations
+///
+/// A node turns orphan if it won't have tags, won't be a relation
+/// member, and it
+/// Has tags               --> not an orphan
+/// Is relation member     --> not an orphan
+/// Will have waynode flag --> not an orphan
+/// Was a feature          --> orphan
+/// Marked "dropped from way":
+///   still member of any ways  --> not an orphan
+/// else:                  --> orphan
+///
+///
+
+void ChangeManager::confirmTexLoss(ChangedFeatureBase* feature)
+{
+    if (feature->isFutureForeign())
+    {
+        // Feature will be foreign -> it definitely keeps its TEX
+        return;
+    }
+    CRef ref = feature->ref();
+    Tip tip = ref.tip();
+    assert(!tip.isNull());
+    if (!ref.mayHaveTex())
+    {
+        // Feature already lost its TEX
+        // TODO: How about unresolved?
+        return;
+    }
+
+    CRef refSE = (feature->type() == FeatureType::NODE) ?
+        CRef::SINGLE_TILE : feature->refSE();
+
+    const CRelationTable* rels = model_.getParentRelations(feature);
+    if (rels)
+    {
+        for (CFeatureStub* relStub : rels->relations())
+        {
+            CFeature* rel = relStub->get();
+            if (tip != rel->ref().tip())
+            {
+                // Parent relation is in different tile
+                // -> foreign, keep TEX
+                feature->markAsFutureForeign();
+                return;
+            }
+            if (refSE.tip() != rel->refSE().tip())
+            {
+                // SE tiles differ
+                // -> foreign, keep TEX
+                feature->markAsFutureForeign();
+                return;
+            }
+        }
+    }
+    if (feature->type() == FeatureType::NODE)
+    {
+        if (!feature->is(ChangeFlags::TILES_CHANGED))
+        {
+            // The node has not changed tiles (changing tiles would have
+            // triggered all of its parent ways to re-validate foreign
+            // relationships, so it would have been marked as foreign
+            // already if its TEX were still needed.
+            // If a node has not moved tiles, we can still determine
+            // its past position via its ref
+
+            TilePtr pNodeTile = store()->fetchTile(tip);
+            Box nodeTileBounds = tileCatalog().tileOfTip(tip).bounds();
+            FeaturePtr pastFeature = ref.getFeature(pNodeTile);
+            assert(!pastFeature.isNull());
+            NodePtr pastNode(pastFeature);
+            ParentWaysQuery query(store(), pastNode.xy(), pastNode);
+            for (;;)
+            {
+                WayPtr way = query.next();
+                if (way.isNull()) break;
+                if (!pNodeTile.contains(way))
+                {
+                    // Parent way is in a different tile
+                    // -> node must be foreign
+                    feature->markAsFutureForeign();
+                    return;
+                }
+                const Box& wayBounds = way.bounds();
+                if (wayBounds.maxX() > nodeTileBounds.maxX() ||
+                    wayBounds.maxY() > nodeTileBounds.maxY())
+                {
+                    // Parent way is dual-tile
+                    // -> node must be foreign
+                    feature->markAsFutureForeign();
+                    return;
+                }
+            }
+        }
+    }
+
+    // The feature is no longer foreign, so its TEX can be released
+
+    texChange(feature, false, false);
+    if (refSE != CRef::SINGLE_TILE)
+    {
+        texChange(feature, true, false);
+    }
+    // texChange() already converts the refs into non-exported refs
+}
+
+// TODO: merge with code in texChange()
+CRef ChangeManager::getResolvedRef(CFeature* feature, bool ofSE)
+{
+    CRef ref = feature->ref(ofSE);
+    assert(ref.isUnresolved());
+    CRef otherRef = feature->ref(!ofSE);
+    Tip otherTip = otherRef.tip();
+    assert(!otherTip.isNull());
+    TilePtr pTile = store()->fetchTile(ref.tip());
+    TilePtr pTileOther = store()->fetchTile(otherTip);
+    // TODO: what happens if the other tile is not loaded?
+    assert(pTileOther);
+    // Retrieve the feature from the other tile
+    FeaturePtr fp = otherRef.getFeature(pTileOther);
+    assert(!fp.isNull());
+    Box bounds = fp.bounds();
+    Coordinate corner = ofSE ? bounds.bottomRight() : bounds.topLeft();
+    bounds = corner;
+    FeatureFinder finder;
+    // Now look up the feature in the original tile
+    fp = finder.find(pTile, feature->typedId(), bounds);
+    assert(!fp.isNull());
+    return CRef::ofMaybeExported(ref.tip(), pTile.handleOf(fp));
+}
+
+/*
+// TODO
+void ChangeManager::ensureResolved(const CRelationTable* rels)
+{
+    for (CFeatureStub* relStub : rels->relations())
+    {
+        CFeature* rel = relStub->get();
+        int result = normalizeRefs(rel);
+        assert(result > 0);
+
+    }
+}
+
+*/
+
+
+void ChangeManager::resolveExports()
+{
+    // TODO: Determine which features at risk of losing their TEXes
+    //  actually do lose them
+
+    for(const auto& [tip,changedTile] : changedTiles_)
+    {
+        TilePtr pTile = store()->fetchTile(tip);
+        LOGS << "Resolving exports for " << tip << " ("
+            << tileCatalog_.tileOfTip(tip) << ") at " << pTile.ptr()
+            << " -- changedTile = " << changedTile;
+        changedTile->resolveExports(pTile);
+        changedTile->dump();
+    }
+}
+
+
+
+void ChangeManager::checkParentRelations(LinkedRelation* pRelation,
+    ChangeFlags parentFlags)
+{
+    ChangedFeature2D* relation = pRelation->relation;
+    const CRelationTable* rels = model_.getParentRelations(relation);
+    if (!rels) return;
+
+    relation->addFlags(ChangeFlags::RELATION_ATTEMPTED);
+
+    for (CFeatureStub* parentStub : rels->relations())
+    {
+        ChangedFeature2D* parent = model_.getChangedFeature2D(parentStub);
+        // LOGS << "Checking parent " << parent->typedId() << " of " <<
+        //     relation->typedId();
+        model_.ensureBounds(parent);
+        parent->addFlags(parentFlags);
+        LinkedRelation linkedParent { parent, pRelation };
+        if (parent->is(ChangeFlags::RELATION_ATTEMPTED))
+        {
+            breakRefcycle(&linkedParent);
+        }
+        else
+        {
+            checkParentRelations(&linkedParent, parentFlags &
+                (ChangeFlags::BOUNDS_CHANGED | ChangeFlags::GEOMETRY_CHANGED));
+        }
+    }
+    relation->clearFlags(ChangeFlags::RELATION_ATTEMPTED);
+}
+
+
+void ChangeManager::breakRefcycle(LinkedRelation* pRelation)
+{
+    double lowestScore = std::numeric_limits<double>::max();
+    ChangedFeature2D* originalParent = pRelation->relation;
+    ChangedFeature2D* parent = originalParent;
+    LinkedRelation* loser = nullptr;
+    ChangedFeature2D* child;
+    for (;;)
+    {
+        LinkedRelation* pParent = pRelation;
+        pRelation = pRelation->next;
+        if (pRelation == nullptr) return;
+            // Chain has been cut, this means the refcycle
+            // has already been resolved
+        child = pRelation->relation;
+        double score = computeSuperRelationScore(parent);
+        LOGS << "Score of " << parent->typedId() << " = " << score
+            << ", child = " << child->typedId();
+
+        if (score < lowestScore)
+        {
+            // TODO: Use ID as tie breaker?
+            lowestScore = score;
+            loser = pParent;
+        }
+        parent = child;
+        if (parent == originalParent) break;
+    }
+
+    assert(loser);
+    LOGS << "  Loser: " << loser->relation->typedId();
+    parent = loser->relation;
+    child = loser->next->relation;
+    parent->removeMember(child);
+    parent->incrementRefcyleCount();
+    model_.removeMemberParent(child, parent);
+    loser->next = nullptr;
+}
+
+
+double ChangeManager::computeSuperRelationScore(ChangedFeature2D* rel)
+{
+    SuperRelationScore score;
+    int memberCounts[3] = {};
+
+    model_.ensureMembersLoaded(rel);
+    for (CFeatureStub* member : rel->members())
+    {
+        if (member == nullptr) continue;
+        memberCounts[static_cast<int>(member->type())]++;
+    }
+    score.addMemberCounts(memberCounts[0], memberCounts[1], memberCounts[2]);
+    // TODO: tags
+    return score.score();
+}

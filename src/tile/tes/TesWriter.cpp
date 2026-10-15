@@ -20,6 +20,11 @@
 // - fix gatherSharedItems() -- wrong minimums
 // - write shared reltables
 
+// TODO:
+//  Updated GOLs may have export tables with holes; we need to use
+//  v2 style for the encoding of export tables, since v1 style
+//  cannot represent holes because of 0-based feature numbering
+
 TesWriter::TesWriter(TileModel& tile, Buffer* out) :
 	tile_(tile),
 	out_(out),
@@ -557,6 +562,34 @@ void TesWriter::writeRelationTable(const TRelationTable* relTable)
 	}
 }
 
+#ifdef GOB_EXPORTS_V2
+
+void TesWriter::writeExportTable()
+{
+	TExportTable* exports = tile_.exportTable();
+	if(exports == nullptr)
+	{
+		out_.writeByte(0);
+		return;
+	}
+	TFeature** features = exports->features();
+	assert(features);
+	size_t count = exports->count();
+	out_.writeVarint((count << 2) | 3);
+		// v2 style: 0 = 1, 1 = 1 to signal replace
+	for(int i=0; i<count; i++)
+	{
+		TFeature* feature = features[i];
+		// assert(feature);
+		out_.writeVarint(feature ? (feature->location() + 1) : 0);
+	}
+}
+
+#else
+
+// For now, we'll write the exports as v1 style, until enough
+// users upgraded to GOL Tool 2.4, which reads both variants
+// If an export table has holes, we cannot represent it as v1
 
 void TesWriter::writeExportTable()
 {
@@ -573,9 +606,16 @@ void TesWriter::writeExportTable()
 	for(int i=0; i<count; i++)
 	{
 		TFeature* feature = features[i];
-		assert(feature);
+		if (!feature)
+		{
+			// v1 style cannot deal with holes left in the export
+			// table due to updates
+			throw std::runtime_error(
+				"Cannot save a GOL that has been updated "
+				"(you will need to upgrade your GOL Tool)");
+		}
 		out_.writeVarint(feature->location());
 	}
 }
 
-
+#endif

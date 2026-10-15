@@ -98,7 +98,8 @@ void TileReader::readWay(WayPtr way)
 	}
 	TWay* w = tile_.addWay(way, pBody, size, anchor);
 	w->setOriginal(true);
-	w->setNeedsFixup(needsFixup);
+	w->body()->setOriginal(true);	// TODO: needed?
+	w->body()->setNeedsFixup(needsFixup);
 #ifdef _DEBUG
 	counts_.featureCount++;
 #endif
@@ -107,6 +108,10 @@ void TileReader::readWay(WayPtr way)
 
 void TileReader::readRelation(RelationPtr relation)
 {
+	if (relation.id() == 7359360)
+	{
+		LOGS << "Reading relation/" << relation.id();
+	}
 	// LOG("Reading relation/%ld", relation.id());
 	bool needsFixup = false;
 	readTagTable(relation);
@@ -158,7 +163,8 @@ void TileReader::readRelation(RelationPtr relation)
 	}
 	TRelation* r = tile_.addRelation(relation, pBody, size);
 	r->setOriginal(true);
-	r->setNeedsFixup(needsFixup);
+	r->body()->setOriginal(true);	// TODO: needed?
+	r->body()->setNeedsFixup(needsFixup);
 #ifdef _DEBUG
 	counts_.featureCount++;
 #endif
@@ -336,9 +342,17 @@ void TileReader::readExportTable(DataPtr p)
 	TFeature** features = tile_.arena().allocArray<TFeature*>(count);
 	for(int i=0; i<count; i++)
 	{
-		TElement::Handle handle = handleOf(p.follow());
-		features[i] = TFeature::cast(tile_.getElement(handle));
-		assert(features[i]);
+		int32_t ptr = p.getInt();
+		if (ptr) [[likely]]
+		{
+			TElement::Handle handle = handleOf(p + ptr);
+			features[i] = TFeature::cast(tile_.getElement(handle));
+			assert(features[i]);
+		}
+		else
+		{
+			features[i] = nullptr;
+		}
 		p += 4;
 	}
 	tile_.createExportTable(features, nullptr, count);

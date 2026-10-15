@@ -21,7 +21,7 @@ void HttpClient::closeAndThrow(HINTERNET& handle)
     throw HttpException(error);
 }
 
-HttpClient::HttpClient(std::string_view url)
+HttpClient::HttpClient(std::string_view url, std::string_view userAgent)
 {
     UrlView uv(url);
     host_ = Unicode::toWideString(uv.host());
@@ -40,6 +40,7 @@ HttpClient::HttpClient(std::string_view url)
         if (path.back() == '/') path.remove_suffix(1);
         path_ = path;
     }
+    userAgent_ = Unicode::toWideString(userAgent);
 }
 
 HttpClient::~HttpClient()
@@ -130,6 +131,17 @@ void HttpClient::get(const char* url, std::vector<std::byte>& data)
         throw HttpException("Server response %d", status);
     }
     response.read(data);
+}
+
+void HttpClient::getUnzippedGzip(const char* path, std::vector<std::byte>& data)
+{
+    HttpResponse response = get(path);
+    int status = response.status();
+    if (status != 200) [[unlikely]]
+    {
+        throw HttpException("%s: Server returned error %d", path, status);
+    }
+    response.readUnzippedGzip(data);
 }
 
 } // namespace clarisma

@@ -8,11 +8,12 @@
 #include <geodesk/feature/NodePtr.h>
 #include <geodesk/feature/RelationPtr.h>
 #include <geodesk/feature/WayPtr.h>
+#include <clarisma/util/log.h>
+#include <geodesk/feature/FeatureStore.h>
 
-#include "clarisma/util/log.h"
-
-TileChecker::TileChecker(Tip tip, Tile tile, TilePtr pTile) :
+TileChecker::TileChecker(const FeatureStore& store, Tip tip, Tile tile, TilePtr pTile) :
     BinaryChecker(pTile.ptr(), pTile.totalSize()),
+    store_(store),
     tip_(tip),
     tile_(tile)
 {
@@ -26,13 +27,16 @@ bool TileChecker::check()
     checkIndex(start() + WAY_INDEX_OFS, FeatureTypes::NONAREA_WAYS);
     checkIndex(start() + AREA_INDEX_OFS, FeatureTypes::AREAS);
     checkIndex(start() + RELATION_INDEX_OFS, FeatureTypes::NONAREA_RELATIONS);
+    checkBodies();
     checkExports(start() + EXPORTS_OFS);
+    bool anyErrors = false;
     for (const Error& error : errors())
     {
         ConsoleWriter out;
-        out.blank() << error.location() << ": " << error.message();
+        out.blank() << tip_ << "  " << error.location() << ": " << error.message();
+        anyErrors |= error.severity() > Error::Severity::WARNING;
     }
-    return true;
+    return !anyErrors;
 }
 
 bool TileChecker::checkPointer(DataPtr pBase, int delta)
@@ -62,6 +66,16 @@ bool TileChecker::checkAccess(DataPtr p, const char* what)
     return true;
 }
 
+bool TileChecker::checkAccess(DataPtr p, const char* what, size_t size)
+{
+    if (p.ptr() < start() || p.ptr() + size >= end())
+    {
+        error(p, "%s truncated", what);
+        return false;
+    }
+    return true;
+}
+
 void TileChecker::checkNodeIndex(DataPtr ppIndex)
 {
     Box bounds;
@@ -76,7 +90,7 @@ void TileChecker::checkNodeIndex(DataPtr ppIndex)
     DataPtr p = ppIndex + rel;
     for (;;)
     {
-        if (!checkAccess(p + 7, "node index")) return;
+        if (!checkAccess(p, "node index", 8)) return;
         int rel = p.getInt();
         int lastFlag = rel & 1;
         rel &= ~1;
@@ -102,7 +116,7 @@ uint32_t TileChecker::checkNodeTrunk(DataPtr p, uint32_t keys, Box& actualBounds
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 19, "index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "index branch", 20)) return INVALID_INDEX;
         int32_t rel = p.getInt();
         int lastFlag = rel & 1;
         int leafFlag = rel & 2;
@@ -138,10 +152,9 @@ uint32_t TileChecker::checkNodeLeaf(DataPtr p, uint32_t keys, Box& actualBounds)
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 19, "node index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "node index leaf", 20)) return INVALID_INDEX;
         int flags = (p+8).getInt();
-        if (!checkAccess(p + 19 + (flags & 4),
-            "node index branch"))
+        if (!checkAccess(p,"node index leaf", 20 + (flags & 4)))
         {
             return INVALID_INDEX;
         }
@@ -169,7 +182,7 @@ void TileChecker::checkIndex(DataPtr ppIndex, FeatureTypes types)
     DataPtr p = ppIndex + rel;
     for (;;)
     {
-        if (!checkAccess(p + 7, "index")) return;
+        if (!checkAccess(p, "index", 8)) return;
         rel = p.getInt();
         int lastFlag = rel & 1;
         rel &= ~1;
@@ -195,7 +208,7 @@ uint32_t TileChecker::checkTrunk(DataPtr p, FeatureTypes types, uint32_t keys, B
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 19, "index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "index branch", 20)) return INVALID_INDEX;
         int32_t rel = p.getInt();
         int lastFlag = rel & 1;
         int leafFlag = rel & 2;
@@ -231,7 +244,7 @@ uint32_t TileChecker::checkLeaf(DataPtr p, FeatureTypes types, uint32_t keys, Bo
     uint32_t actualKeys = 0;
     for (;;)
     {
-        if (!checkAccess(p + 31, "index branch")) return INVALID_INDEX;
+        if (!checkAccess(p, "index leaf", 32)) return INVALID_INDEX;
         FeaturePtr feature(p + 16);
         int flags = feature.flags();
         if (!types.acceptFlags(flags))
@@ -296,9 +309,10 @@ bool TileChecker::checkId(FeaturePtr feature)
     auto [it, inserted] = features_.insert(feature.typedId());
     if (!inserted)
     {
-        error("Duplicate feature: %s/%ull", feature.typeName(), feature.id());
+        error("Duplicate feature: %s/%llu", feature.typeName(), feature.id());
         return false;
     }
+    featureHandles_.insert(handleOf(feature));
     return true;
 }
 
@@ -316,6 +330,10 @@ uint32_t TileChecker::checkNode(DataPtr p, Box& actualLeafBounds)
     {
         error(p, "Node has area_flag set");
     }
+    if (flags & (FeatureFlags::MULTITILE_NORTH | FeatureFlags::MULTITILE_WEST))
+    {
+        error(p, "Node has multi-tile flags set");
+    }
     NodePtr node(feature);
     if (!tileBounds_.contains(node.xy()))
     {
@@ -329,7 +347,7 @@ uint32_t TileChecker::checkNode(DataPtr p, Box& actualLeafBounds)
     TagTableInfo tags = checkTagTablePtr(p + 8, feature.typedId());
     if (tags.flags & TagTableInfo::TAGGED_DUPLICATE)
     {
-
+        // TODO
     }
     if (tags.flags & TagTableInfo::TAGGED_ORPHAN)
     {
@@ -364,7 +382,7 @@ TileChecker::TagTableInfo TileChecker::checkTagTable(DataPtr pTags, bool hasLoca
     int prevGlobalKey = 0;
     for (;;)
     {
-        if (!checkAccess(p+3, "tag table")) return info;
+        if (!checkAccess(p, "tag table", 4)) return info;
         int keyBits = p.getUnsignedShort();
         int type = keyBits & 3;
         int key = (keyBits >> 2) & 0x1fff;
@@ -515,14 +533,19 @@ bool TileChecker::checkFeatureBounds2D(FeaturePtr feature)
         error(feature.ptr(), "Feature extends past more than one tile edge");
         return false;
     }
-    int multiTileFlags =
+    int expectedMultiTileFlags =
         (extendsWest ? FeatureFlags::MULTITILE_WEST : 0) |
         (extendsNorth ? FeatureFlags::MULTITILE_NORTH : 0);
     int flags = feature.flags();
-    if ((flags & (FeatureFlags::MULTITILE_WEST |
-        FeatureFlags::MULTITILE_NORTH)) != multiTileFlags)
+    int actualMultiTileFlags = flags & (FeatureFlags::MULTITILE_WEST |
+        FeatureFlags::MULTITILE_NORTH);
+    if (actualMultiTileFlags != expectedMultiTileFlags)
     {
-        error(feature.ptr(), "Invalid multi-tile flags");
+        error(feature.ptr(),
+            "Invalid multi-tile flags for %s/%llu: "
+            "should be %d instead of %d",
+            feature.typeName(), feature.id(),
+            expectedMultiTileFlags, actualMultiTileFlags);
         return false;
     }
     return true;
@@ -543,15 +566,309 @@ uint32_t TileChecker::checkWay(DataPtr p)
     return checkFeature2D(way);
 }
 
+
+void TileChecker::checkBodies()
+{
+    for (int handle : featureHandles_)
+    {
+        FeaturePtr feature(start() + handle);
+        if (feature.isNode())
+        {
+            NodePtr node(feature);
+            if (node.isRelationMember())
+            {
+                checkRelationTable(feature, feature.ptr() + 12);
+            }
+        }
+        else if (feature.isWay())
+        {
+            checkWayBody(WayPtr(feature));
+        }
+        else
+        {
+            assert(feature.isRelation());
+            checkRelationBody(RelationPtr(feature));
+        }
+    }
+}
+
+void TileChecker::checkWayBody(WayPtr way)
+{
+    DataPtr ppBody = way.ptr() + 12;
+    int relBody = ppBody.getInt();
+    if (!checkPointer(ppBody, relBody)) return;
+    DataPtr p = way.bodyptr();
+    moveTo(p);
+    uint32_t nodeCount = readVarint32();
+    if (nodeCount < 2)
+    {
+        error(p, "way/%llu: Invalid number of nodes", way.id());
+        return;
+    }
+    Box actualBounds;
+    Coordinate xy = way.bottomLeft();
+    for (int i = 0; i < nodeCount; i++)
+    {
+        xy.translateX(readSignedVarint64());
+        xy.translateY(readSignedVarint64());
+        actualBounds.expandToInclude(xy);
+    }
+    if (actualBounds != way.bounds())
+    {
+        error(p, "way/%llu: Stated bounds don't match computed bounds", way.id());
+    }
+    int64_t nodeId = 0;
+    for (int i = 0; i < nodeCount; i++)
+    {
+        int64_t nodeIdDelta = readSignedVarint64();
+        if (nodeIdDelta == 0)
+        {
+            // TODO: re-enable
+            // warning(p, "way/%llu: Zero ID delta for node #%d (possible dupe)", way.id(), i);
+            // break;
+        }
+        nodeId += nodeIdDelta;
+        if (nodeId < 0)
+        {
+            error(p, "way/%llu: Node ID out of range for node #%d", way.id(), i);
+            break;
+        }
+    }
+
+    if (way.isRelationMember())
+    {
+        p -= 4;
+        if (!checkAccess(p, "way body")) return;
+        checkRelationTable(way, p);
+    }
+    if (way.hasFeatureNodes())
+    {
+        checkRelatedTable(way, "node table", p - 2,
+            Tex::WAYNODES_START_TEX, -2, 0,
+            FeatureTypes::NODES);
+    }
+}
+
+
+void TileChecker::checkRelatedTable(FeaturePtr parent,
+    const char* what, DataPtr p, Tex startTex, int step,
+    int extraFlags, FeatureTypes acceptedTypes)
+{
+    TypedFeatureId parentId = parent.typedId();
+    Tip currentTip = FeatureConstants::START_TIP;
+    Tex currentTex = startTex;
+    ExportTablePtr pExports;
+    int32_t member;
+    do
+    {
+        if (!checkAccess(p, what, 2)) return;
+        DataPtr pCurrent = p;
+        uint16_t lowerWord = p.getUnsignedShort();
+        p += step;
+        if (lowerWord & MemberFlags::FOREIGN)
+        {
+            if(lowerWord & (1 << (3 + extraFlags)))
+            {
+                // wide TEX delta
+                if (!checkAccess(p, what, 2)) return;
+                uint16_t upperWord = p.getUnsignedShort();
+                p += step;
+                member = (static_cast<int32_t>(upperWord) << 16) | lowerWord;
+            }
+            else
+            {
+                member = static_cast<int16_t>(lowerWord);
+            }
+            if (member & (1 << (2 + extraFlags)))
+            {
+                // foreign member in different tile
+                if (!checkAccess(p, what, 2)) return;
+                int32_t tipDelta = p.getShort();
+                p += step;
+                if (tipDelta & 1)
+                {
+                    // wide TIP delta
+                    if (!checkAccess(p, what, 2)) return;
+                    tipDelta = (tipDelta & 0xffff) |
+                        (static_cast<int32_t>(p.getShort()) << 16);
+                    p += step;
+                }
+                tipDelta >>= 1;     // signed
+                currentTip += tipDelta;
+            }
+            currentTex += member >> (4 + extraFlags);
+            checkForeignFeature(currentTip, currentTex, parentId, acceptedTypes);
+        }
+        else
+        {
+            // local member
+            if (!checkAccess(p, what, 2)) return;
+            uint16_t upperWord = p.getUnsignedShort();
+            p += step;
+            member = (static_cast<int32_t>(upperWord) << 16) | lowerWord;
+
+            DataPtr pMember;
+            if(extraFlags > 0)
+            {
+                pMember = pCurrent.andMask(0xffff'ffff'ffff'fffc) +
+                    (static_cast<int32_t>(member & 0xffff'fff8) >> 1);
+            }
+            else
+            {
+                pMember = pCurrent + (member >> 1);
+            }
+            checkReferencedFeature(pMember, parentId, acceptedTypes);
+        }
+        if (extraFlags > 0)
+        {
+            // This is the member table of a relation,
+            // so we need to read and check the role
+
+            if (member & MemberFlags::DIFFERENT_ROLE)
+            {
+                if (!checkAccess(p, what, 2)) return;
+                int rawRole = p.getUnsignedShort();
+                if (rawRole & 1)	[[likely]]
+                {
+                    // common role
+                    int roleCode_ = rawRole >> 1;
+                    p += 2;
+                }
+                else
+                {
+                    if (!checkAccess(p, what, 4)) return;
+                    int rawRolePtr = p.getIntUnaligned();
+                    int relRolePtr = rawRolePtr >> 1;
+                    if (checkPointer(p, relRolePtr))
+                    {
+                        checkString(p + relRolePtr);
+                        // TODO: check to ensure we use global string
+                        //  if possible
+                    }
+                    p += 4;
+                }
+            }
+        }
+    }
+    while ((member & MemberFlags::LAST) == 0);
+}
+
+void TileChecker::checkReferencedFeature(DataPtr p, TypedFeatureId parent, FeatureTypes acceptedTypes)
+{
+    int handle = Pointers::delta32(p, start());
+    if (!featureHandles_.contains(handle))
+    {
+        char buf[32];
+        parent.format(buf);
+        error(p, "%s has illegal local reference %d", buf, handle);
+        return;
+    }
+    FeaturePtr feature(p);
+    if (!acceptedTypes.acceptFlags(feature.flags()))
+    {
+        char buf[32];
+        parent.format(buf);
+        error(p, "wrong related feature type for %s", buf);
+    }
+}
+
+void TileChecker::checkForeignFeature(Tip tip, Tex tex, TypedFeatureId parent, FeatureTypes acceptedTypes)
+{
+    // TODO: verify that tip is legal
+    TilePtr pTile = store_.fetchTile(tip);
+    if (!pTile)
+    {
+        warning("Can't check %06X: not loaded", tip);
+        return;
+    }
+    uint32_t totalSize = pTile.totalSize();
+    DataPtr ppExports = pTile + TileConstants::EXPORTS_OFS;
+    int relExports = ppExports.getInt();
+    if (relExports == 0) return; // no exports
+    DataPtr pExports = ppExports + relExports;
+    if (pExports < pTile + TileConstants::HEADER_SIZE ||
+        pExports >= pTile + totalSize - 8)
+    {
+        error(pExports, "%06X: Invalid export table pointer", tip);
+        return;
+    }
+    uint32_t exportCount = (pExports - 4).getUnsignedInt();
+    uint32_t slot = static_cast<uint32_t>(tex);
+    DataPtr ppFeature = pExports + slot * 4;
+    if (slot >= exportCount)
+    {
+        error(ppFeature, "%06X: Illegal TEX #%d", tip, slot);
+        return;
+    }
+    if (ppFeature >= pTile + totalSize - 4)
+    {
+        error(ppFeature, "%06X: Export table truncated", tip);
+        return;
+    }
+    int relFeature = ppFeature.getInt();
+    if (relFeature == 0)
+    {
+        error("%06X: Export #%d has been deleted", tip, slot);
+        return;
+    }
+    DataPtr pFeature = ppFeature + relFeature;
+    if (pFeature < pTile + TileConstants::HEADER_SIZE ||
+        pFeature >= pTile + totalSize - 16)
+    {
+        error(ppFeature, "%06X: TEX #%d references illegal location", tip, slot);
+        return;
+    }
+    FeaturePtr feature(pFeature);
+    if (!acceptedTypes.acceptFlags(feature.flags()))
+    {
+        char buf[32];
+        parent.format(buf);
+        error(pFeature, "%06X #%d: wrong related feature type for %s",
+            tip, tex, buf);
+    }
+}
+
+
+void TileChecker::checkRelationTable(FeaturePtr member, DataPtr ppRels)
+{
+    int relRels = ppRels.getInt();
+    if (!checkPointer(ppRels, relRels))
+    {
+        error(ppRels, "Invalid relation table pointer for %s/%llu",
+            member.typeName(), member.id());
+        return;
+    }
+    DataPtr p = ppRels + relRels;
+    checkRelatedTable(member, "relation table", p,
+        Tex::RELATIONS_START_TEX, 2, 0,
+        FeatureTypes::RELATIONS);
+}
+
 uint32_t TileChecker::checkRelation(DataPtr p)
 {
     RelationPtr rel(p);
     return checkFeature2D(rel);
 }
 
+void TileChecker::checkRelationBody(RelationPtr rel)
+{
+    DataPtr ppBody = rel.ptr() + 12;
+    int relBody = ppBody.getInt();
+    if (!checkPointer(ppBody, relBody)) return;
+    DataPtr p = rel.bodyptr();
+    if (rel.isRelationMember())
+    {
+        checkRelationTable(rel, p-4);
+    }
+    checkRelatedTable(rel, "member table", p,
+        Tex::MEMBERS_START_TEX, 2, 1,
+        FeatureTypes::ALL);
+}
+
+
 void TileChecker::checkExports(DataPtr ppExports)
 {
-    HashSet<TypedFeatureId> exported;
+    HashSet<int> exportedHandles;
     int32_t rel = ppExports.getInt();
     if (rel == 0) return;
     if (!checkPointer(ppExports, rel)) return;
@@ -579,18 +896,18 @@ void TileChecker::checkExports(DataPtr ppExports)
         }
         else if (checkPointer(p, rel))
         {
-            FeaturePtr feature(p + rel);
-            TypedFeatureId typedId = feature.typedId();
-            if (!features_.contains(typedId))
+            int handle = Pointers::delta32(p, start()) + rel;
+            if (!featureHandles_.contains(handle))
             {
-                error(p, "Pointer to invalid exported feature");
+                error(p, "Slot %d points to invalid exported feature @%d", handle);
             }
             else
             {
-                auto [it, inserted] = exported.insert(typedId);
+                auto [it, inserted] = exportedHandles.insert(handle);
                 if (!inserted)
                 {
-                    error(p, "Multiple TEXes assigned to %s/%ull",
+                    FeaturePtr feature(p + rel);
+                    error(p, "Multiple TEXes assigned to %s/llu",
                         feature.typeName(), feature.id());
                 }
             }

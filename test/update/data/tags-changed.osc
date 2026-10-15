@@ -22,7 +22,7 @@ Verify that:
         <node id="6" version="2" lon="120" lat="-60"/>
     </modify>
     <modify>
-        <way id="1" version="2">
+        <way id="10" version="2">
             <nd ref="1"/>
             <nd ref="2"/>
             <tag k="highway" v="residential"/>

@@ -1,0 +1,27 @@
+<!--
+
+Bug discovered on 10/1/25.
+Repacing node/356478645 with node/12686671155 fails to update
+node table of the way.
+
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="12686671155" version="1" timestamp="2025-03-21T09:50:22Z"
+              uid="22470665" user="wildgodlike" changeset="163897102"
+              lat="67.50094" lon="64.0417095"/>
+        <way id="31837036" version="10" timestamp="2025-03-21T09:50:22Z" uid="22470665" user="wildgodlike" changeset="163897102">
+            <nd ref="356478648"/>
+            <nd ref="356478650"/>
+            <nd ref="356478644"/>
+            <nd ref="12686671155"/>
+            <nd ref="356478648"/>
+            <tag k="addr:city" v="Воркута"/>
+            <tag k="addr:country" v="RU"/>
+            <tag k="addr:housenumber" v="41А"/>
+            <tag k="addr:street" v="Ленинградская улица"/>
+            <tag k="building" v="yes"/>
+        </way>
+    </modify>
+</osmChange>

@@ -77,7 +77,7 @@ public:
 	enum Flags
 	{
 		LAST        = (1 << 0),
-		DELETED     = (1 << 1),
+		REMOVED     = (1 << 1),
 		ORIGINAL    = (1 << 2),
 		NEEDS_FIXUP = (1 << 3),
 		BUILT       = (1 << 4),
@@ -149,6 +149,7 @@ public:
 	uint32_t flags() const { return flags_; }
 	bool isLast() const { return flags() & Flags::LAST; }
 	void markLast() { flags_ |= Flags::LAST; }
+	bool isRemoved() const { return flags() & Flags::REMOVED; }
 	void setAnchor(uint32_t anchor) { anchor_ = anchor; }
 	bool isOriginal() const { return flags() & Flags::ORIGINAL; }
 	bool needsFixup() const { return flags() & Flags::NEEDS_FIXUP; }

@@ -17,6 +17,8 @@
 #include <clarisma/util/log.h>
 #include <clarisma/util/varint.h>
 
+#include "ExportTableOp.h"
+
 
 TesReader::TesReader(TileModel& tile) :
 	tile_(tile),
@@ -141,7 +143,7 @@ TTagTable* TesReader::readTagTable()
 		keyString->setAlignment(TElement::Alignment::DWORD);
 
 		// TODO: Need special tracking for key-strings since
-		// some exisiting strings may be unaligned -- hence,
+		// some existing strings may be unaligned -- hence,
 		// when we look them up via handle (which is expected to be
 		// 4-byte aligned), we will miss such an aligned key
 		// Need a separate lookup table
@@ -181,6 +183,8 @@ TTagTable* TesReader::readTagTable()
 	while (writer.ptr() != pEnd);
 	writer.endGlobalTags();
 
+	// TODO: check this narrowing hash conversion,
+	//  avoid repeating the bug that only hashes keys of tag tables
 	return tile_.completeTagTable(tags, static_cast<uint32_t>(writer.hash()), needsFixup);
 }
 
@@ -454,7 +458,7 @@ void TesReader::readNodeChange(TNode* node)
  */
 void TesReader::readWayChange(TWay* way)
 {
-	if (way->id() == 30910986)
+	if (way->id() == 750583717)
 	{
 		LOGS << "Reading change for way/" << way->id();
 	}
@@ -547,7 +551,9 @@ void TesReader::readWayChange(TWay* way)
 	}
 	else
 	{
-		if (flags & TesFlags::NODE_IDS_CHANGED)
+		// Geometry unchanged
+
+		if (flags & TesFlags::NODE_IDS_CHANGED)	[[unlikely]]
 		{
 			invalid(
 				"If NODE_IDS_CHANGED is set, GEOMETRY_CHANGED"
@@ -572,15 +578,23 @@ void TesReader::readWayChange(TWay* way)
 	{
 		if (willBeRelationMember)
 		{
-			body->setHandle(bodyHandle + 4);
+			// body->setHandle(bodyHandle + 4);
 			bodyHandle += 4;
 		}
 		else
 		{
-			body->setHandle(bodyHandle - 4);
+			// body->setHandle(bodyHandle - 4);
 			bodyHandle -= 4;
 		}
 	}
+	bodyHandle &= 0xffff'fffe;
+	body->setHandle(bodyHandle);
+		// We always force the body's handle into a 2-byte
+		// alignment, because otherwise pointers in the
+		// way's node table cannot be represented
+		// (Changing the handle is ok, since bodies are never
+		// looked up by handle, which also means we don't
+		// have to worry that the handle may clash)
 
 	uint32_t memberTableSize;
 	if (flags & TesFlags::MEMBERS_CHANGED)
@@ -613,18 +627,37 @@ void TesReader::readWayChange(TWay* way)
 	{
 		if (memberTableSize > 0)
 		{
+			if (way->id() == 750583717)
+			{
+				LOGS << "Reading node table for way/" << way->id();
+			}
 			// TODO: spec change proposed, may need memberTableSize * 2
 			needsFixup = readWayNodeTable(bodyHandle - relationTablePtrSize,
 				pNewBody - relationTablePtrSize, memberTableSize);
+			if (way->id() == 750583717)
+			{
+				LOGS << "Read node table for way/" << way->id()
+					<< " of size " << memberTableSize << ", needsFixup = "
+					<< needsFixup;
+			}
 		}
 		else
 		{
 			needsFixup = false;
+			if (way->id() == 750583717)
+			{
+				LOGS << "Dropped node table of way/" << way->id();
+			}
 		}
 	}
 	else
 	{
 		memcpy(pNewBody.ptr() - newAnchor, pOldBody - body->anchor(), memberTableSize);
+		if (way->id() == 750583717)
+		{
+			LOGS << "Reused node table of way/" << way->id()
+				<< ", size = " << memberTableSize;
+		}
 	}
 
 	if (willBeRelationMember)
@@ -656,6 +689,13 @@ void TesReader::readWayChange(TWay* way)
 		(FeatureFlags::WAYNODE | FeatureFlags::RELATION_MEMBER)) == 0) ?
 		TElement::Alignment::BYTE : TElement::Alignment::WORD);
 	body->setNeedsFixup(needsFixup);
+
+	if (way->id() == 750583717)
+	{
+		LOGS << "Body of way/" << way->id()
+			<< ": anchor = " << body->anchor()
+			<< ", needsFixup = " << body->needsFixup();
+	}
 }
 
 /**
@@ -710,14 +750,12 @@ bool TesReader::readWayNodeTable(TElement::Handle handle, uint8_t* pTable, uint3
 // (We should handle reltable differently, more efficient this way)
 void TesReader::readRelationChange(TRelation* rel)
 {
-	if(rel->id() == 1183819)
+	if(rel->id() == 7359360)
 	{
 		LOG("Reading changes for relation/%lld", rel->feature().id());
 	}
 
 	TRelationTable* newRels;
-	bool needsFixup = rel->needsFixup();
-
 	uint32_t flags = readFeatureChange(rel, &newRels);
 	MutableFeaturePtr pFeature(rel->feature());
 
@@ -725,6 +763,9 @@ void TesReader::readRelationChange(TRelation* rel)
 	{
 		pFeature.setBounds(readBounds());
 	}
+	setGeometryFlags(pFeature, flags);
+		// We need to set these flags here because we may exit
+		// early if no other changes
 
 	// readFeatureChange() has already set the member flag to its post-update state
 	uint32_t relsPtrSize = pFeature.isRelationMember() ? 4 : 0;
@@ -732,6 +773,7 @@ void TesReader::readRelationChange(TRelation* rel)
 	DataPtr pOldBody = body->data();
 	MutableDataPtr pBody;
 	uint32_t tableSize;
+	bool needsFixup = body->needsFixup();
 
 	if (flags & TesFlags::MEMBERS_CHANGED)
 	{
@@ -824,14 +866,13 @@ void TesReader::readRelationChange(TRelation* rel)
 		memcpy(pBody.ptr(), pOldBody, body->size() - body->anchor());
 	}
 
-	setGeometryFlags(pFeature, flags);
 	body->setData(pBody);
 	body->setSize(newBodySize);
 	body->setAnchor(pFeature.isRelationMember() ? 4 : 0);
 	body->setNeedsFixup(needsFixup);
 }
 
-TString* TesReader::getString(int number) const
+TString* TesReader::getString(uint32_t number) const
 {
 	// #ifdef GEODESK_SAFE
 	if (number > stringCount_)
@@ -842,7 +883,7 @@ TString* TesReader::getString(int number) const
 	return strings_[number];
 }
 
-TTagTable* TesReader::getTagTable(int number) const
+TTagTable* TesReader::getTagTable(uint32_t number) const
 {
 	// #ifdef GEODESK_SAFE
 	if (number > sharedTagTableCount_)
@@ -853,14 +894,14 @@ TTagTable* TesReader::getTagTable(int number) const
 	return tagTables_[number];
 }
 
-TRelationTable* TesReader::getRelationTable(int number) const
+TRelationTable* TesReader::getRelationTable(uint32_t number) const
 {
 	// TODO: SAFE check range
 	return relationTables_[number];
 }
 
 
-TFeature* TesReader::getFeature(int number) const
+TFeature* TesReader::getFeature(uint32_t number) const
 {
 	if (number >= featureCount_)
 	{
@@ -870,7 +911,7 @@ TFeature* TesReader::getFeature(int number) const
 }
 
 
-TNode* TesReader::getNode(int number) const
+TNode* TesReader::getNode(uint32_t number) const
 {
 // #ifdef GEODESK_SAFE
 	if (features_[0] + number >= features_[1])
@@ -889,10 +930,11 @@ TNode* TesReader::getNode(int number) const
 	return static_cast<TNode*>(feature);
 }
 
-TRelation* TesReader::getRelation(int number) const
+TRelation* TesReader::getRelation(uint32_t number) const
 {
 	if (features_[2] + number >= features_[0] + featureCount_)
 	{
+		LOGS << tile_.tile() << ": getRelation() failed";
 		invalid("Relation #%d exceeds range (%d relations)",
 			number, featureCount_ - (features_[2] - features_[0]));
 	}
@@ -925,14 +967,19 @@ void TesReader::readRemovedFeatures()
 		TFeature* feature = tile_.getFeature(static_cast<FeatureType>(type), id);
 		if (feature)
 		{
-			// TODO: Set visibility/deleted
-			// (If feature is not present, we do nothing)
+			// TODO: Distinguish between "removed"
+			//  (no longer present in tile) vs. "deleted"
+			//  i.e. still presetn but tombstoned
+			//  Right now, we'll treat both as "removed"
+			//  (If feature is not present, we do nothing)
+			feature->setFlag(TFeature::Flags::REMOVED, true);
 		}
 		prevId = id;
 		count--;
 	}
 }
 
+/*
 void TesReader::readExports()
 {
 	uint32_t taggedCount = readVarint32(p_);
@@ -994,4 +1041,69 @@ void TesReader::readExports()
 		}
 		tile_.createExportTable(features, nullptr, count);
 	}
+}
+*/
+
+void TesReader::readExports()
+{
+	uint32_t taggedCount = readVarint32(p_);
+	bool v2 = taggedCount & 1;
+	bool replace = !v2 || (taggedCount & 2);
+	size_t newCount = taggedCount >> (v2 ? 2 : 1);
+
+	TExportTable* oldExportTable = tile_.exportTable();
+	size_t oldCount = oldExportTable ? oldExportTable->count() : 0;
+	if(newCount == 0)
+	{
+		if (replace) tile_.clearExportTable();
+		return;
+	}
+
+	size_t copyCount = replace ? 0 : std::min(newCount, oldCount);
+	TFeature** features = tile_.arena().allocArray<TFeature*>(newCount);
+	if (copyCount)
+	{
+		memcpy(features, oldExportTable->features(),
+			copyCount * sizeof(TFeature*));
+	}
+	if (!replace)
+	{
+		// Defensively null-initialize the new slots, in case
+		// malformed patches don't fill them
+		std::fill(features + copyCount, features + newCount, nullptr);
+	}
+	size_t pos = 0;
+	size_t run = newCount;
+
+	for (;;)
+	{
+		if (!replace)
+		{
+			run = readVarint32(p_);
+			if (run == 0) break;
+			pos += readVarint32(p_);
+		}
+		else if (run == 0)
+		{
+			break;
+		}
+		size_t end = pos + run;
+		if (end > newCount)  [[unlikely]]
+		{
+			invalid("Export table patch out of bounds");
+		}
+		while (pos < end)
+		{
+			TFeature* feature = nullptr;
+			uint32_t featureRef = readVarint32(p_) +
+				(1 - static_cast<int>(v2));
+			if (featureRef != 0) [[likely]]
+			{
+				feature = getFeature(featureRef - 1);
+			}
+			features[pos++] = feature;
+		}
+		run = 0;
+	}
+	tile_.createExportTable(features, nullptr, newCount);
 }

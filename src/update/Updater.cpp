@@ -1,0 +1,522 @@
+// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#include "Updater.h"
+
+#include <ranges>
+#include <clarisma/io/FilePath.h>
+#include <clarisma/zip/Zip.h>
+#include <geodesk/feature/FeatureStore.h>
+#include <geodesk/feature/ParentRelationIterator.h>
+#include <geodesk/query/SimpleQuery.h>
+#include <geodesk/query/TileIndexWalker.h>
+#include <tile/tes/TesChecker.h>
+
+#include "ingest/ChangeIngester.h"
+#include "ingest/ChangeReader.h"
+#include "model/ChangeStatistics.h"
+#include "tile/compiler/TileCompiler.h"
+
+// TODO: Need to commit tx if different replication URL has been set,
+//  even if no changes were available
+//  Need a way to mark tx as "dirty"
+
+// TODO: What happens to GOL's revision if updating from local files?
+
+static const char READING_TASK_PREFIX[] = "Reading ";
+
+UpdaterWorker::UpdaterWorker(Updater* updater) :
+    updater_(updater),
+    analyzer_(updater->model()),
+    writer_(updater->model(), updater->tileCatalog())
+{
+}
+
+void UpdaterWorker::processTask(UpdaterTask& task)
+{
+    switch(updater_->phase())
+    {
+    case Updater::Phase::SEARCH:
+        analyze(task.tip());
+        break;
+    case Updater::Phase::PREPARE_UPDATE:
+        prepareUpdate(task.tip());
+        break;
+    case Updater::Phase::APPLY_UPDATE:
+        applyUpdate(task.entryNumber());
+        break;
+    }
+}
+
+void UpdaterWorker::analyze(Tip tip)
+{
+    Tile tile = updater_->tileCatalog().tileOfTip(tip);
+    TilePtr pTile = TilePtr(analyzer_.model().store()->fetchTile(tip));
+    analyzer_.analyze(tip, tile, pTile);
+    updater_->taskCompleted();
+}
+
+void UpdaterWorker::prepareUpdate(Tip tip)
+{
+    DynamicBuffer buf(64 * 1024);
+    writer_.write(updater_->changes().getChangedTile(tip), &buf);
+
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::DEBUG)
+    {
+        TesChecker checker(tip, updater_->tileCatalog().tileOfTip(tip),
+            reinterpret_cast<const uint8_t*>(buf.data()), buf.length());
+        checker.dump(updater_->dumpPath());
+    }
+#endif
+
+    LOGS << "UpdateWorker prepared " << tip;
+    updater_->postOutput(TesArchiveWriter::createTes(tip, buf.takeBytes()));
+}
+
+void UpdaterWorker::applyUpdate(int entryNumber)
+{
+    TileCompiler compiler(analyzer_.model().store());
+    const TesArchiveEntry& entry = updater_->tesEntry(entryNumber);
+    Tip tip = entry.tip;
+    LOGS << "Updating Tile " << tip << " ("
+        << updater_->tileCatalog().tileOfTip(tip) << ")";
+    compiler.modifyTile(tip, updater_->tileCatalog().tileOfTip(tip));
+
+    // TODO: Why not store data uncompressed for local updates?
+    ByteBlock tesBlock = Zip::uncompressSealedChunk(updater_->tesData(entryNumber), entry.size);
+    compiler.addChanges(tesBlock);
+    ByteBlock block = compiler.compile();
+    uint32_t size = static_cast<uint32_t>(block.size());
+    updater_->postOutput({tip, std::move(block.take()), size});
+}
+
+
+Updater::Updater(FeatureStore* store, UpdateSettings& settings) :
+    TaskEngine(settings.threadCount()),
+    changes_(store, settings),
+    workCompleted_(0),
+    updateFileName_(Strings::combine(
+        FilePath::withoutExtension(store->fileName()), "-update.gob")),
+    workPerUnit_(0),
+    phase_(Phase::SEARCH),
+    phaseCompleted_(0),
+    targetRevision_(0),
+    transaction_(*store)
+{
+    memcpy(displayBuffer_[0], READING_TASK_PREFIX, sizeof(READING_TASK_PREFIX) - 1);
+    memcpy(displayBuffer_[1], READING_TASK_PREFIX, sizeof(READING_TASK_PREFIX) - 1);
+}
+
+
+void Updater::startPhase(Phase phase, int taskCount, double workPerUnit)
+{
+    phase_ = phase;
+    tasksRemaining_ = taskCount;
+    workPerUnit_ = workPerUnit;
+}
+
+
+void Updater::completed(double work)
+{
+    int percentage = static_cast<int>(workCompleted_.fetch_add(work) + work);
+    Console::get()->setProgress(percentage);
+}
+
+
+void Updater::taskCompleted()
+{
+    completed(workPerUnit_);
+    if(--tasksRemaining_ == 0)
+    {
+        LOGS << "Phase completed, releasing semaphore.";
+        phaseCompleted_.release();
+    }
+}
+
+void Updater::processTask(TileData& task)
+{
+    if(phase_ == Phase::PREPARE_UPDATE)
+    {
+        LOGS << "Writing tes for " << task.tip() << ": "
+            << task.size() << " bytes";
+        archiveWriter_.writeTile(std::move(task));
+    }
+    else
+    {
+        assert(phase_ == Phase::APPLY_UPDATE);
+        try
+        {
+            // TODO: The worker should pass the location and,
+            //  most importantly, the size of the past tile
+            //  to avoid having to read again from the old tile
+            //  that may be evicted by now
+            DataPtr pTileIndex = transaction_.store().tileIndex();
+            TileIndexEntry entry(
+                (pTileIndex + task.tip() * 4).getUnsignedInt());
+            uint32_t oldFirstPage = entry.page();
+            assert(oldFirstPage != 0);
+            TilePtr pTile(transaction_.store().pagePointer(oldFirstPage));
+            uint32_t oldTotalSize = pTile.totalSize();
+            transaction_.freePages(oldFirstPage,
+                transaction_.store().pagesForBytes(oldTotalSize));
+            transaction_.putTile(task.tip(), {task.data(), task.size()});
+        }
+        catch (std::exception& ex)
+        {
+            CliApplication::abort(ex.what());
+        }
+    }
+    taskCompleted();
+}
+
+void Updater::postProcess()
+{
+    int64_t unchangedTags = 0;
+    for(auto& worker: workContexts())
+    {
+        unchangedTags += worker.unchangedTags();
+    }
+    LOGS << unchangedTags << " unchanged tags";
+}
+
+void Updater::readChangeFiles(std::span<const char*> files)
+{
+    double halfWorkPerFile = workReading_ / static_cast<double>(files.size()) / 2;
+
+    Console::get()->start("Reading...");
+    for(const char* changeFileName: files)
+    {
+        // Console::log("Reading %s...", changeFileName);
+        LOGS << "Reading " << changeFileName;
+        bool isCompressed = strcmp(FilePath::extension(changeFileName), ".gz") == 0;
+        // TODO: string_view
+        ByteBlock osc = File::readAll(changeFileName);
+        LOGS << "  Read file.";
+        // assert(_CrtCheckMemory());
+        if(isCompressed)
+        {
+            osc = Zip::inflateGzip(osc);
+            LOGS << "  Inflated contents.";
+        }
+        completed(halfWorkPerFile);
+        osc.data()[osc.size()-1] = '\0';
+        // force null-terminator, possibly overwriting > of final closing tag
+        ChangeReader reader(model(), reinterpret_cast<char*>(osc.data()));
+        //assert(_CrtCheckMemory());
+        reader.read();
+        completed(halfWorkPerFile);
+        //assert(_CrtCheckMemory());
+    }
+    LOGS << "All files read.";
+}
+
+// void Updater::update(const char* changeFileName)
+void Updater::update(std::string_view url, std::span<const char*> files,
+    uint32_t targetRevision)
+{
+    FeatureStore* store = model().store();
+    std::string shortName(FilePath::name(store->fileName()));
+    if(!store->hasWaynodeIds())
+    {
+        // TODO: Different exception class?
+        throw IOException("Cannot update %s since it does not store waynode IDs "
+            "(Must be built with option -w)", shortName.c_str());
+    }
+
+    if (url.empty() && files.empty())
+    {
+        url = store->replicationUrl();
+        if (url.empty())
+        {
+            // TODO: Different exception class?
+            throw IOException("Specify a replication URL or at least one .osc file");
+        }
+    }
+    LOGS << "Current revision: " << store->revision();
+
+    ConsoleWriter out;
+    out << "Updating "
+        << Console::FAINT_LIGHT_BLUE << shortName << Console::DEFAULT;
+
+    if (!url.empty())
+    {
+        out << " via "
+            << Console::FAINT_LIGHT_BLUE << url << Console::DEFAULT;
+    }
+    else
+    {
+        out << " from "
+            << Console::FAINT_LIGHT_BLUE << files.size() << Console::DEFAULT
+            << (files.size() == 1 ? " file" : " files");
+    }
+    out.flush();
+
+    calculateWork(24 * 60 * 60);
+        // Use 1 day if we don't know the exact timespan (TODO)
+
+#ifdef GOL_DIAGNOSTICS
+    dumpPath_ = FilePath::withoutExtension(store->fileName());
+    dumpPath_ += "-tes";
+#endif
+
+    //assert(_CrtCheckMemory());
+    start();
+
+    uint32_t newRevision = 0;
+    DateTime newTimestamp;
+
+    updateStart_ = DateTime::now();
+    if (!url.empty())
+    {
+        Console::get()->start("Checking for updates...");
+        ChangeIngester ingester(*this, url, 2); // TODOL conns
+        auto status = ingester.download(4);   // TODO: maxthreads
+        auto error = ingester.error();
+        if(status == ChangeIngester::Status::NO_UPDATES)
+        {
+            Console::end().success() << "No updates available\n";
+            return;
+        }
+        if (status == ChangeIngester::Status::FAILED)
+        {
+            throw std::runtime_error(std::string(error));
+        }
+        newRevision = ingester.latestRevision();
+        newTimestamp = ingester.latestTimestamp();
+        if (status != ChangeIngester::Status::FETCHED_ALL)
+        {
+            reportPartialUpdate(newRevision, ingester.latestTimestamp(), error);
+        }
+    }
+    else
+    {
+        readChangeFiles(files);
+    }
+    Console::msg("All changes ingested.");
+
+#ifndef NDEBUG
+    model().dumpChangedRelationCount();   // TODO: move to ChangeManager
+#endif
+
+    Console::get()->setTask("Analyzing...");
+    LOGS << "Preparing for analysis...";
+    model().prepareNodes();     // TODO: move to ChangeManager
+    model().prepareWays();
+    //assert(_CrtCheckMemory());
+
+    Console::msg("Ready for analysis.");
+    LOGS << "Starting analysis...";
+
+    startPhase(Phase::SEARCH, store->tileCount(), workAnalyzing_ / store->tileCount());
+    TileIndexWalker tiw(store->tileIndex(), store->zoomLevels(), Box::ofWorld(), nullptr);
+    do
+    {
+        // LOGS << "Submitting " << tiw.currentTip();
+        postWork(UpdaterTask(tiw.currentTip()));
+    }
+    while(tiw.next());
+
+    transaction_.begin();
+        // Good place to begin the tx here while we're waiting
+        // for the analysis to finish
+        // TODO: We need to lock the store for writing earlier,
+        //  so we can detect any lock conflicts before doing
+        //  any work
+    transaction_.targetSnapshot().revision = newRevision;
+    transaction_.targetSnapshot().revisionTimestamp = newTimestamp;
+    if (!url.empty())
+    {
+        transaction_.setReplicationUrl(url);
+    }
+    awaitPhaseCompletion();
+    Console::msg("Parallel analysis completed.");
+    for (UpdaterWorker& worker: workContexts())
+    {
+        worker.applyActions();
+    }
+    Console::msg("Analysis actions applied.");
+
+#ifndef NDEBUG
+    model().dump();
+    model().checkMissing();
+#endif
+    changes_.preProcess();
+    changes_.process();
+    // TODO: perform secondary search
+    // Process again, so we pick up nodes that lose shared_location status
+    // and subsequently implicitly-changed ways, as well as ways and relations
+    // that could not be resolved in first pass due to missing members
+    changes_.process();
+    changes_.postProcess();
+    Console::msg("Analyzed and processed.");
+
+    prepareUpdate();
+    Console::msg("GOB prepared.");
+    applyUpdate();
+
+    end();
+    transaction_.commit();
+    transaction_.end();
+
+    //assert(_CrtCheckMemory());
+
+    // TODO: Different display if nothing updated?
+
+    int count = changes_.changedTileCount();
+    Console::end().success() << "Updated " << FormattedLong(count) <<
+        (count==1 ? " tile.\n" : " tiles.\n");
+}
+
+
+void Updater::prepareUpdate()
+{
+    LOGS << "Preparing update...";
+    Console::get()->setTask("Preparing update...");
+
+#ifdef GOL_DIAGNOSTICS
+    if (Console::verbosity() >= Console::Verbosity::DEBUG)
+    {
+        TesChecker::createFolders(dumpPath_,
+            changes().changedTiles() | std::views::keys);
+    }
+#endif
+
+    FeatureStore* store = model().store();
+    int changedTileCount = changes_.changedTileCount();
+    startPhase(Phase::PREPARE_UPDATE, changedTileCount, 0);
+        // TODO: workPerUnit
+    archiveWriter_.open(updateFileName_.c_str(), store->guid(),
+        targetRevision_, targetTimestamp_, changedTileCount, true);
+        // (always uses way-node IDs)
+    for(const auto& [tip,changedTile] : changes().changedTiles())
+    {
+        postWork(UpdaterTask(tip));
+    }
+    awaitPhaseCompletion();
+    archiveWriter_.close();
+    LOGS << "Prepared update.";
+}
+
+
+void Updater::applyUpdate()
+{
+    LOGS << "Updating tiles...";
+    Console::get()->setTask("Updating tiles...");
+    FeatureStore* store = model().store();
+
+    tesArchive_.open(updateFileName_.c_str());
+    int changedTileCount = static_cast<int>(tesArchive_.header().tileCount);
+    tesOffsets_.reset(new uint64_t[changedTileCount]);
+    assert(changedTileCount == changes_.changedTileCount());
+    startPhase(Phase::APPLY_UPDATE, changedTileCount,
+        workApplying_ / changedTileCount);
+
+    uint64_t currentOfs = sizeof(TesArchiveHeader) +
+        sizeof(TesArchiveEntry) * changedTileCount + sizeof(uint32_t);
+        // Skip header, entries, and checksum over header/entries
+
+    for(int i=0; i<changedTileCount; i++)
+    {
+        const TesArchiveEntry& entry = tesArchive_[i];
+        tesOffsets_[i] = currentOfs;
+        currentOfs += entry.size;
+        postWork(UpdaterTask(i));
+    }
+    awaitPhaseCompletion();
+    LOGS << "Updated " << changedTileCount << " tiles.";
+}
+
+
+void Updater::calculateWork(int timespanInSeconds)
+{
+    double parallelismFactor = 1.0 / (static_cast<double>(threadCount()) * 0.75);
+
+    // The ratio of analyzing/updating tiles vs. reading and
+    // parsing the .osc data declines logarithmically as the
+    // update covers a longer timespan, since we can amortize
+    // the relatively high per-tile cost across more changes
+
+    double t = static_cast<double>(timespanInSeconds) / 3600.0;
+
+    // Logistic parameters
+    const double U = 270.0;  // Upper plateau
+    const double L =  32.0;  // Lower plateau
+    const double M = 7.0;   // Midpoint (in hours)
+    const double S =  2.1;   // Steepness
+
+    // Logistic-style decay
+    double x = std::pow(t / M, S);
+    double ratio = L + (U - L) / (1.0 + x);
+
+    if(/* indexing */ false)
+    {
+
+    }
+    else
+    {
+        workReading_ = 50.0 / (1 + ratio * parallelismFactor);
+        workAnalyzing_ = 50;
+        workApplying_ = 50.0 - workReading_;
+    }
+}
+
+
+void Updater::printRevision(ConsoleWriter& out, const char* leader, uint32_t revision,
+    DateTime timestamp)
+{
+    constexpr int REVISION_MAX_DIGITS = 8;
+    char buf[64];
+    out << leader << Console::FAINT_LIGHT_BLUE;
+    memset(buf, ' ', REVISION_MAX_DIGITS);
+    Format::unsignedIntegerReverse(revision, buf+REVISION_MAX_DIGITS);
+    // TODO: may underflow buffer if >8 digits!
+    out.writeBytes(buf, REVISION_MAX_DIGITS);
+    out << Console::DEFAULT << " • " << timestamp << " (";
+    Format::timeAgo(buf, (updateStart_ - timestamp) / 1000);
+    out << buf << ")\n";
+}
+
+
+void Updater::beginUpdate(
+    uint32_t fromRevision, DateTime fromTimestamp,
+    uint32_t toRevision, DateTime toTimestamp)
+{
+    changeFileCount_ = toRevision - fromRevision;
+    assert(changeFileCount_ > 0);
+    calculateWork((toTimestamp - fromTimestamp) / 1000);
+
+    ConsoleWriter out;
+    out.blank();        // ensures that progress bar is fully overwritten
+    printRevision(out, "    from ", fromRevision, fromTimestamp);
+    printRevision(out, "      to ", toRevision, toTimestamp);
+    out.flush();
+    setReadingTask(fromRevision+1);
+    // TODO: this causes the task display to print twice, can we add
+    //  a method to Console that sets the task without printing it?
+    //  (We would then call this method *before* writing to the Console)
+}
+
+void Updater::reportPartialUpdate(uint32_t toRevision, DateTime toTimestamp,
+    std::string_view error)
+{
+    ConsoleWriter out;
+    out.blank();        // ensures that progress bar is fully overwritten
+    printRevision(out, "stops at ", toRevision, toTimestamp);
+    out << "Problem: " << Console::HIGHLIGHT_YELLOW << error << Console::DEFAULT;
+}
+
+void Updater::setReadingTask(uint32_t revision)
+{
+    char* buf = displayBuffer_[useAltDisplay_];
+    char* p = Format::integer(buf + sizeof(READING_TASK_PREFIX)-1, revision);
+    memcpy(p, "...", 4);
+    Console::get()->setTask(buf);
+    useAltDisplay_ = !useAltDisplay_;
+}
+
+void Updater::reportFileRead(size_t uncompressedSize)
+{
+    // TODO: Use higher of count or progress towards buffer size
+    completed(workReading_ / static_cast<double>(changeFileCount_));
+}

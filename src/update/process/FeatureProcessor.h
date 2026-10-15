@@ -1,0 +1,104 @@
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#pragma once
+#include "update/ChangeManager.h"
+
+using namespace geodesk;
+
+// TODO: A feature status change is a tile change, makes
+//  cascading logic easier: cascade geometry, tiles
+// TODO: But don't cascade new nodes; cascades are only
+//  for existing nodes
+
+class FeatureProcessor
+{
+public:
+	FeatureProcessor(ChangeManager& mgr, ChangedFeatureBase& feature) :
+		feature_(feature),
+		mgr_(mgr)
+	{
+	}
+
+	void processMembershipChanges() const
+	{
+		// TODO: Do we need to guard against the reltable already
+		//  being loaded? (Changes and actual table are unioned)
+
+		const MembershipChange* changes = feature_.membershipChanges();
+		if (changes)    [[unlikely]]
+		{
+			CRef ref = feature_.ref();
+			if (!ref.canGetFeature() && feature_.type() != FeatureType::NODE)
+			{
+				ref = feature_.refSE();
+			}
+			feature_.setParentRelations(model().getRelationTable(ref, changes));
+		}
+	}
+
+	void tallyStats()
+	{
+#ifdef GOL_UPDATE_STATISTICS
+		mgr_.tallyStats(feature_);
+#endif
+	}
+
+protected:
+	ChangeModel& model() const { return mgr_.model(); }
+
+	bool is(ChangeFlags flags) const noexcept
+	{
+		return feature_.is(flags);
+	}
+
+	bool isAny(ChangeFlags flags) const noexcept
+	{
+		return feature_.isAny(flags);
+	}
+
+	void addFlags(ChangeFlags flags) const
+	{
+		feature_.addFlags(flags);
+	}
+
+	void clearFlags(ChangeFlags flags) const
+	{
+		feature_.clearFlags(flags);
+	}
+
+	CRef getRef() const noexcept { return feature_.ref(); }
+	void setRef(CRef ref) const noexcept { feature_.setRef(ref); }
+
+	int getZoom() const
+	{
+		Tip tip = getRef().tip();
+		assert(!tip.isNull());
+		return mgr_.tileCatalog().tileOfTip(tip).zoom();
+	}
+
+	void remove(bool fromSE, bool useOriginal = false) const
+	{
+		mgr_.remove(&feature_, fromSE, useOriginal);
+	}
+
+	void setLocalTag(std::string_view k, TagValueType type, uint32_t v) const
+	{
+		model().setLocalTag(&feature_, k, type, v);
+	}
+
+	void setLocalTagWithNumber(std::string_view k, int number) const
+	{
+		// TODO: assert that number fits
+		setLocalTag(k, TagValueType::NARROW_NUMBER,
+			TagValues::narrowNumber(Decimal(number, 0)));
+	}
+
+	void ensureReltableLoaded() const
+	{
+		model().getParentRelations(&feature_);
+	}
+
+	ChangedFeatureBase& feature_;
+	ChangeManager& mgr_;
+};

@@ -49,6 +49,14 @@ void THeader::addFeatures(TileModel& tile)
 	{
 		TFeature* feature = iter.next();
 
+		// TODO: under the new model, deleted and removed
+		//  are different: removed but not deleted means
+		//  "no longer present in this tile" -- deleted
+		//  features instead are tombstoned, so they
+		//  can be retrieved via queries
+		//  for now, we'll treat "deleted" as removed, as well
+		if (feature->isRemoved()) continue;
+
 		// LOG("Indexing %s...", feature->feature().toString().c_str());
 		int typeFlags = (feature->flags() >> 1) & 15;
 		int type = FLAGS_TO_TYPE[typeFlags];

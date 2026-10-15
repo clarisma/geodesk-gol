@@ -122,53 +122,64 @@ void HttpResponse::read(std::vector<std::byte>& data)
     }
 }
 
-void HttpResponse::readUnzippedGzip(std::vector<std::byte>& data)
+void HttpResponse::readUnzippedGzip(std::vector<std::byte>& data) const
 {
-    constexpr int BUFFER_SIZE = 16 * 1024;
+    constexpr size_t BUFFER_SIZE = 16 * 1024;
+
     unsigned char inBuffer[BUFFER_SIZE];
     unsigned char outBuffer[BUFFER_SIZE];
 
-    // Initialize zlib for gzip decompression.
-    // 16 + MAX_WBITS instructs zlib to expect a gzip header.
-    z_stream strm;
-    std::memset(&strm, 0, sizeof(strm));
+    z_stream strm{};
     int ret = inflateInit2(&strm, 16 + MAX_WBITS);
-    if (ret != Z_OK)
+    if (ret != Z_OK) throw ZipException(ret);
+
+    try
     {
-        throw ZipException(ret);
-    }
-
-    DWORD bytesRead;
-    do
-    {
-        bytesRead = 0;
-        if (!WinHttpReadData(hRequest_, inBuffer, BUFFER_SIZE, &bytesRead))
+        bool done = false;
+        while (!done)
         {
-            inflateEnd(&strm);
-            throw HttpException(GetLastError());
-        }
+            DWORD bytesRead = 0;
 
-        strm.avail_in = bytesRead;
-        strm.next_in  = inBuffer;
-
-        do
-        {
-            strm.avail_out = BUFFER_SIZE;
-            strm.next_out  = outBuffer;
-            ret = inflate(&strm, bytesRead ? Z_NO_FLUSH : Z_FINISH);
-            if (ret != Z_OK && ret != Z_STREAM_END)
+            if (!WinHttpReadData(hRequest_, inBuffer,
+                sizeof(inBuffer), &bytesRead))
             {
-                inflateEnd(&strm);
-                throw ZipException(ret);
+                throw HttpException(GetLastError());
             }
 
-            size_t have = BUFFER_SIZE - strm.avail_out;
-            auto buf = reinterpret_cast<const std::byte*>(outBuffer);
-            data.insert(data.end(), buf, buf + have);
+            if (bytesRead == 0)
+            {
+                // HTTP ended before gzip reported Z_STREAM_END.
+                throw ZipException(Z_DATA_ERROR);
+            }
+
+            strm.next_in = inBuffer;
+            strm.avail_in = bytesRead;
+
+            while (strm.avail_in != 0)
+            {
+                strm.next_out = outBuffer;
+                strm.avail_out = sizeof(outBuffer);
+
+                ret = inflate(&strm, Z_NO_FLUSH);
+                const size_t have = sizeof(outBuffer) - strm.avail_out;
+                const auto* buffer = reinterpret_cast<const std::byte*>(outBuffer);
+                data.insert(data.end(), buffer, buffer + have);
+
+                if (ret == Z_STREAM_END)
+                {
+                    done = true;
+                    break;
+                }
+                if (ret != Z_OK) throw ZipException(ret);
+            }
         }
-        while (strm.avail_out == 0);
     }
-    while (bytesRead);
+    catch (...)
+    {
+        inflateEnd(&strm);
+        throw;
+    }
+
     ret = inflateEnd(&strm);
     if (ret != Z_OK) throw ZipException(ret);
 }

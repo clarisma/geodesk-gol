@@ -30,6 +30,7 @@ public:
 			if (!isForeign())
 			{
 				TReferencedElement* n = tile.getElement(localHandle());
+				assert(n);
 				if (n)
 				{
 					int32_t relPtr = n->location() + n->anchor() - (currentOfs_ + adjust_);

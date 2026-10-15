@@ -9,13 +9,13 @@
     <node id="6" version="1" lon="120" lat="-60">
         <tag k="amenity" v="restaurant"/>
     </node>
-    <way id="1" version="1">
+    <way id="10" version="1">
         <nd ref="1"/>
         <nd ref="2"/>
         <tag k="highway" v="residential"/>
         <tag k="name" v="Main Street"/>
     </way>
-    <way id="2" version="1">
+    <way id="20" version="1">
         <nd ref="2"/>
         <nd ref="3"/>
         <tag k="highway" v="primary"/>

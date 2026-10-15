@@ -12,8 +12,10 @@ public:
 private:
 	static int build(char* argv[]);
 	static int check(char* argv[]);
+	static int clean(char* argv[]);
 	static int copy(char* argv[]);
 #ifdef GOL_DIAGNOSTICS
+	static int dump(char* argv[]);
 	static int dumpTiles(char* argv[]);
 	static int test(char* argv[]);
 #endif

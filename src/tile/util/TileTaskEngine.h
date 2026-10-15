@@ -18,6 +18,11 @@ class FeatureStore;
 using namespace clarisma;
 using namespace geodesk;
 
+// TODO: Instead of the queue, we could simply have a vector that
+//  stores the tasks, and workers pull them off using atomic pointer
+//  bump; this way, the main thread could consume the output, no
+//  output thread needed
+
 class TileTask
 {
 public:

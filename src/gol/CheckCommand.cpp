@@ -22,6 +22,11 @@ int CheckCommand::run(char* argv[])
 	// Console::get()->start("Checking tiles...");
 
 	checker.run();
+	if (checker.anyErrors())
+	{
+		Console::end().failed() << "Errors detected\n";
+		return 1;	// TODO: error code
+	}
 	Console::end().success() << "No errors found\n";
 	return 0;
 }

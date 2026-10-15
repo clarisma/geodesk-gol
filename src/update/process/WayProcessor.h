@@ -1,0 +1,255 @@
+// Copyright (c) 2026 Clarisma / GeoDesk contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#pragma once
+#include "Feature2dProcessor.h"
+
+class WayProcessor : public Feature2dProcessor
+{
+public:
+	using enum ChangeFlags;
+
+	WayProcessor(ChangeManager& mgr, ChangedFeature2D& way) :
+		Feature2dProcessor(mgr, way)
+	{
+		assert(way.type() == FeatureType::WAY);
+	}
+
+	// TODO: Do we need to deal with WAY_WILL_HAVE_FEATURE_NODES?
+	//  Collapse into FLAGGED_WAYNODE?
+	void process()
+	{
+		if (way().id() == 682409966)
+		{
+			LOGS << "!!!";
+		}
+		processMembershipChanges();
+		if (normalizeRefs() <= 0) [[unlikely]]
+		{
+			if (!way().isChangedExplicitly())
+			{
+				// Missing feature
+				addFlags(PROCESSED);
+				return;
+			}
+		}
+		/*
+		if (getRef() != CRef::MISSING && pastBounds_.isEmpty())
+		{
+			LOGS << "Bounds not set for way/" << way().id();
+		}
+		assert(getRef() == CRef::MISSING || !pastBounds_.isEmpty());
+		*/
+		// It's ok for pastBounds to be uninitialized
+		//  in cases such as membership change
+
+		if (is(DELETED))	[[unlikely]]
+		{
+			processDeleted();
+		}
+		else
+		{
+			if (isAny(GEOMETRY_CHANGED |
+				WAYNODE_IDS_CHANGED | MEMBERS_CHANGED))
+			{
+				ensureNodesLoaded();
+				if (!computeBounds()) [[unlikely]]
+				{
+					// Need to defer because we need to search
+					// for nodes whose location is unknown
+					model().changedWays().push(&way());
+					return;
+				}
+				if (missingNodes_)	[[unlikely]]
+				{
+					if (missingNodes_ == way().memberCount())
+					{
+						// All nodes are missing => delete the way
+						addFlags(DELETED);
+						clearFlags(MEMBERS_CHANGED);
+						processDeleted();
+						futureBounds_ = pastBounds_;
+							// avoids possible tile assignment
+					}
+					else
+					{
+						fixIncompleteWay();
+					}
+				}
+				if (futureBounds_ != pastBounds_)
+				{
+					updateBounds();
+				}
+				if(isAny(TILES_CHANGED | MEMBERS_CHANGED))
+				{
+					identifyPotentialTexChanges();
+				}
+			}
+			if (is(RELTABLE_CHANGED))	[[unlikely]]
+			{
+				if (getRefSE() != CRef::SINGLE_TILE)  [[unlikely]]
+				{
+					if (way().peekParentRelations())
+					{
+						validateMemberReltable(&way());
+					}
+				}
+			}
+			if (!is(DELETED))	[[likely]]
+			{
+				assignToTiles();
+			}
+		}
+
+		if (isAny(GEOMETRY_CHANGED | DELETED))
+		{
+			ChangeFlags flags = way().flags();
+			model().memberChanged(&way(), pastBounds_, futureBounds_,
+				(isAny(DELETED | TILES_CHANGED) ?
+					(MEMBERS_CHANGED | GEOMETRY_CHANGED | BOUNDS_CHANGED) : NONE) |
+						(flags & (GEOMETRY_CHANGED | BOUNDS_CHANGED)));
+			// TODO: Check these flags
+		}
+
+		if (getRefSE() != CRef::SINGLE_TILE)  [[unlikely]]
+		{
+			// If the way is multi-tile, but a parent relation lives
+			// in one of the tiles, the parent's second ref may be
+			// unknown -- this causes problems with writing changes.
+			// We need to get at least an "unresolved" ref (which
+			// has a TIP, even though the handle of the feature is
+			// not yey known) for the parent's second tile, so the
+			// ChangeWriter knows the relation is local in both tiles
+			//
+			const CRelationTable* rels = way().peekParentRelations();
+			if (rels) validateMemberReltable(&way());
+		}
+
+		// TODO: TEX changes
+
+		addFlags(featureNodes_ ?
+			(PROCESSED | WAY_WILL_HAVE_FEATURE_NODES) :
+			PROCESSED);
+		tallyStats();
+	}
+
+private:
+	/// Requires all nodes to be processed (including duplicate nodes
+	/// that become unique-location nodes)
+	///
+	bool computeBounds()
+	{
+		bool defer = false;
+		bool nodesChangedTiles = false;
+		for(CFeatureStub* nodeStub : members())
+		{
+			CFeature* node = nodeStub->get();
+			CRef ref = node->ref();
+			if (ref.isUnknownOrMissing())   [[unlikely]]
+			{
+				if(ref == CRef::MISSING || mgr_.memberSearchCompleted_)
+				{
+					node->setRef(CRef::MISSING);
+					missingNodes_++;
+				}
+				else
+				{
+					// TODO: look up node in index, issue search instruction
+					defer = true;
+				}
+			}
+			else
+			{
+				if (node->isChanged())
+				{
+					ChangedNode* changedNode = ChangedNode::cast(node);
+					nodesChangedTiles |= changedNode->is(ChangeFlags::TILES_CHANGED);
+				}
+				futureBounds_.expandToInclude(node->xy());
+			}
+			featureNodes_ += ref.tip().isNull() ? 0 : 1;
+		}
+		addFlags(nodesChangedTiles ? ChangeFlags::MEMBERS_CHANGED :
+			ChangeFlags::NONE);
+			// If any (feature) nodes changed tiles, we need to mark
+			// the way as members_changed so the node table is updated
+			// (Anonymous nodes are never flagged tiles_changed)
+			// TODO: Since tile changes are rare, should we let
+			//  the node change cascade, jsut like we do with
+			//  promotion/demotion? This would save us from checking
+			//  whether the node has changed in the fairly hot loop
+			//  above
+		return !defer;
+	}
+
+	void fixIncompleteWay() const
+	{
+		std::span<CFeatureStub*> nodes = members();
+		auto originalNodeCount = way().memberCount();
+		unsigned validNodeCount = 0;
+		for(CFeatureStub* nodeStub : nodes)
+		{
+			CFeature* node = nodeStub->get();
+			CRef ref = node->ref();
+			if (!ref.isUnknownOrMissing())
+			{
+				nodes[validNodeCount++] = node;
+			}
+		}
+		if (validNodeCount == 1)
+		{
+			// If there's only one valid node remaining,
+			// we use it as the second node so a way
+			// will always have at least 2 nodes
+			nodes[1] = nodes[0];
+			validNodeCount++;
+		}
+		way().setMembers({nodes.data(), validNodeCount});
+		setLocalTagWithNumber("geodesk:missing_nodes", missingNodes_);
+		addFlags(ChangeFlags::MEMBERS_CHANGED |
+			ChangeFlags::WAYNODE_IDS_CHANGED);
+	}
+
+	void identifyPotentialTexChanges() const
+	{
+		Tip wayTip = getRef().tip();
+		assert(!wayTip.isNull());
+		bool twinTileWay = getRefSE() != CRef::SINGLE_TILE;
+		for(CFeatureStub* nodeStub : members())
+		{
+			CFeature* node = nodeStub->get();
+			CRef nodeRef = node->ref();
+			if (way().id() == 1163002394)
+			{
+				LOGS << way().typedId() << ": " <<
+					node->typedId() << "  " << nodeRef;
+			}
+			Tip nodeTip = nodeRef.tip();
+			if (!nodeTip.isNull())
+			{
+				// feature node
+				if (twinTileWay || nodeTip != wayTip) [[unlikely]]
+				{
+					// node is foreign
+					if (!node->isFutureForeign() && !nodeRef.isExported())
+					{
+						// node will need a TEX (though it may
+						// already have one)
+						mgr_.texChange(node, false, true);
+						node->markAsFutureForeign();
+					}
+				}
+				else
+				{
+					// TODO: Node doesn't need a TEX
+					//  Check if it may have one, add to CM
+				}
+			}
+		}
+	}
+
+	ChangedFeature2D& way() const { return wayOrRelation(); }
+
+	int missingNodes_ = 0;
+	int featureNodes_ = 0;
+};

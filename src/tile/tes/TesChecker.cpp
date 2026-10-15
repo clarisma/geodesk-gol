@@ -383,8 +383,8 @@ void TesChecker::readNode()
     // TODO: flag check
     if(flags & TesFlags::GEOMETRY_CHANGED)
     {
-        prevXY_.x += fromZigzag(readVarint64());
-        prevXY_.y += fromZigzag(readVarint64());
+        prevXY_.x += readSignedVarint64();
+        prevXY_.y += readSignedVarint64();
         out_ << "  LONLAT: " << LonLat(prevXY_) << '\n';
     }
 }
@@ -406,8 +406,8 @@ void TesChecker::readWay()
         Box bounds;
         for(int i=0; i<nodeCount; ++i)
         {
-            xy.x += fromZigzag(readVarint32());
-            xy.y +=fromZigzag(readVarint32());
+            xy.x += readSignedVarint64();
+            xy.y += readSignedVarint64();
             coords_.emplace_back(xy);
             bounds.expandToInclude(xy);
         }
@@ -418,7 +418,7 @@ void TesChecker::readWay()
         {
             for(int i=0; i<nodeCount; ++i)
             {
-                nodeId += fromZigzag(readVarint64());
+                nodeId += readSignedVarint64();
                 out_ << "    node/" << nodeId << ": " << LonLat(coords_[i]) << '\n';
             }
         }
@@ -491,10 +491,10 @@ void TesChecker::readRelation()
     // TODO: flag check
     if(flags & TesFlags::BBOX_CHANGED)
     {
-        int64_t minX = static_cast<int64_t>(prevXY_.x) + fromZigzag(readVarint64());
-        int64_t minY = static_cast<int64_t>(prevXY_.y) + fromZigzag(readVarint64());
-        int64_t maxX = minX + readVarint64();
-        int64_t maxY = minY + readVarint64();
+        int64_t minX = static_cast<int64_t>(prevXY_.x) + readSignedVarint64();
+        int64_t minY = static_cast<int64_t>(prevXY_.y) + readSignedVarint64();
+        int64_t maxX = minX + readVarint64();   // unsigned
+        int64_t maxY = minY + readVarint64();   // unsigned
         Box bounds(minX, minY, maxX, maxY);
         out_ << "  BOUNDS: " << LonLat(bounds.bottomLeft()) << " -> " << LonLat(bounds.topRight()) << '\n';
         prevXY_ = bounds.bottomLeft();
@@ -610,8 +610,64 @@ void TesChecker::readRemovedFeatures()
 
 void TesChecker::readExports()
 {
-    uint32_t count = readVarint32();
-    // TODO
+    uint32_t taggedCount = readVarint32();
+    bool v2 = taggedCount & 1;
+    bool replace = !v2 || (taggedCount & 2);
+    size_t newCount = taggedCount >> (v2 ? 2 : 1);
+
+    if (replace)
+    {
+        out_ << "\n" << newCount << " EXPORTS:\n";
+    }
+    else if (newCount == 0)
+    {
+        out_ << "\nEXPORTS UNCHANGED\n";
+        return;
+    }
+    else
+    {
+        out_ << "\nPATCHED EXPORTS (Table size: " << newCount << "):\n";
+    }
+
+    size_t pos = 0;
+    size_t run = newCount;
+
+    for (;;)
+    {
+        if (!replace)
+        {
+            run = readVarint32();
+            if (run == 0) break;
+            pos += readVarint32();
+        }
+        else if (run == 0)
+        {
+            break;
+        }
+        size_t end = pos + run;
+        if (end > newCount)  [[unlikely]]
+        {
+            error("Export table patch out of bounds");
+            return;
+        }
+        while (pos < end)
+        {
+            uint32_t ref = readVarint32() +
+                (1 - static_cast<int>(v2));
+            out_ << "    #" << pos << ":";
+            if (ref == 0)
+            {
+                out_ << "    EMPTY\n";
+            }
+            else
+            {
+                checkRange("exported", ref - 1, features_.size());
+                writeLocalFeatureRef(ref - 1);
+            }
+            pos++;
+        }
+        run = 0;
+    }
 }
 
 

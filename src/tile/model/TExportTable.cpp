@@ -22,6 +22,7 @@ void TExportTable::write(const TileModel& tile) const
 			TFeature* feature = features_[i];
 			if (feature) [[likely]]
 			{
+				assert(!feature->isRemoved());
 				ptr = feature->target() - ofs;
 			}
 			else

@@ -1,0 +1,1164 @@
+// Copyright (c) 2025 Clarisma / GeoDesk contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#include "ChangeModel.h"
+
+#include <clarisma/cli/ConsoleWriter.h>
+#include <geodesk/feature/FeatureStore.h>
+#include <geodesk/feature/MemberIterator.h>
+#include <geodesk/feature/MemberTableIterator.h>
+#include <geodesk/feature/ParentRelationIterator.h>
+#include <geodesk/feature/WayNodeIterator.h>
+#include <geodesk/query/ParentWaysQuery.h>
+
+#include "build/compile/Role.h"
+#include "ChangedNode.h"
+#include "ChangedTile.h"
+#include "CRelationTable.h"
+#include "CTagTable.h"
+
+ChangeModel::ChangeModel(FeatureStore* store, UpdateSettings& settings) :
+    store_(store),
+    arena_(1 * 1024 * 1024), // Arena::GrowthPolicy::SAME_SIZE)
+    areaClassifier_(settings.areaRules(),
+    [store](std::string_view str)
+    {
+        return store->strings().getCode(str);
+    })
+{
+    // assert(_CrtCheckMemory());
+    features_.reserve(32'000'000);
+}
+
+
+uint32_t ChangeModel::getLocalString(std::string_view s)
+{
+    auto it = stringToNumber_.lazy_emplace(s,[&](const auto& ctor)
+        {
+            uint32_t number = static_cast<uint32_t>(strings_.size());
+            uint32_t totalSize = ShortVarString::totalSize(s.size());
+            auto* str = reinterpret_cast<ShortVarString*>(
+                arena_.alloc(totalSize, 1));
+            str->init(s.data(), s.size());
+            strings_.push_back(str);
+            ctor(str->toStringView(), number);
+        });
+
+    return it->second;
+}
+
+/*
+uint32_t ChangeModel::getLocalString(std::string_view s)
+{
+    // TODO: Make more efficient, avoid hashing twice when inserting
+
+    auto it = stringToNumber_.find(s);
+    if(it != stringToNumber_.end()) return it->second;
+    uint32_t number = static_cast<uint32_t>(strings_.size());
+    uint32_t totalSize = ShortVarString::totalSize(s.size());
+    ShortVarString* str = reinterpret_cast<ShortVarString*>(arena_.alloc(totalSize, 1));
+    str->init(s.data(), s.size());
+    strings_.push_back(str);
+    stringToNumber_[str->toStringView()] = number;
+    return number;
+}
+*/
+
+uint32_t ChangeModel::getTagValue(const TagTableModel::Tag& tag)
+{
+    if(tag.valueType() == TagValueType::LOCAL_STRING)
+    {
+        return getLocalString(tag.stringValue());
+    }
+    return tag.value();
+}
+
+// TODO: Are there cases where tagModel isn't tags_ ???
+const CTagTable* ChangeModel::getTagTable(const TagTableModel& tagModel, bool determineIfArea)
+{
+    CTagTable* tags =
+        arena_.createVariableLength<CTagTable>(
+            tagModel.tags().size(), tagModel, *this);
+
+    auto [iter, inserted] = tagTables_.insert(tags);
+    if(!inserted)
+    {
+        // This is ok, we will never roll back creation if
+        // we've added strings, since this means that the
+        // tag-table does not already exist
+        arena_.freeLastAlloc(tags);
+    }
+
+    tags = *iter;
+    if(determineIfArea && !tags->areaTagsClassified())
+    {
+        int areaFlags = areaClassifier_.isArea(tagModel);
+        tags->setAreaFlags(
+            ((areaFlags & AreaClassifier::AREA_FOR_WAY) ? CTagTable::WAY_AREA_TAGS : 0) |
+            ((areaFlags & AreaClassifier::AREA_FOR_RELATION) ? CTagTable::RELATION_AREA_TAGS : 0));
+    }
+    return tags;
+}
+
+const CTagTable* ChangeModel::getTagTable(CRef ref)
+{
+    assert(ref.canGetFeature());
+    FeaturePtr feature = ref.getFeature(store_);
+    assert(!feature.isNull());
+    assert(tags_.isEmpty());
+    tags_.read(feature.tags());
+    const CTagTable* tags = getTagTable(tags_, false);
+    tags_.clear();
+    return tags;
+}
+
+
+void ChangeModel::setLocalTag(ChangedFeatureBase* feature,
+    std::string_view key, TagValueType type, uint32_t value)
+{
+    assert(tags_.isEmpty());
+    const CTagTable* tags = feature->tagTable();
+    if (tags)
+    {
+        tags->save(tags_, *this);
+    }
+    else
+    {
+        FeaturePtr fp = feature->getFeature(store_);
+        assert(!fp.isNull());
+        tags_.read(fp.tags());
+    }
+    tags_.setLocalTag(key, type, value);
+    tags_.normalize();
+    feature->setTagTable(getTagTable(tags_, false));
+    feature->addFlags(ChangeFlags::TAGS_CHANGED);
+    tags_.clear();
+}
+
+
+const CRelationTable* ChangeModel::getRelationTable(CRef ref, const MembershipChange* changes)
+{
+    if (ref.canGetFeature())
+    {
+        Tip tip = ref.tip();
+        TilePtr pTile = store()->fetchTile(tip);
+        FeaturePtr feature = ref.getFeature(pTile);
+        assert(!feature.isNull());
+        if(feature.isRelationMember())
+        {
+            assert(tempRelations_.empty());
+            ParentRelationIterator iter(store_, feature.relationTableFast(),
+                store_->borrowAllMatcher(), nullptr);
+            for(;;)
+            {
+                CFeature* rel = readFeature(iter, tip, pTile);
+                if(!rel) break;
+                tempRelations_.emplace_back(rel);
+            }
+        }
+    }
+
+    while(changes)
+    {
+        /*
+        if (changes->typedId().isRelation())
+        {
+            LOGS << changes->typedId() <<
+                (changes->action() == ChangeAction::RELATION_MEMBER_ADDED ?
+                    " ADDED to " : " REMOVED from ") << changes->parentRelation()->typedId();
+        }
+        */
+        if(changes->action() == ChangeAction::RELATION_MEMBER_ADDED)    [[likely]]
+        {
+            tempRelations_.emplace_back(changes->parentRelation());
+        }
+        else if(changes->action() == ChangeAction::RELATION_MEMBER_REMOVED)
+        {
+            if (changes->parentRelation()->typedId() == TypedFeatureId::ofRelation(169101) &&
+                changes->typedId().isRelation())
+            {
+                LOGS << "  Removing " << changes->typedId() << " from " << changes->parentRelation()->typedId();
+            }
+            auto it = std::ranges::find(tempRelations_, changes->parentRelation());
+            if (it == tempRelations_.end())
+            {
+                LOGS << "Attempted to remove " << changes->typedId() << " from "
+                    << changes->parentRelation()->typedId() <<
+                        ", but the parent rel is not present";
+            }
+            assert(it != tempRelations_.end());
+            std::swap(*it, tempRelations_.back());
+            tempRelations_.pop_back();
+        }
+        else
+        {
+            assert(false);
+        }
+        changes = changes->next();
+    }
+
+    const CRelationTable* rels = nullptr;
+    if(!tempRelations_.empty())
+    {
+        std::ranges::sort(tempRelations_,
+            [](const CFeatureStub* a, const CFeatureStub* b)
+            {
+                return a->id() < b->id(); // Sort ascending by id
+            });
+        rels = createRelationTable();
+            // clears tempRelations_
+    }
+    return rels;
+}
+
+
+const CRelationTable* ChangeModel::createRelationTable()
+{
+    assert(tempRelations_.size());
+    CRelationTable* newRels =
+            arena_.createVariableLength<CRelationTable>(
+                tempRelations_.size(), tempRelations_);
+    tempRelations_.clear();
+    auto [it, inserted] = relationTables_.insert(newRels);
+    if(!inserted)
+    {
+        // This is ok, we will never roll back creation if
+        // we've added strings, since this means that the
+        // tag-table does not already exist
+        arena_.freeLastAlloc(newRels);
+    }
+    return *it;
+}
+
+const CRelationTable* ChangeModel::getParentRelations(ChangedFeatureBase* feature)
+{
+    if (!feature->is(ChangeFlags::RELTABLE_LOADED))
+    {
+        CRef ref = feature->ref();
+        if (!ref.canGetFeature() && feature->type() != FeatureType::NODE)
+        {
+            ref = feature->refSE();
+        }
+        feature->setParentRelations(getRelationTable(ref,
+            feature->membershipChanges()));
+    }
+    return feature->peekParentRelations();
+}
+
+CFeature::Role ChangeModel::getRole(std::string_view s)
+{
+    int roleCode = store_->strings().getCode(s);
+    if(roleCode >= 0 && roleCode <= FeatureConstants::MAX_COMMON_ROLE)
+    {
+        return CFeature::Role(true, roleCode);
+    }
+    return CFeature::Role(false, getLocalString(s));
+}
+
+std::string_view ChangeModel::getRoleString(CFeature::Role role) const
+{
+    if(role.isGlobal())
+    {
+        return store_->strings().getGlobalString(role.value())->toStringView();
+    }
+    return strings_[role.value()]->toStringView();
+}
+
+CFeatureStub* ChangeModel::getFeatureStub(TypedFeatureId typedId)
+{
+    auto [it, inserted] = features_.try_emplace(typedId, nullptr);
+    if(inserted)
+    {
+        it->second = arena_.create<CFeature>(
+            0, typedId.type(), typedId.id());
+    }
+    return it->second;
+}
+
+/*
+CFeatureStub* ChangeModel::getFeatureStub(TypedFeatureId typedId)
+{
+    auto it = features_.find(typedId);
+    if(it != features_.end()) return it->second;
+    CFeature* f = arena_.create<CFeature>(0, typedId.type(), typedId.id());
+    features_.insert({typedId, f});
+    return f;
+}
+*/
+
+CFeature* ChangeModel::peekFeature(TypedFeatureId typedId) const
+{
+    auto it = features_.find(typedId);
+    if(it == features_.end()) return nullptr;
+    return it->second->get();
+}
+
+
+ChangedNode* ChangeModel::getChangedNode(uint64_t id, CFeatureStub* existing)
+{
+    if(existing && !existing->isBasic())
+    {
+        // The stub is a changed node, or has been replaced by one
+        if(existing->isReplaced())
+        {
+            // If node has been replaced, this means it has changed
+            existing = existing->getReplaced();
+        }
+        return ChangedNode::cast(existing);
+    }
+    ChangedNode* changed = arena_.create<ChangedNode>(id);
+    if(existing)
+    {
+        assert(existing->type() == FeatureType::NODE);
+
+        auto* node = CFeature::cast(existing);
+
+        changed->setRef(node->ref());
+        changed->setXY(node->xy());
+        node->replaceWith(changed);
+            // (copies flags to changed)
+        assert(changed->isFutureWaynode() == node->isFutureWaynode());
+        assert(changed->isFutureForeign() == node->isFutureForeign());
+    }
+    features_[TypedFeatureId::ofNode(id)] = changed;
+    changedNodes_.push(changed);
+    return changed;
+}
+
+
+ChangedFeature2D* ChangeModel::getChangedFeature2D(TypedFeatureId typedId, CFeatureStub* existing)
+{
+    if(existing && !existing->isBasic())
+    {
+        // The stub is a changed node, or has been replaced by one
+        if(existing->isReplaced())
+        {
+            // If node has been replaced, this means it has changed
+            existing = existing->getReplaced();
+        }
+        return ChangedFeature2D::cast(existing);
+    }
+    FeatureType type = typedId.type();
+    ChangedFeature2D* changed = arena_.create<ChangedFeature2D>(
+        type, typedId.id());
+    if(existing)
+    {
+        assert(existing->type() != FeatureType::NODE);
+        auto* wayOrRelation = CFeature::cast(existing);
+        changed->setRef(wayOrRelation->ref());
+        changed->setRefSE(wayOrRelation->refSE());
+        existing->replaceWith(changed);
+            // (copies flags to changed)
+        assert(!changed->isFutureWaynode());
+        assert(!wayOrRelation->isFutureWaynode());
+        assert(changed->isFutureForeign() == wayOrRelation->isFutureForeign());
+   }
+    features_[typedId] = changed;
+    (type == FeatureType::WAY ? changedWays_ : changedRelations_).push(changed);
+    return changed;
+}
+
+
+ChangedFeatureBase* ChangeModel::getChanged(TypedFeatureId typedId)
+{
+    if (typedId == TypedFeatureId::ofWay(1154460013))
+    {
+        LOGS << "getChanged !!!";
+    }
+    FeatureType type = typedId.type();
+    if(type == FeatureType::NODE) return getChangedNode(typedId.id());
+    return getChangedFeature2D(type, typedId.id());
+}
+
+ChangedFeatureBase* ChangeModel::getChanged(CFeatureStub* feature)
+{
+    FeatureType type = feature->type();
+    if(type == FeatureType::NODE) return getChangedNode(feature);
+    return getChangedFeature2D(feature);
+}
+
+/*
+// TODO: "offer" refs instead of setting them, because
+//  the ChangedFeature may already have a "better" ref
+ChangedFeatureBase* ChangeModel::changeImplicitly(
+    FeaturePtr feature, CRef ref, bool isRefSE)
+{
+    if(feature.isNode())
+    {
+        NodePtr node(feature);
+        ChangedNode* changed = getChangedNode(node.id());
+        if(!changed->isChangedExplicitly())
+        {
+            // Only set ref and xy if not changed explicitly
+            changed->setXY(node.xy());
+            assert(!isRefSE);
+            changed->offerRef(ref);
+        }
+        return changed;
+    }
+    ChangedFeature2D* changed = getChangedFeature2D(feature.type(), feature.id());
+    if(!changed->isChangedExplicitly())
+    {
+        // Only set ref and bounds if not changed explicitly
+        changed->setBounds(feature.bounds());
+        assert(!isRefSE);
+        if(isRefSE) [[unlikely]]
+        {
+            changed->offerRefSE(ref);
+        }
+        else
+        {
+            changed->offerRef(ref);
+        }
+    }
+    return changed;
+}
+*/
+
+void ChangeModel::setMembers(ChangedFeature2D* changed, CFeatureStub** members,
+    int memberCount, CFeature::Role* roles)
+{
+    CFeatureStub** dest = changed->members().data();
+    if(changed->memberCount() < memberCount)
+    {
+        dest = reinterpret_cast<CFeatureStub**>(arena_.alloc(
+            (sizeof(CFeatureStub*) + (roles ? sizeof(CFeature::Role) : 0))
+            * memberCount, alignof(CFeatureStub*)));
+    }
+    std::memcpy(dest, members, memberCount * sizeof(CFeature*));
+    if(roles)
+    {
+        std::memcpy(dest + memberCount, roles, memberCount * sizeof(CFeature::Role));
+    }
+    changed->setMembers(std::span(dest, memberCount));
+}
+
+
+void ChangeModel::dump()
+{
+    int64_t counts[3] = {0};
+    int64_t changedCounts[3] = {0};
+    int64_t tagsChangedCounts[3] = {0};
+    int64_t geomChangedCounts[3] = {0};
+    int64_t createdCounts[3] = {0};
+
+    Console::log("Completed read.");
+
+    for(const auto& [id, stub] : features_)
+    {
+        CFeature* f = stub->get();
+        FeatureType type = f->type();
+        counts[static_cast<int>(type)]++;
+        if(f->isChanged())
+        {
+            changedCounts[static_cast<int>(type)]++;
+            if(test(ChangedFeatureBase::cast(f)->flags(), ChangeFlags::TAGS_CHANGED))
+            {
+                tagsChangedCounts[static_cast<int>(type)]++;
+            }
+            if(test(ChangedFeatureBase::cast(f)->flags(), ChangeFlags::GEOMETRY_CHANGED))
+            {
+                geomChangedCounts[static_cast<int>(type)]++;
+            }
+            /*
+            if((ChangedFeatureBase::cast(f)->flags() & ChangeFlags::CREATED)
+                == ChangeFlags::CREATED)
+            {
+                createdCounts[static_cast<int>(type)]++;
+            }
+            */
+        }
+    }
+    Console::log("Total nodes:      %lld", counts[0]);
+    Console::log("  Changed:        %lld", changedCounts[0]);
+    Console::log("    Created:      %lld", createdCounts[0]);
+    Console::log("    Geom changed: %lld", geomChangedCounts[0]);
+    Console::log("    Tags changed: %lld", tagsChangedCounts[0]);
+    Console::log("Total ways:       %lld", counts[1]);
+    Console::log("  Changed:        %lld", changedCounts[1]);
+    Console::log("    Created:      %lld", createdCounts[1]);
+    Console::log("    Geom changed: %lld", geomChangedCounts[1]);
+    Console::log("    Tags changed: %lld", tagsChangedCounts[1]);
+    Console::log("Total relations:  %lld", counts[2]);
+    Console::log("  Changed:        %lld", changedCounts[2]);
+    Console::log("    Created:      %lld", createdCounts[2]);
+    Console::log("    Geom changed: %lld", geomChangedCounts[2]);
+    Console::log("    Tags changed: %lld", tagsChangedCounts[2]);
+}
+
+
+void ChangeModel::checkMissing()
+{
+    size_t missingCount = 0;
+    for (const auto it : features_)
+    {
+        CFeature* f = it.second->get();
+        if(!f->ref().tip().isNull()) continue;
+        if(f->isChanged())
+        {
+            if(ChangedFeatureBase::cast(f)->version() == 1) continue;
+        }
+        missingCount++;
+        ConsoleWriter out;
+        // out.timestamp() << "Missing: " << it.first;
+    }
+    Console::log("%lld features missing.", missingCount);
+}
+
+
+void ChangeModel::prepareNodes()
+{
+    // TODO: remove superseded versions here?
+
+    // Populate the hashmap of future node locations, so the
+    // TileChangeAnalyzer can later determine if any existing
+    // nodes become duplicates.
+    // In this step, we also check if an changed/new nodes
+    // will be duplicates, and we mark them accordingly.
+
+    ChangedNode* node = changedNodes_.first();
+    while(node)
+    {
+        assert(node->version() > 0);
+        if(!node->isDeleted())
+        {
+            Coordinate xy = node->xy();
+            auto it = futureNodeLocations_.find(xy);
+            if(it != futureNodeLocations_.end())
+            {
+                it->second->addFlags(ChangeFlags::FLAGGED_SHARED_LOCATION);
+                node->addFlags(ChangeFlags::FLAGGED_SHARED_LOCATION);
+                // We don't set FLAGS_CHANGED here, because the nodes
+                //  may already be flagged as SHARED_LOCATION
+                //  NodeChangeProcessor::resolveCoincidentLocation()
+                //  compares the before and after state and sets flags
+                //  accordingly
+            }
+            else
+            {
+                futureNodeLocations_[xy] = node;
+            }
+        }
+        node = node->next();
+    }
+}
+
+// TODO: Is this really needed?
+//  Why are we marking all nodes that will belong to a way in the future?
+//  We may need this to determine if a node becomes an orphan, but
+//  aren't we checking that later, anyway?
+
+void ChangeModel::prepareWays()
+{
+    ChangedFeature2D* way = changedWays_.first();
+    while(way)
+    {
+        assert(way->version() > 0);
+        if(way->isDeleted())
+        {
+            assert(way->memberCount() == 0);
+        }
+        for(CFeatureStub* stub: way->members())
+        {
+            CFeature* node = stub->get();
+            assert(node->type() == FeatureType::NODE);
+            node->markAsFutureWaynode();
+        }
+        way = way->next();
+    }
+}
+
+
+std::span<CFeatureStub*> ChangeModel::loadWayNodes(Tip tip, DataPtr pTile, WayPtr way)
+{
+    WayNodeIterator iter(store_, way, false, true);
+    size_t nodeCount = iter.storedRemaining();
+    // LOGS << "Loading nodes of way/" << way.id() << " from tile " << tip << " (" << nodeCount << " nodes)";
+    CFeatureStub** nodes = arena_.allocArray<CFeatureStub*>(nodeCount);
+    CFeatureStub** pNode = nodes;
+    for(;;)
+    {
+        WayNodeIterator::WayNode wayNode = iter.next();
+        if(wayNode.id == 0) break;
+
+        CFeature* node = getFeatureStub(TypedFeatureId::ofNode(wayNode.id))->get();
+        if (wayNode.id == 10816096480)
+        {
+            LOGS << "- Loading node/" << wayNode.id << "  old ref: " << node->ref();
+            if (node->isChanged())
+            {
+                LOGS << "    version = " << ChangedNode::cast(node)->version();
+                LOGS << "    flags =   " << static_cast<uint32_t>(ChangedNode::cast(node)->flags());
+            }
+        }
+        if(!node->isChanged())
+        {
+            node->setXY(wayNode.xy);
+            if (wayNode.feature.isNull())   [[likely]]
+            {
+                node->setRef(CRef::ANONYMOUS_NODE);
+            }
+            else
+            {
+                if (wayNode.foreign.isNull())   [[likely]]
+                {
+                    node->offerRef(CRef::ofMaybeExported(tip, wayNode.feature.ptr() - pTile));
+                }
+                else
+                {
+                    node->setRef(CRef::ofForeign(wayNode.foreign));
+                }
+            }
+        }
+        // LOGS << "- node/" << wayNode.id << ": " << node->ref();
+        assert(pNode < nodes + nodeCount);
+        *pNode++ = node;
+    }
+    // ReSharper disable once CppDFALocalValueEscapesFunction
+    //  nodes does not escape, the table is allocated in the arena
+    return { nodes, nodeCount };
+}
+
+
+template<typename Iter>
+CFeature* ChangeModel::readFeature(Iter& iter, Tip tip, TilePtr pTile)
+{
+    FeaturePtr pastFeature = iter.next();
+    if (pastFeature.isNull()) return nullptr;
+    CFeatureStub* stub = getFeatureStub(pastFeature.typedId());
+    assert(stub);
+    CFeature* f = stub->get();
+
+    CRef ref = iter.isForeign() ?
+        CRef::ofExported(iter.tip(), iter.tex()) :
+        CRef::ofMaybeExported(tip, pTile.handleOf(pastFeature));
+
+    if (f->typedId() == TypedFeatureId::ofRelation(8945512))
+    {
+        LOGS << "Read " << f->typedId() << " via tile " << tip
+            <<": " << ref;
+    }
+
+    if (f->type() == FeatureType::NODE)
+    {
+        if(!f->isChanged())
+        {
+            f->offerRef(ref);
+            f->setXY(NodePtr(pastFeature).xy());
+        }
+    }
+    else
+    {
+        if(!f->isChanged() || !ChangedFeatureBase::cast(f)->isAny(
+            ChangeFlags::TILES_CHANGED | ChangeFlags::DELETED))
+        {
+            // Differs from nodes, because NW and SE tiles may swap
+            // position if a dual-tile feature moves to an adjacent tile,
+            // so we cannot safely offer if processed
+
+            // TODO: May clobber the work of updateTiles()
+            //  since it is not processed yet !!!
+            //  Check if the above flag checks fix this
+
+            if (pastFeature.hasNorthwestTwin()) [[unlikely]]
+            {
+                f->offerRefSE(ref);
+            }
+            else
+            {
+                f->offerRef(ref);
+                // Note: We can't assume this is a single-tile
+                // feature without checking if its bounds exceed
+                // the tile bounds
+            }
+        }
+    }
+    return f;
+}
+
+void ChangeModel::addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel)
+{
+    assert(rel->type() == FeatureType::RELATION);
+    member->addMembershipChange(
+        arena_.create<MembershipChange::Added>(
+            member->typedId(), rel));
+    member->addFlags(ChangeFlags::ADDED_TO_RELATION |
+        ChangeFlags::RELTABLE_CHANGED);
+}
+
+/*
+void ChangeModel::addNewRelationMemberships()
+{
+    HashSet<TypedFeatureId> memberSet;
+    ChangedFeature2D* rel = changedRelations().first();
+    while (rel)
+    {
+        if(rel->isChangedExplicitly()) [[likely]]
+        {
+            if (rel->ref() == CRef::UNKNOWN)
+            {
+                // If a relation is changed explicitly and
+                // it has not been found, this means it has
+                // been newly created; we need to add memberships
+                // for all its members (for existing relations,
+                // TileChangeAnalyzer will perform this step)
+                bool hasChildRelations = false;
+                for (CFeatureStub* memberStub : rel->members())
+                {
+                    // TODO: We could avoid the lookup by typedId
+                    TypedFeatureId memberId = memberStub->typedId();
+                    auto result = memberSet.insert(memberId);
+                    if (result.second)  // actually inserted
+                    {
+                        // Only add a single membership, even if member
+                        // appears multiple times in same relation
+
+                        ChangedFeatureBase* member = getChanged(memberId);
+                        member->addMembershipChange(
+                            arena_.create<MembershipChange::Added>(
+                                memberId, rel));
+                        member->addFlags(ChangeFlags::ADDED_TO_RELATION |
+                            ChangeFlags::RELTABLE_CHANGED);
+                    }
+                    hasChildRelations |= memberId.isRelation();
+                }
+                memberSet.clear();
+                rel->addFlags(hasChildRelations ?
+                    ChangeFlags::WILL_BE_SUPER_RELATION : ChangeFlags::NONE);
+                    // TODO: Move super-relation detection to ChangeReader?
+                    //  Currently duplicated in TileChangeAnalyzer::checkMembers()
+            }
+        }
+        rel = rel->next();
+    }
+}
+*/
+
+
+/*
+void ChangeModel::cascadeMemberChange(NodePtr past, ChangedNode* future)
+{
+    Box futureBounds(future->xy());
+    cascadeMemberChange(past, future, futureBounds);
+}
+
+void ChangeModel::cascadeMemberChange(FeaturePtr past, ChangedFeature2D* future)
+{
+    cascadeMemberChange(past, future, future->bounds());
+}
+
+
+void ChangeModel::cascadeMemberChange(FeaturePtr past,
+    ChangedFeatureBase* future, const Box& futureBounds)
+{
+    if (past.isNull())
+    {
+        // If the feature didn't exist in the past, there's nothing to do
+        // (If a newly created feature has parent relations, that means it
+        // has been added to all of these relations, which means these
+        // relations will already be explicitly geometrically changed)
+        return;
+    }
+
+    // TODO: Don't base cascade based on the updated reltable,
+    //  because it may contain a refcycle that hasn't been broken yet
+    //  (which leads to endless recursion and stack overflow)
+    //  Always use the past reltables; relations that add/drop
+    //  members are already marked geom/members changed
+
+    if (future->is(ChangeFlags::RELTABLE_LOADED))
+    {
+        // RELTABLE_LOADED does not necessarily mean that the feature
+        // actually has a reltable, just that it has been processed
+
+        const CRelationTable* rels = future->peekParentRelations();
+        if (rels)
+        {
+            for (CFeatureStub* rel : rels->relations())
+            {
+                memberBoundsChanged(rel->get(),past, futureBounds);
+            }
+        }
+    }
+    else if (past.isRelationMember())
+    {
+        assert(!future->is(ChangeFlags::TILES_CHANGED));
+            // If the member feature moved tiles, its ref will reflect
+            // its future location, not its past (which we need in
+            // order to retrieve its parent relations)
+            // But if the feature moved, it should have already
+            // loaded its reltable (because it will need to be
+            // written to the new tile), which means we would
+            // have executed the code above, instead
+        Tip tip = future->ref().tip();
+        DataPtr pTile = store()->fetchTile(tip);
+        ParentRelationIterator iter(store_, past.relationTableFast(),
+            store_->borrowAllMatcher(), nullptr);
+        for(;;)
+        {
+            CFeature* rel = readFeature(iter, tip, pTile);
+            if(!rel) break;
+            memberBoundsChanged(rel,past, futureBounds);
+        }
+    }
+}
+
+
+
+// TODO: We must also cascade if a member's tiles changed (even if
+//  the change cannot affect the relation's bounds), so processRelation()
+//  can check whether members (or the relation itself) will gain/lose TEXes
+
+void ChangeModel::memberBoundsChanged(CFeature* relation,
+    FeaturePtr pastMember, const Box& futureMemberBounds)
+{
+    if (relation->isChanged())
+    {
+        ChangedFeature2D* changedRel = ChangedFeature2D::cast(relation);
+        if (changedRel->is(ChangeFlags::PROCESSED))
+        {
+            LOGS << relation->typedId() << " has already been processed. Has geom changes = "
+                << changedRel->is(ChangeFlags::GEOMETRY_CHANGED)
+                << ", member = " << pastMember.typedId();
+
+            // TODO: This is a problem!
+            //  Assert avoided temporarily
+            // return;
+        }
+        assert(!changedRel->is(ChangeFlags::PROCESSED));
+        if (changedRel->is(ChangeFlags::GEOMETRY_CHANGED))
+        {
+            // If relation already has geometric changes,
+            // there's nothing to do
+            return;
+        }
+    }
+    RelationPtr pastRelation(relation->getFeature(store_));
+    assert(!pastRelation.isNull());
+
+    Coordinate pastMemberBottomLeft = pastMember.bottomLeft();
+    Coordinate pastMemberTopRight = pastMember.topRight();
+    Box pastRelationBounds = pastRelation.bounds();
+    if(!pastRelationBounds.containsSimple(futureMemberBounds) ||
+        pastMemberBottomLeft.x == pastRelationBounds.minX() ||
+        pastMemberBottomLeft.y == pastRelationBounds.minY() ||
+        pastMemberTopRight.x == pastRelationBounds.maxX() ||
+        pastMemberTopRight.y == pastRelationBounds.maxY())
+    {
+        // Unless the member's future bounds lie entirely within the
+        // parent's past bounds, and the member's past bounds did not
+        // lie on the parent's bounds, the member's bounds change may
+        // cause the parent's bounds to change as well
+
+        ChangedFeature2D* changed = getChangedFeature2D(relation);
+        assert(!changed->is(ChangeFlags::PROCESSED));
+        changed->setBounds(pastRelationBounds);
+
+        // ensureMembersLoaded() is called by processRelation()
+        // ensureMembersLoaded(changed);
+
+        changed->addFlags(ChangeFlags::GEOMETRY_CHANGED);
+    }
+}
+
+*/
+
+void ChangeModel::loadMembers(ChangedFeature2D* rel)
+{
+    assert(rel->type() == FeatureType::RELATION);
+    assert(!rel->is(ChangeFlags::PROCESSED));
+    assert(tempMembers_.empty());
+    CRef ref = rel->ref();
+    if (!ref.canGetFeature())   [[unlikely]]
+    {
+        ref = rel->refSE();
+    }
+    Tip tip = ref.tip();
+    assert(!tip.isNull());
+    TilePtr pTile = store()->fetchTile(tip);
+    RelationPtr pastRel(ref.getFeature(pTile));
+    assert(!pastRel.isNull());
+
+    bool hasChildRelations = false;
+    MemberIterator iter(store_, pastRel.bodyptr(),
+        FeatureTypes::ALL, store_->borrowAllMatcher(), nullptr);
+    for(;;)
+    {
+        CFeature* member = readFeature(iter, tip, pTile);
+        if(!member) break;
+        CFeature::Role role;
+        if (iter.hasLocalRole())    [[unlikely]]
+        {
+            role = CFeature::Role(false, getLocalString(iter.currentRole()));
+        }
+        else
+        {
+            role = CFeature::Role(true, iter.currentRoleCode());
+        }
+        hasChildRelations |= member->type() == FeatureType::RELATION;
+        tempMembers_.emplace_back(member, role);
+    }
+    assert(!tempMembers_.empty());
+
+    CFeatureStub** pMembers = reinterpret_cast<CFeatureStub**>(arena_.alloc(
+        (sizeof(CFeatureStub*) + sizeof(CFeature::Role)) * tempMembers_.size(),
+        alignof(CFeatureStub*)));
+
+    CFeatureStub** pMember = pMembers;
+    CFeature::Role* pRole = reinterpret_cast<CFeature::Role*>(pMembers + tempMembers_.size());
+
+    for (auto& entry : tempMembers_)
+    {
+        *pMember++ = entry.first;
+        *pRole++ = entry.second;
+    }
+    rel->setMembers(std::span(pMembers, tempMembers_.size()));
+    rel->addFlags(hasChildRelations ?
+        ChangeFlags::WILL_BE_SUPER_RELATION : ChangeFlags::NONE);
+
+    tempMembers_.clear();
+}
+
+void ChangeModel::mayGainTex(CFeature* feature)
+{
+    // TODO
+
+    /*
+    Tip tip = feature->ref().tip();
+    assert(!tip.isNull());
+    getChangedTile(tip)->mayGainTex(feature);
+    if (feature->type() != FeatureType::NODE)
+    {
+        tip = feature->refSE().tip();
+        assert(!tip.isNull() || feature->refSE() == CRef::SINGLE_TILE);
+        if (!tip.isNull())  [[unlikely]]
+        {
+            getChangedTile(tip)->mayGainTex(feature);
+        }
+    }
+    */
+}
+
+
+void ChangeModel::determineTexLosers()
+{
+    // TODO: Determine which features will actually lose their TEX
+
+    for (CFeatureStub* stub : mayLoseTex_)
+    {
+        CFeature* feature = stub->get();
+        if (feature->isFutureForeign()) continue;
+            // If a feature has been marked as foreign by
+            // any parent, it will keep its TEX
+        FeaturePtr past = feature->getFeature(store_);
+        assert (!past.isNull());
+            // If the feature's past version cannot be retrieved,
+            // that means it moved away from all of its tiles
+            // or is new, in which case it should not have
+            // been added to mayLoseTex_
+
+        if (willMemberKeepTex(feature)) continue;
+
+        // TODO: should we pass FeaturePtr to this method?
+        //  Otherwise may retrieve more than once
+    }
+}
+
+
+bool ChangeModel::willMemberKeepTex(CFeature* member) const
+{
+    if(member->isChanged())
+    {
+        auto changed = ChangedFeatureBase::cast(member);
+        if (changed->is(ChangeFlags::RELTABLE_LOADED))
+        {
+            const CRelationTable* rels = changed->peekParentRelations();
+            if (!rels) return false;
+            for (const CFeatureStub* relStub : rels->relations())
+            {
+                if (changed->isForeignMemberOf(relStub->get()))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    FeaturePtr past = member->getFeature(store_);
+    assert(!past.isNull());
+    if (!past.isRelationMember()) return false;
+    ParentRelationIterator iter(store_, past.relationTableFast());
+    for (;;)
+    {
+        RelationPtr pastParent = iter.next();
+        if (pastParent.isNull()) break;
+        const CFeature* rel = peekFeature(
+            TypedFeatureId::ofRelation(pastParent.id()));
+        if (rel)
+        {
+            if (member->isForeignMemberOf(rel)) return true;
+        }
+
+        // TODO: obtain the parent's TIPs based on its bbox
+    }
+    return false;
+}
+
+
+void ChangeModel::clear()
+{
+    arena_.clear();
+    strings_.clear();
+    stringToNumber_.clear();
+    tagTables_.clear();
+    relationTables_.clear();
+    features_.clear();
+    futureNodeLocations_.clear();
+    changedNodes_.clear();
+    changedWays_.clear();
+    changedRelations_.clear();
+    mayLoseTex_.clear();
+
+    // The following must always be cleared after each use:
+    assert(tags_.isEmpty());
+    assert(tempRelations_.empty());
+    assert(tempMembers_.empty());
+}
+
+
+/// @brief Returns whether a changed member may alter the parent bbox.
+///
+/// Assumes all boxes are simple and non-empty.
+///
+bool ChangeModel::parentBoundsMayChange(const Box& parent,
+    const Box& past, const Box& future) noexcept
+{
+    const bool minX =
+        (future.minX() < parent.minX()) |
+        ((past.minX() == parent.minX()) &
+            (future.minX() > parent.minX()));
+    const bool minY =
+        (future.minY() < parent.minY()) |
+        ((past.minY() == parent.minY()) &
+            (future.minY() > parent.minY()));
+    const bool maxX =
+        (future.maxX() > parent.maxX()) |
+        ((past.maxX() == parent.maxX()) &
+            (future.maxX() < parent.maxX()));
+    const bool maxY =
+        (future.maxY() > parent.maxY()) |
+        ((past.maxY() == parent.maxY()) &
+            (future.maxY() < parent.maxY()));
+    return minX | minY | maxX | maxY;
+}
+
+void ChangeModel::memberChanged(const CRelationTable* parents,
+    const Box& pastMemberBounds, const Box& futureMemberBounds,
+    ChangeFlags cascadeFlags)
+{
+    for (CFeatureStub* relStub : parents->relations())
+    {
+        ChangedFeature2D* rel = getChangedFeature2D(relStub);
+        assert(!rel->is(ChangeFlags::PROCESSED));
+        ensureBounds(rel);
+        ChangeFlags addRelFlags = cascadeFlags;
+        Box pastRelationBounds = rel->bounds();
+        Box tentativeFutureRelationBounds = pastRelationBounds;
+        if (test(cascadeFlags, ChangeFlags::BOUNDS_CHANGED))
+        {
+            // If the member's bounds have changed, let's check
+            // if that change can actually affect the parent's
+            // bounds; if not, don't apply BOUNDS_CHANGED
+
+            if (parentBoundsMayChange(rel->bounds(),
+                pastMemberBounds, futureMemberBounds))
+            {
+                tentativeFutureRelationBounds.
+                    expandToIncludeSimple(futureMemberBounds);
+                // Important: We don't set these bounds for
+                //  the relation, since these are tentative
+            }
+            else
+            {
+                addRelFlags &= ~ChangeFlags::BOUNDS_CHANGED;
+            }
+        }
+        if ((rel->flags() & addRelFlags) != addRelFlags)
+        {
+            // Only apply flags and cascade if any flags change
+            rel->addFlags(addRelFlags);
+            const CRelationTable* grandparents =
+                getParentRelations(rel);
+            if (grandparents)
+            {
+                memberChanged(grandparents, pastRelationBounds,
+                    tentativeFutureRelationBounds,
+                        addRelFlags & (ChangeFlags::GEOMETRY_CHANGED |
+                            ChangeFlags::BOUNDS_CHANGED));
+                // cascade only GEOMETRY and BOUNDS changes
+                // to the relation's parents
+            }
+        }
+    }
+}
+
+
+const CTagTable* ChangeModel::createExceptionNodeTags(bool duplicate, bool orphan)
+{
+    // TODO: Can we assume that "geodesk:duplicate" and "geodesk:orphan"
+    //  are always local tags?
+
+    assert(duplicate || orphan);
+    assert(tags_.isEmpty());
+    if (duplicate)
+    {
+        tags_.addLocalTag("geodesk:duplicate", GlobalStrings::YES);
+    }
+    if (orphan)
+    {
+        tags_.addLocalTag("geodesk:orphan", GlobalStrings::YES);
+    }
+
+    // TODO: We wouldn't need to call normalize() since the local tags
+    //  are already ordered, if we explicitly add the "no-globals" marker
+    tags_.normalize();
+
+    const CTagTable* tags = getTagTable(tags_, false);
+    tags_.clear();
+    return tags;
+}
+
+void ChangeModel::ensureBounds(ChangedFeature2D* feature) const
+{
+    if (feature->bounds().isEmpty())
+    {
+        FeaturePtr fp = feature->getFeature(store());
+        if (!fp.isNull())
+        {
+            feature->setBounds(fp.bounds());
+        }
+    }
+}
+
+
+void ChangeModel::removeMemberParent(
+    ChangedFeatureBase* member, ChangedFeature2D* parentRel)
+{
+    assert(tempRelations_.empty());
+    const CRelationTable* rels  = getParentRelations(member);
+    for (CFeatureStub* relStub : rels->relations())
+    {
+        if (relStub->get() != parentRel) tempRelations_.push_back(relStub);
+    }
+    if (tempRelations_.empty())
+    {
+        rels = nullptr;
+    }
+    else
+    {
+        rels = createRelationTable();
+    }
+    member->setParentRelations(rels);
+    member->addFlags(ChangeFlags::RELTABLE_CHANGED | ChangeFlags::REMOVED_FROM_RELATION);
+}

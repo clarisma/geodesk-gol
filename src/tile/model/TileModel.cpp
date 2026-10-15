@@ -248,7 +248,9 @@ TRelation* TileModel::addRelation(RelationPtr rel, DataPtr pBodyData, uint32_t b
 
 void TileModel::createExportTable(TFeature** features, TypedFeatureId* typedIds, size_t count)
 {
-	assert(exportTable_ == nullptr);
+	// assert(exportTable_ == nullptr);
+	// If updating a tile, we may replace an existing export table
+	// TODO: Does it make sense to replace it if same size or smaller?
 	exportTable_ = arena_.create<TExportTable>(features, typedIds, count);
 }
 
@@ -322,7 +324,7 @@ uint8_t* TileModel::write(Layout& layout)
 TString* TileModel::getKeyString(TElement::Handle handle) const
 {
 	TString* str = getString(handle);
-	if (str == nullptr)
+	if (str == nullptr)  [[unlikely]]
 	{
 		// TODO:
 		// It is possible that a string that isn't currently used
@@ -345,11 +347,11 @@ TString* TileModel::getKeyString(TElement::Handle handle) const
 		// we would risk picking up an unrelated 3-byte struct
 		// stored at 72, packed right before the real string at 75.
 		// (TODO: check if Tile Compiler enforces this constraint)
-		// TODO: Check the probling algo below; we should need to
+		// TODO: Check the probing algo below; we should need to
 		//  only check handle+1 through handle+3
 
 		LOGS << "Can't find string with handle " << handle << ", probing nearby...";
-		for (int ofs = -3; ofs <=3; ofs++)		// TODO: should be 0 to 3 ?
+		for (int ofs = 1; ofs <=3; ofs++)		// TODO: check probing range
 		{
 			str = getString(handle + ofs);
 			if (str)

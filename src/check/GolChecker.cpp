@@ -16,6 +16,7 @@ void GolChecker::processTile(Tip tip, Tile tile)
     TilePtr pTile = store().fetchTile(tip);
     if (pTile)
     {
+        bool anyErrors = false;
         Crc32C checksum;
         uint32_t payloadSize = pTile.payloadSize();
         checksum.update(pTile.ptr(), payloadSize);
@@ -23,16 +24,21 @@ void GolChecker::processTile(Tip tip, Tile tile)
         {
             ConsoleWriter out;
             out.blank() << tip << ": Invalid checksum";
+            anyErrors = true;
         }
 #ifdef GOL_DIAGNOSTICS
         if (Console::verbosity() >= Console::Verbosity::DEBUG)
         {
-            TileChecker checker(tip, tile, TilePtr(pTile.ptr()));
-            checker.check();
+            TileChecker checker(store(), tip, tile, TilePtr(pTile.ptr()));
+            anyErrors |= !checker.check();
         }
 #endif
         MappedFile::discard(
             const_cast<uint8_t*>(pTile.ptr()), pTile.totalSize());
+        if (anyErrors)
+        {
+            anyErrors_ = true;
+        }
     }
     postOutput(tip, ByteBlock());
 }

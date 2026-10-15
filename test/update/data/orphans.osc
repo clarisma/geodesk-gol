@@ -5,4 +5,7 @@ Verify that:
 -->
 
 <osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="1" lon="-88" lat="45"/>
+    </modify>
 </osmChange>

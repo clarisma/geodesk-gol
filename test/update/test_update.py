@@ -1,9 +1,10 @@
 from pathlib import Path
 import osmium
+import pytest
 
 DATA_DIR = Path(__file__).parent / "data"
 
-def convert_to_pbf(source, target):
+def convert_osm_file(source, target):
     processor = osmium.FileProcessor(source)
     with osmium.SimpleWriter(target,
         header=processor.header, overwrite=True) as writer:
@@ -32,31 +33,59 @@ def perform_update_test(name, gol_tool, tmp_path):
     rebuilt_gol = tmp_path / f"{name}-rebuilt"
 
     # Create the PBF used as input for both branches.
-    convert_to_pbf(osm_file, base_pbf)
+    convert_osm_file(osm_file, base_pbf)
 
     # Build the GOL that will subsequently be updated.
-    gol_tool.run(["build", updated_gol, base_pbf, "-Y", "-w"])
+    res = gol_tool.run(["build", updated_gol, base_pbf, "-Y", "-w"])
+    assert res.returncode == 0
 
     # Create the expected final PBF by independently applying the OSC.
+    changed_osm = tmp_path / f"{name}-changed.osm"
+    apply_changes(osm_file, osc_file, changed_osm)
     apply_changes(base_pbf, osc_file, rebuilt_pbf)
+    rebuilt_osm = tmp_path / f"{name}-osmium-updated.osm"
+    rebuilt_opl = tmp_path / f"{name}-osmium-updated.opl"
+    convert_osm_file(rebuilt_pbf, rebuilt_osm)
+    convert_osm_file(rebuilt_pbf, rebuilt_opl)
 
     # Build a fresh GOL representing the expected final state.
-    gol_tool.run(["build", rebuilt_gol, rebuilt_pbf, "-Y", "-w"])
+    res = gol_tool.run(["build", rebuilt_gol, rebuilt_pbf, "-Y", "-w"])
+    assert res.returncode == 0
 
     # Exercise the update functionality being tested.
-    gol_tool.run(["update", updated_gol, osc_file, "-d"])
+    res = gol_tool.run(["update", updated_gol, osc_file, "-d"])
+    assert res.returncode == 0
+    res = gol_tool.run(["check", updated_gol, "-d"])
+    assert res.returncode == 0
 
-    # TODO: Compare updated_gol with rebuilt_gol.
+    updated_xml = tmp_path / f"{name}-updated.xml"
+    rebuilt_xml = tmp_path / f"{name}-rebuilt.xml"
 
-def test_update(gol_tool, tmp_path):
+    res = gol_tool.run(["query", updated_gol, "*", "-o", updated_xml])
+    assert res.returncode == 0
+    res = gol_tool.run(["query", rebuilt_gol, "*", "-o", rebuilt_xml])
+    assert res.returncode == 0
+
+    assert updated_xml.read_text(encoding="utf-8").splitlines() == \
+        rebuilt_xml.read_text(encoding="utf-8").splitlines()
+
+@pytest.mark.parametrize("case", [
+    "node-promotion",
+    "russian-shop",
+    "areas",
+    "new-dupes",
+    "cascade",
+    "deleted-relation",
+    "duplicates",
+    "geom-only",
+    # "missing-nodes",
+        # Currently fails due to a discrepancy how build and
+        # update treat ways with missing nodes: build deletes
+        # them, update fixes them
+    "relation-refcycle",
+    "tags-changed",
+    "orphans",
+])
+def test_update(case, gol_tool, tmp_path):
     print(f"tmp_path = {tmp_path}")
-    cases = [
-        "cascade",
-        "deleted-relation",
-        "tags-changed",
-        "duplicates",
-        # "orphans",
-    ]
-    for case in cases:
-        perform_update_test(case, gol_tool, tmp_path)
-    assert False
+    perform_update_test(case, gol_tool, tmp_path)

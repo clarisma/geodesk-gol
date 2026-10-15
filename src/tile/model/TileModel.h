@@ -107,6 +107,7 @@ public:
 	}
 
 	void createExportTable(TFeature** features, TypedFeatureId* typedIds, size_t count);
+	void clearExportTable() { exportTable_ = nullptr; }
 
 	TReferencedElement* getElement(TElement::Handle handle) const
 	{
@@ -211,8 +212,9 @@ private:
 	uint8_t* pNewTile_;
 	uint32_t currentTileSize_;
 	TElement::Handle nextNewHandle_;
-		// TODO: When updating tiles, we need to set this to the current size
-		//  of the tile, to ensure that new elements are assigned unique handles
+		// When updating tiles, we need to set this to the current size
+		// of the tile, to ensure that new elements are assigned unique handles
+		// setSource() does this; TODO: check
 	uint32_t featureCount_;
 	Tile tile_;
 	bool wayNodeIds_ = false;

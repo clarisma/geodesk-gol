@@ -6,6 +6,7 @@ include(GNUInstallDirs)
 
 option(GOL_DIAGNOSTICS "Enable diagnostic commands" OFF)
 option(GOL_EXPERIMENTAL "Enable experimental features" OFF)
+option(GOL_UPDATE_STATISTICS "Enable reporting of update statistics" OFF)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -133,6 +134,10 @@ endif()
 if(GOL_EXPERIMENTAL)
     message("GOL: Building with experimental features")
     target_compile_definitions(gol PRIVATE GOL_EXPERIMENTAL)
+endif()
+if(GOL_UPDATE_STATISTICS)
+    message("GOL: Building with update statistics")
+    target_compile_definitions(gol PRIVATE GOL_UPDATE_STATISTICS)
 endif()
 
 # Enable zlib wrapper classes

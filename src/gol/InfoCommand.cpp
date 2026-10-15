@@ -103,8 +103,9 @@ void InfoCommand::showRevisionInfo(ConsoleWriter& out)
         std::string_view url = store_.replicationUrl();
         if (!url.empty())
         {
-            out << " • " << url << '\n';
+            out << " • " << url;
         }
+        out << '\n';
     }
     else
     {

@@ -1,0 +1,15 @@
+<!--
+
+Verify that:
+
+- node/2 changes position, but does not change the bbox of its way
+- way/1 changes geometry only (contains node/2)
+- relation/1 changes only geometry (contains way/1)
+- relation/2 changes only geometry (contains relation/1)
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="2" changeset="1" lon="-10" lat="-30"/>
+    </modify>
+</osmChange>

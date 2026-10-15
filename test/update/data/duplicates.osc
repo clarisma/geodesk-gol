@@ -11,6 +11,41 @@ Verify that:
 
 Passed 9/10/26
 
+FEATURES:
+  FEATURE #0: node/1 *
+  FEATURE #1: node/2 *
+  FEATURE #2: node/3 *
+  FEATURE #3: node/4 *
+  FEATURE #4: node/5 *
+5 nodes, 0 ways, 0 relations
+
+STRINGS:
+  STRING #0: "geodesk::duplicate"
+  STRING #1: "geodesk::orphan"
+
+SHARED_TAGS:
+  TAGS #0 (10 bytes):
+    "geodesk::orphan"=2
+    #0=0
+
+CHANGED node/1:
+  TAGS #0
+
+CHANGED node/2:
+  TAGS #0
+  LONLAT: -120,45
+
+CHANGED node/3:
+
+CHANGED node/4:
+  LONLAT: 90,-45
+
+CHANGED node/5:
+  TAGS (16 bytes):
+    "geodesk::duplicate"=2
+    "geodesk::orphan"=2
+    #0=0
+
 -->
 
 <osmChange version="0.6" generator="geodesk-gol-test">

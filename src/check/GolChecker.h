@@ -15,4 +15,9 @@ public:
 
     // void prepareTile(Tip tip, Tile tile) override;
     void processTile(Tip tip, Tile tile) override;
+
+    bool anyErrors() const { return anyErrors_; }
+
+private:
+    std::atomic<bool> anyErrors_ = false;
 };

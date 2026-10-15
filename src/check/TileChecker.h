@@ -4,8 +4,10 @@
 #pragma once
 #include <clarisma/data/HashMap.h>
 #include <clarisma/data/HashSet.h>
+#include <clarisma/util/Pointers.h>
 #include <clarisma/validate/BinaryChecker.h>
-#include <geodesk/feature/FeaturePtr.h>
+#include <geodesk/feature/RelationPtr.h>
+#include <geodesk/feature/WayPtr.h>
 #include <geodesk/feature/TilePtr.h>
 #include <geodesk/feature/Tip.h>
 #include <geodesk/geom/Tile.h>
@@ -16,7 +18,7 @@ using namespace geodesk;
 class TileChecker : protected BinaryChecker
 {
 public:
-    TileChecker(Tip tip, Tile tile, TilePtr pTile);
+    TileChecker(const FeatureStore& store, Tip tip, Tile tile, TilePtr pTile);
 
     bool check();
 
@@ -78,9 +80,19 @@ private:
 	bool checkFeatureBounds2D(FeaturePtr feature);
 	uint32_t checkFeature2D(FeaturePtr feature);
 	uint32_t checkWay(DataPtr p);
+	void checkBodies();
+	void checkWayBody(WayPtr way);
+	void checkRelatedTable(FeaturePtr parent, const char* what,
+		DataPtr p, Tex startTex, int step, int extraFlags,
+		FeatureTypes acceptedTypes);
+	void checkReferencedFeature(DataPtr p, TypedFeatureId parent, FeatureTypes acceptedTypes);
+	void checkForeignFeature(Tip tip, Tex tex, TypedFeatureId parent, FeatureTypes acceptedTypes);
 	uint32_t checkRelation(DataPtr p);
+	void checkRelationBody(RelationPtr rel);
+	void checkRelationTable(FeaturePtr member, DataPtr ppRels);
 	bool checkPointer(DataPtr pBase, int delta);
     bool checkAccess(DataPtr p, const char* what);
+	bool checkAccess(DataPtr p, const char* what, size_t size);
     bool checkBounds(DataPtr pStored);
     bool checkBounds(DataPtr pStored, const Box& actual);
     bool checkId(FeaturePtr feature);
@@ -89,14 +101,20 @@ private:
     void checkTagValue(DataPtr p, int type);
     const ShortVarString* checkString(DataPtr p);
 	void checkExports(DataPtr ppExports);
+	int handleOf(FeaturePtr feature) const
+	{
+		return Pointers::delta32(feature.ptr(), start());
+	}
 
     static constexpr uint32_t INVALID_INDEX = 0xffff'ffff;
 
+	const FeatureStore& store_;
     Tip tip_;
     Tile tile_;
     Box tileBounds_;
 	HashMap<DataPtr,TagTableInfo> tagTables_;
 	HashSet<TypedFeatureId> features_;
+	HashSet<int> featureHandles_;
 	Stats stats_;
 };
 
