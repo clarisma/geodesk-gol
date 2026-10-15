@@ -50,9 +50,7 @@ private:
 	template <typename... Args>
 	static void invalid(const char* message, Args... args)
 	{
-		TesException ex(message, args...);
-		printf("%s", ex.what());
-		throw ex;
+		throw TesException ex(message, args...);
 	}
 
 	struct WayGeometry
