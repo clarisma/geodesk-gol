@@ -562,6 +562,7 @@ void TesWriter::writeRelationTable(const TRelationTable* relTable)
 	}
 }
 
+#ifdef GOB_EXPORTS_V2
 
 void TesWriter::writeExportTable()
 {
@@ -584,4 +585,37 @@ void TesWriter::writeExportTable()
 	}
 }
 
+#else
 
+// For now, we'll write the exports as v1 style, until enough
+// users upgraded to GOL Tool 2.4, which reads both variants
+// If an export table has holes, we cannot represent it as v1
+
+void TesWriter::writeExportTable()
+{
+	TExportTable* exports = tile_.exportTable();
+	if(exports == nullptr)
+	{
+		out_.writeByte(0);
+		return;
+	}
+	TFeature** features = exports->features();
+	assert(features);
+	size_t count = exports->count();
+	out_.writeVarint(count << 1);
+	for(int i=0; i<count; i++)
+	{
+		TFeature* feature = features[i];
+		if (!feature)
+		{
+			// v1 style cannot deal with holes left in the export
+			// table due to updates
+			throw std::runtime_error(
+				"Cannot save a GOL that has been updated "
+				"(you will need to upgrade your GOL Tool)");
+		}
+		out_.writeVarint(feature->location());
+	}
+}
+
+#endif
