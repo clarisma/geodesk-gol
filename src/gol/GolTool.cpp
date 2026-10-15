@@ -18,6 +18,7 @@
 #include "MapCommand.h"
 #include "QueryCommand.h"
 #include "SaveCommand.h"
+#include "GetIdCommand.h"
 #include "UpdateCommand.h"
 #include "TestCommand.h"
 
@@ -42,6 +43,7 @@ int GolTool::run(char* argv[])
 #ifdef GOL_EXPERIMENTAL
 		{ "get", &GolTool::get },
 #endif
+		{ "get-id", &GolTool::getId },
 		{ "info", &GolTool::info },
 		{ "install", &GolTool::install },
 		{ "query", &GolTool::query },
@@ -151,6 +153,11 @@ int GolTool::query(char* argv[])
 int GolTool::save(char* argv[])
 {
 	return SaveCommand().run(argv);
+}
+
+int GolTool::getId(char* argv[])
+{
+	return GetIdCommand().run(argv);
 }
 
 #ifdef GOL_EXPERIMENTAL
