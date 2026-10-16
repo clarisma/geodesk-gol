@@ -49,6 +49,7 @@ public:
 		}
 		else
 		{
+			Tip pastTip = getRef().tip();
 			if (isAny(GEOMETRY_CHANGED |
 				WAYNODE_IDS_CHANGED | MEMBERS_CHANGED))
 			{
@@ -97,7 +98,7 @@ public:
 			}
 			if (!is(DELETED))	[[likely]]
 			{
-				mgr_.increaseChangeCount(getRef().tip().isNull() ?
+				mgr_.increaseChangeCount(pastTip.isNull() ?
 					ChangeManager::ChangeCategory::CREATED :
 					ChangeManager::ChangeCategory::MODIFIED,
 					isAny(TAGS_CHANGED |

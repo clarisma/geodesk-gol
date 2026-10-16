@@ -60,14 +60,17 @@ protected:
 		//  deletions (for ways, we could use the original
 		//  for NW deletion)
 		Tip tip = getRef().tip();
-		if(!tip.isNull()) remove(false);
-		// TIP could be null if feature does not exist
-		// (already deleted)
+		if(!tip.isNull())
+		{
+			remove(false);
+			mgr_.increaseDeletedCount();
+			// TIP could be null if feature does not exist
+			// (already deleted)
+		}
 		tip = getRefSE().tip();
 		if(!tip.isNull()) remove(true);
 		setRef(CRef::MISSING);
 		setRefSE(CRef::MISSING);
-		mgr_.increaseDeletedCount();
 	}
 
 	void updateBounds() const
