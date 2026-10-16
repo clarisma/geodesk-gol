@@ -91,7 +91,6 @@ public:
 				}
 
 				remove(false, true);
-				mgr_.increaseDeletedCount();
 			}
 			node().setRef(CRef::MISSING);
 
