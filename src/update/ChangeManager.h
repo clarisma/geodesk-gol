@@ -44,6 +44,31 @@ public:
 	void tallyStats(const ChangedFeatureBase& changed) { stats_.tally(changed); }
 #endif
 
+	enum class ChangeCategory
+	{
+		CREATED, MODIFIED, DELETED
+	};
+
+	uint64_t changeCount(ChangeCategory category) const
+	{
+		return changeCounts_[static_cast<unsigned>(category)];
+	}
+
+	void increaseChangeCount(ChangeCategory category, unsigned count)
+	{
+		changeCounts_[static_cast<unsigned>(category)] += count;
+	}
+
+	void increaseDeletedCount(unsigned count = 1)
+	{
+		increaseChangeCount(ChangeCategory::DELETED, count);
+	}
+
+	void increaseModifiedCount(unsigned count = 1)
+	{
+		increaseChangeCount(ChangeCategory::MODIFIED, count);
+	}
+
 
 private:
 	struct LinkedRelation
@@ -110,6 +135,7 @@ private:
 	const CTagTable* duplicateNodeTags_ = nullptr;
 	const CTagTable* orphanNodeTags_ = nullptr;
 	const CTagTable* duplicateOrphanNodeTags_ = nullptr;
+	uint64_t changeCounts_[3] = {};
 
 #ifdef GOL_UPDATE_STATISTICS
 	ChangeStatistics stats_;

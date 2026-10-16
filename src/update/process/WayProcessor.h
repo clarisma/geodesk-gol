@@ -97,6 +97,11 @@ public:
 			}
 			if (!is(DELETED))	[[likely]]
 			{
+				mgr_.increaseChangeCount(getRef().tip().isNull() ?
+					ChangeManager::ChangeCategory::CREATED :
+					ChangeManager::ChangeCategory::MODIFIED,
+					isAny(TAGS_CHANGED |
+					GEOMETRY_CHANGED | WAYNODE_IDS_CHANGED) ? 1 : 0);
 				assignToTiles();
 			}
 		}

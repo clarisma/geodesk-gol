@@ -1,0 +1,25 @@
+<!--
+
+Verify that:
+    - node/4 stays unchanged (dropped by way/10,
+      but retained by relation/100)
+    - node/3 is promoted (dropped by way/10, assumed by relation/200)
+    - node/4 becomes an orphan (dropped by relation/100)
+    - node/6 is no longer an orphan (assumed by relation/100)
+-->
+
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <way id="10" version="2">
+            <nd ref="1"/>
+            <nd ref="2"/>
+        </way>
+    </modify>
+    <relation id="100" version="2">
+        <member type="node" ref="5"/>
+        <member type="node" ref="6"/>
+    </relation>
+    <relation id="200" version="1">
+        <member type="node" ref="3"/>
+    </relation>
+</osmChange>

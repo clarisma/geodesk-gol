@@ -271,7 +271,7 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     {
         Console::get()->start("Checking for updates...");
         ChangeIngester ingester(*this, url, 2); // TODOL conns
-        auto status = ingester.download(4);   // TODO: maxthreads
+        auto status = ingester.download(targetRevision, 4);   // TODO: maxthreads
         auto error = ingester.error();
         if(status == ChangeIngester::Status::NO_UPDATES)
         {
@@ -293,7 +293,10 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     {
         readChangeFiles(files);
     }
-    Console::msg("All changes ingested.");
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("All changes ingested.");
+    }
 
 #ifndef NDEBUG
     model().dumpChangedRelationCount();   // TODO: move to ChangeManager
@@ -305,7 +308,10 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     model().prepareWays();
     //assert(_CrtCheckMemory());
 
-    Console::msg("Ready for analysis.");
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Ready for analysis.");
+    }
     LOGS << "Starting analysis...";
 
     startPhase(Phase::SEARCH, store->tileCount(), workAnalyzing_ / store->tileCount());
@@ -330,12 +336,18 @@ void Updater::update(std::string_view url, std::span<const char*> files,
         transaction_.setReplicationUrl(url);
     }
     awaitPhaseCompletion();
-    Console::msg("Parallel analysis completed.");
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Parallel analysis completed.");
+    }
     for (UpdaterWorker& worker: workContexts())
     {
         worker.applyActions();
     }
-    Console::msg("Analysis actions applied.");
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Analysis actions applied.");
+    }
 
 #ifndef NDEBUG
     model().dump();
@@ -349,23 +361,59 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     // that could not be resolved in first pass due to missing members
     changes_.process();
     changes_.postProcess();
-    Console::msg("Analyzed and processed.");
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Analyzed and processed.");
+    }
 
-    prepareUpdate();
-    Console::msg("GOB prepared.");
-    applyUpdate();
-
+    int changedTileCount = changes_.changedTileCount();
+    if (changedTileCount > 0)    [[likely]]
+    {
+        prepareUpdate();
+        if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+        {
+            Console::msg("GOB prepared.");
+        }
+        applyUpdate();
+    }
     end();
     transaction_.commit();
     transaction_.end();
 
-    //assert(_CrtCheckMemory());
+    Console::end();
+    out.success();
+    if (changedTileCount == 0)  [[unlikely]]
+    {
+        out << "No tiles changed.";
+    }
+    else
+    {
+        out << "Updated " << FormattedLong(changedTileCount) <<
+            (changedTileCount==1 ? " tile with" : " tiles with");
 
-    // TODO: Different display if nothing updated?
+        static constexpr char UPDATE_TYPE_CHAR[3] = { '+', '*', '-'};
+        static constexpr AnsiColor UPDATE_TYPE_COLOR[3] =
+        {
+            AnsiColor {"\033[38;5;78m"},    // green
+            AnsiColor {"\x1b[38;5;221m"},   // yellow
+            AnsiColor {"\x1b[38;5;210m"}    // red
+        };
 
-    int count = changes_.changedTileCount();
-    Console::end().success() << "Updated " << FormattedLong(count) <<
-        (count==1 ? " tile.\n" : " tiles.\n");
+        uint64_t totalFeatureCount = 0;
+        for (int i=0; i<3; i++)
+        {
+            uint64_t featureCount = changes_.changeCount(
+                static_cast<ChangeManager::ChangeCategory>(i));
+            if (featureCount)
+            {
+                out << ' ' << UPDATE_TYPE_COLOR[i] << UPDATE_TYPE_CHAR[i]
+                    << Console::DEFAULT << FormattedLong(
+                        static_cast<int64_t>(featureCount));
+                totalFeatureCount += featureCount;
+            }
+        }
+        out << (totalFeatureCount==1 ? " feature." : " features.");
+    }
 }
 
 

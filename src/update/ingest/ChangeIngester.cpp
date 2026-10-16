@@ -23,7 +23,7 @@ ChangeIngester::ChangeIngester(Updater& updater, std::string_view url,
 {
 }
 
-ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
+ChangeIngester::Status ChangeIngester::download(uint32_t requestedRevision, uint32_t maxThreads)
 {
     FeatureStore* store = updater_.model().store();
 
@@ -45,7 +45,16 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
             store->revisionTimestamp(), availableTarget);
     }
 
-    desiredTargetRevision_ = availableTarget.revision;
+    if (requestedRevision)  [[unlikely]]
+    {
+        desiredTargetRevision_ = std::min(
+            requestedRevision, availableTarget.revision);
+        // TODO: Error if requestedRevision > available revision?
+    }
+    else
+    {
+        desiredTargetRevision_ = availableTarget.revision;
+    }
 
     if (current.revision >= desiredTargetRevision_)
     {
@@ -57,8 +66,10 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     latestRevision_ = baseRevision_;
 
     updater_.beginUpdate(baseRevision_, current.timestamp,
-        availableTarget.revision, availableTarget.timestamp);
-        // TODO
+        desiredTargetRevision_, availableTarget.timestamp);
+        // TODO: if desiredTargetRevision_ < availableTarget.revision,
+        //  we need to fetch the state.txt file for that revision
+        //  to get the actual timestamp
 
     uint32_t totalTickets = desiredTargetRevision_ - current.revision;
     client = nullptr;
@@ -105,7 +116,10 @@ ChangeIngester::Status ChangeIngester::download(uint32_t maxThreads)
     if (latestRevision_ == desiredTargetRevision_) [[likely]]
     {
         status = Status::FETCHED_ALL;
-        latestTimestamp_ = availableTarget.timestamp;
+        if (desiredTargetRevision_ == availableTarget.revision) [[likely]]
+        {
+            latestTimestamp_ = availableTarget.timestamp;
+        }
     }
     else if (latestRevision_ > baseRevision_)
     {

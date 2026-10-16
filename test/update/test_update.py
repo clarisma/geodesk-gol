@@ -85,7 +85,9 @@ def perform_update_test(name, gol_tool, tmp_path):
     "relation-refcycle",
     "tags-changed",
     "orphans",
+    "orphans-relations",
 ])
 def test_update(case, gol_tool, tmp_path):
     print(f"tmp_path = {tmp_path}")
     perform_update_test(case, gol_tool, tmp_path)
+

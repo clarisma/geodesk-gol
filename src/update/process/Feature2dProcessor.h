@@ -67,6 +67,7 @@ protected:
 		if(!tip.isNull()) remove(true);
 		setRef(CRef::MISSING);
 		setRefSE(CRef::MISSING);
+		mgr_.increaseDeletedCount();
 	}
 
 	void updateBounds() const

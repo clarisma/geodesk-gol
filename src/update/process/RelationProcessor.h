@@ -148,6 +148,7 @@ private:
 					setLocalTagWithNumber("geodesk:removed_refcycles",
 						relation().removedRefcyleCount());
 				}
+				Tip pastTip = getRef().tip();
 				if (futureBounds_ != pastBounds_)
 				{
 					updateBounds();
@@ -168,6 +169,11 @@ private:
 				if (!is(DELETED))	[[likely]]
 				{
 					identifyPotentialTexChanges();
+					mgr_.increaseChangeCount(pastTip.isNull() ?
+						ChangeManager::ChangeCategory::CREATED :
+						ChangeManager::ChangeCategory::MODIFIED,
+						isAny(TAGS_CHANGED | GEOMETRY_CHANGED |
+							BOUNDS_CHANGED) ? 1 : 0);
 				}
 			}
 		}

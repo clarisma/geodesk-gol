@@ -29,7 +29,7 @@ public:
         FAILED
     };
 
-    Status download(uint32_t maxThreads);
+    Status download(uint32_t requestedRevision, uint32_t maxThreads);
     std::string_view error() const { return error_; }
     uint32_t latestRevision() const { return latestRevision_; }
     DateTime latestTimestamp() const { return latestTimestamp_; }
