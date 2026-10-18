@@ -235,7 +235,7 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     }
     LOGS << "Current revision: " << store->revision();
 
-    ConsoleWriter out;
+    ConsoleWriter out(Console::Stream::STDERR);
     out << "Updating "
         << Console::FAINT_LIGHT_BLUE << shortName << Console::DEFAULT;
 

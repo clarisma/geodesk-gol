@@ -12,6 +12,10 @@ def test_refcycle_resolution(update):
         changes="""
         r100 v2 Mw10@,r300@remove_this_reference
         """)
+    assert res.created == 0
+    # TODO: Doesn't work yet, all relations are marked modified
+    # assert res.modified == 1
+    assert res.deleted == 0
     after = res.after
     # relation/100 should lose its member
     assert after.relation(100).members.count == 1

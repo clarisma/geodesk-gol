@@ -21,6 +21,9 @@ def test_orphans_and_tags(update):
         n6 v2 x120 y-60
         w10 v2 Nn1,n2 Thighway=residential
         """)
+    assert res.created == 1
+    assert res.modified == 3
+    assert res.deleted == 1
     after = res.after
     # node/2 turns anonymous (It loses its tags; but no orphan,
     # since it's part of way/1)

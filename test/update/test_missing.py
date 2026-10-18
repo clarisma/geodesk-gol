@@ -1,6 +1,6 @@
 from update_helpers import is_orphan
 
-# TODO: We can't test this yet, because gol build and
+# TODO: We can't test this yet, because gol build
 #  discards ways with missing nodes, while gol update
 #  attempts to fix the way, resulting in a discrepancy
 def notest_missing_nodes(update):

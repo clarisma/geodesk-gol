@@ -3,6 +3,7 @@
 from difflib import unified_diff
 from pathlib import Path
 from textwrap import dedent
+import re
 
 import geodesk
 import osmium
@@ -38,6 +39,14 @@ def _apply_changes(base_pbf: Path, changes_osc: Path, target_pbf: Path):
     finally:
         reader.close()
 
+def _parse_counts(stderr: str) -> tuple[int, int, int]:
+    stderr = stderr.strip()
+    last_line = stderr.splitlines()[-1] if stderr else ""
+    counts = {
+        symbol: int(number.replace(",", ""))
+        for symbol, number in re.findall(r"([+*-])\s*([\d,]+)", last_line)
+    }
+    return counts.get("+", 0), counts.get("*", 0), counts.get("-", 0)
 
 def run_update_case(gol_tool, tmp_path, *, before: str, changes: str):
     """Compare an updated GOL against an independent rebuild.
@@ -79,6 +88,8 @@ def run_update_case(gol_tool, tmp_path, *, before: str, changes: str):
             lineterm=""))
         raise AssertionError(f"Updated GOL differs from rebuild:\n{diff}")
 
+    update_result.created, update_result.modified, update_result.deleted = \
+        _parse_counts(update_result.stderr)
     update_result.after = geodesk.Features(str(updated_gol))
     return update_result
 
