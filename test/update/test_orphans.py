@@ -1,3 +1,4 @@
+from update_helpers import is_orphan
 
 def test_orphans_and_tags(update):
     """
@@ -39,7 +40,7 @@ def test_orphans_and_tags(update):
 
 def test_orphans_and_relations(update):
     """
-    Tet promotion/demotion of nodes that are added to/
+    Test promotion/demotion of nodes that are added to/
     removed from relations
     """
     res = update(
@@ -75,3 +76,51 @@ def test_orphans_and_relations(update):
     assert dict(after.node(6).tags) == {}
     assert after.node(6).parents.count == 1
     assert after.relation(100) in after.node(6).parents
+
+
+def test_parent_deletion_creates_orphans(update):
+    res = update(
+        before="""
+            n1 v1 x-90 y45
+            n2 v1 x90 y45
+            n3 v1 x90 y-45
+            w10 v1 Nn1,n2
+            r100 v1 Mn3@
+            """,
+        changes="""
+            w10 v2 dD
+            r100 v2 dD
+            """)
+    assert res.created == 2
+    assert res.modified == 1
+    assert res.deleted == 2
+    after = res.after
+    # All 3 nodes become orphans
+    # (n3 was already a feature node because it was a relmember)
+    assert after.count == 3
+    assert is_orphan(after.node(1))
+    assert is_orphan(after.node(2))
+    assert is_orphan(after.node(3))
+
+def test_not_orphaned(update):
+    res = update(
+        before="""
+            n1 v1 x-90 y45
+            n2 v1 x90 y45
+            n3 v1 x90 y-45
+            n4 v1 x-90 y-45
+            n5 v1 x120 y45
+            n6 v1 x120 y-45
+            w10 v1 Nn1,n2,n5
+            w20 v1 Nn3,n4
+            w30 v1 Nn5,n6
+            """,
+        changes="""
+            w10 v2 Nn2,n3
+            w20 v2 Nn4,n1
+            """)
+    assert res.created == 0
+    assert res.modified == 2
+    assert res.deleted == 0
+    after = res.after
+    assert after.count == 3
