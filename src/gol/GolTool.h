@@ -13,7 +13,9 @@ private:
 	static int build(char* argv[]);
 	static int check(char* argv[]);
 	static int clean(char* argv[]);
+#ifdef GOL_EXPERIMENTAL
 	static int copy(char* argv[]);
+#endif
 #ifdef GOL_DIAGNOSTICS
 	static int dump(char* argv[]);
 	static int dumpTiles(char* argv[]);
@@ -28,8 +30,6 @@ private:
 	static int map(char* argv[]);
 	static int query(char* argv[]);
 	static int save(char* argv[]);
-#ifdef GOL_EXPERIMENTAL
 	static int update(char* argv[]);
-#endif
 	// void help();
 };

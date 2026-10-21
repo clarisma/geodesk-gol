@@ -30,8 +30,8 @@ int GolTool::run(char* argv[])
 	{
 		{ "build", &GolTool::build },
   		{ "check", &GolTool::check },
-#ifdef GOL_EXPERIMENTAL
 		{ "clean", &GolTool::clean },
+#ifdef GOL_EXPERIMENTAL
 		{ "copy", &GolTool::copy },
 #endif
 #ifdef GOL_DIAGNOSTICS
@@ -48,9 +48,7 @@ int GolTool::run(char* argv[])
 		{ "load", &GolTool::load },
 		{ "map", &GolTool::map },
 		{ "save", &GolTool::save },
-#ifdef GOL_EXPERIMENTAL
 		{ "update", &GolTool::update }
-#endif
 	};
 
 	try
@@ -87,12 +85,12 @@ int GolTool::check(char* argv[])
 	return CheckCommand().run(argv);
 }
 
-#ifdef GOL_EXPERIMENTAL
 int GolTool::clean(char* argv[])
 {
 	return CleanCommand().run(argv);
 }
 
+#ifdef GOL_EXPERIMENTAL
 int GolTool::copy(char* argv[])
 {
 	return CopyCommand().run(argv);
@@ -153,13 +151,10 @@ int GolTool::save(char* argv[])
 	return SaveCommand().run(argv);
 }
 
-#ifdef GOL_EXPERIMENTAL
 int GolTool::update(char* argv[])
 {
 	return UpdateCommand().run(argv);
 }
-
-#endif
 
 /*
 void GolTool::help()
