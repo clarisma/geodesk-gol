@@ -46,6 +46,9 @@ int CleanCommand::run(char* argv[])
         double workCompleted = 0;
         DataPtr pFree = store().pagePointer(
             store().header()->freeRangeIndex);
+        store().fileHandle().makeSparse();
+            // On Windows, the file may have turned non-sparse
+            // because the user copied it
         for (int i = 0; i < freeRangeCount; i++)
         {
             pFree += 8;

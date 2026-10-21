@@ -111,6 +111,6 @@ void UpdateCommand::help()
     help.option("-r, --revision <n> | latest",
         "Target revision (default: latest)");
     help.option("-C, --connections", "Max connections when downloading (default: 2)\n");
-	areaOptions(help);
+	// areaOptions(help);
     generalOptions(help);
 }

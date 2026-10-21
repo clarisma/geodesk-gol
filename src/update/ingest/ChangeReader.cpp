@@ -448,7 +448,10 @@ void ChangeReader::readMember()
     {
         if(id == id_)   [[unlikely]]
         {
-            Console::msg("relation/%lld: Removed self-reference", id);
+            if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+            {
+                Console::msg("relation/%lld: Removed self-reference", id);
+            }
             return;
         }
         typedId = TypedFeatureId::ofRelation(id);

@@ -49,6 +49,7 @@ public:
 		}
 		else
 		{
+			Tip pastTip = getRef().tip();
 			if (isAny(GEOMETRY_CHANGED |
 				WAYNODE_IDS_CHANGED | MEMBERS_CHANGED))
 			{
@@ -97,6 +98,11 @@ public:
 			}
 			if (!is(DELETED))	[[likely]]
 			{
+				mgr_.increaseChangeCount(pastTip.isNull() ?
+					ChangeManager::ChangeCategory::CREATED :
+					ChangeManager::ChangeCategory::MODIFIED,
+					isAny(TAGS_CHANGED |
+					GEOMETRY_CHANGED | WAYNODE_IDS_CHANGED) ? 1 : 0);
 				assignToTiles();
 			}
 		}

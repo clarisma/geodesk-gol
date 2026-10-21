@@ -161,6 +161,10 @@ public:
 		addFlags(PROCESSED);
 		tallyStats();
 
+		// TODO: What does "created" mean for a node?
+		//  If a previously anonymous node becomes a feature because
+		//  it will be coincident, it's not "created"
+
 		if (node().id() == 10816096480)
 		{
 			LOGS << node().typedId() << ": ref after processing is " << node().ref();
@@ -461,6 +465,9 @@ private:
 
 	void propagateFeatureStatusChangeToWays()
 	{
+		// TODO: Move the change-increment logic or
+		//  rename this method to indicate its broader scope
+
 		bool wasFeature = !pastNode_.isNull();
 		if (willBeFeature_ != wasFeature)    [[unlikely]]
 		{
@@ -484,6 +491,15 @@ private:
 
 				mgr_.wayNodeFeatureStatusChanged(pastXY_, pastNode_);
 			}
+
+			mgr_.increaseChangeCount(willBeFeature_ ?
+				ChangeManager::ChangeCategory::CREATED :
+				ChangeManager::ChangeCategory::DELETED, 1);
+		}
+		else
+		{
+			mgr_.increaseModifiedCount(
+				isAny(TAGS_CHANGED | GEOMETRY_CHANGED) ? 1 : 0);
 		}
 	}
 
