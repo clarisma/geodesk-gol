@@ -22,6 +22,10 @@ TileCatalog::TileCatalog(FeatureStore* store) :
 	std::unique_ptr<Tile[]> pileToTile(new Tile[tileCount_ + 1]);
 	std::unique_ptr<Tip[]> pileToTip(new Tip[tileCount_ + 1]);
 
+	// TODO: This doesn't work for partially loaded tilesets
+	//  tileCount_ is the number of *loaded* tiles, but we need
+	//  the maximum number of tiles
+
 	TileIndexWalker tiw(pTileIndex, levels_, Box::ofWorld(), nullptr);
 	int pile = 0;
 	do
