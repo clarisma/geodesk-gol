@@ -1,0 +1,5 @@
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="2" version="2" changeset="1" lon="90" lat="60"/>
+    </modify>
+</osmChange>

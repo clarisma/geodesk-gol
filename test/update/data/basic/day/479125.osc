@@ -1,0 +1,17 @@
+<osmChange version="0.6" generator="geodesk-gol-test">
+    <modify>
+        <node id="8" version="2" changeset="2" lon="0" lat="10">
+            <tag k="place" v="city"/>
+            <tag k="name" v="京都市"/>
+        </node>
+        <way id="10" version="2" changeset="2">
+            <nd ref="1"/>
+            <nd ref="2"/>
+            <nd ref="3"/>
+            <nd ref="4"/>
+            <nd ref="5"/>
+            <nd ref="1"/>
+            <tag k="area" v="yes"/>
+        </way>
+    </modify>
+</osmChange>
