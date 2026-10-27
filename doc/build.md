@@ -3,6 +3,8 @@
 GOL requires a C++20 compiler, CMake, and Git. Dependencies are downloaded
 automatically during configuration.
 
+For more options look at the complete [build documentation](https://docs.geodesk.com/cpp/basics#building--including-the-library).
+
 ## Linux
 
 Install the build tools and OpenSSL development package. For example, on
