@@ -390,7 +390,10 @@ void SorterWorker::multiTileWay(int64_t id, ByteSpan nodes)
         isClosedRing = true;
         if(children_.size() < 3)  [[unlikely]]
         {
-            Console::msg("Rejected way/%lld (invalid closed ring)", id);
+            if(Console::verbosity() >= Console::Verbosity::VERBOSE)
+            {
+                Console::msg("Rejected way/%lld (invalid closed ring)", id);
+            }
             children_.clear();
             tempWriter_.clear();
             return;

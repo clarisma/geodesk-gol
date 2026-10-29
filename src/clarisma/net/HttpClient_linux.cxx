@@ -16,6 +16,7 @@ HttpClient::HttpClient(std::string_view url, std::string_view userAgent) :
     client_(origin_)
 {
     client_.set_keep_alive(true);
+    client_.set_follow_location(true);
     client_.set_default_headers({{ "User-Agent", std::string(userAgent) }});
 }
 
