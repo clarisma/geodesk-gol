@@ -43,7 +43,7 @@ class TileTaskContext
 public:
 	TileTaskContext(TileTaskEngine* engine) : engine_(engine) 
 	{
-		LOG("Created TileTaskContext -- pointer to engine = %p", engine);
+		// LOG("Created TileTaskContext -- pointer to engine = %p", engine);
 	}
 	void processTask(TileTask& task);  // CRTP override
 	void afterTasks() {}  // CRTP override

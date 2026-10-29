@@ -126,6 +126,8 @@ public:
         }
     }
 
+    void cascadeChanges(const CRelationTable* parents, ChangeFlags flags);
+
     void addMembership(ChangedFeatureBase* member, ChangedFeature2D* rel);
     void removeMemberParent(ChangedFeatureBase* member, ChangedFeature2D* parentRel);
 

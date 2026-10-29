@@ -1060,26 +1060,22 @@ void ChangeModel::memberChanged(const CRelationTable* parents,
     for (CFeatureStub* relStub : parents->relations())
     {
         ChangedFeature2D* rel = getChangedFeature2D(relStub);
+        if (rel->id() == 100 || rel->id() == 200)
+        {
+            LOGS << "Cascading change to " << rel->typedId();
+        }
         assert(!rel->is(ChangeFlags::PROCESSED));
         ensureBounds(rel);
         ChangeFlags addRelFlags = cascadeFlags;
         Box pastRelationBounds = rel->bounds();
-        Box tentativeFutureRelationBounds = pastRelationBounds;
         if (test(cascadeFlags, ChangeFlags::BOUNDS_CHANGED))
         {
             // If the member's bounds have changed, let's check
             // if that change can actually affect the parent's
             // bounds; if not, don't apply BOUNDS_CHANGED
 
-            if (parentBoundsMayChange(rel->bounds(),
+            if (!parentBoundsMayChange(rel->bounds(),
                 pastMemberBounds, futureMemberBounds))
-            {
-                tentativeFutureRelationBounds.
-                    expandToIncludeSimple(futureMemberBounds);
-                // Important: We don't set these bounds for
-                //  the relation, since these are tentative
-            }
-            else
             {
                 addRelFlags &= ~ChangeFlags::BOUNDS_CHANGED;
             }
@@ -1092,12 +1088,39 @@ void ChangeModel::memberChanged(const CRelationTable* parents,
                 getParentRelations(rel);
             if (grandparents)
             {
-                memberChanged(grandparents, pastRelationBounds,
-                    tentativeFutureRelationBounds,
-                        addRelFlags & (ChangeFlags::GEOMETRY_CHANGED |
-                            ChangeFlags::BOUNDS_CHANGED));
+                cascadeChanges(grandparents, addRelFlags
+                    & (ChangeFlags::GEOMETRY_CHANGED |
+                        ChangeFlags::BOUNDS_CHANGED));
                 // cascade only GEOMETRY and BOUNDS changes
                 // to the relation's parents
+
+                // Note: we cannot use memberChanged() to conditionally
+                // cascade BOUNDS_CHANGED, because we don't know the actual
+                // bounds yet; we conservatively assume that if a child
+                // relation's bounds may change, the parent's bounds may, too,
+                // in order to avoid #71
+            }
+        }
+    }
+}
+
+
+void ChangeModel::cascadeChanges(const CRelationTable* parents, ChangeFlags flags)
+{
+    assert(parents);
+    for (CFeatureStub* relStub : parents->relations())
+    {
+        ChangedFeature2D* rel = getChangedFeature2D(relStub);
+        assert(!rel->is(ChangeFlags::PROCESSED));
+        if ((rel->flags() & flags) != flags)
+        {
+            // Only apply flags and cascade if any flags change
+            rel->addFlags(flags);
+            const CRelationTable* grandparents =
+                getParentRelations(rel);
+            if (grandparents)
+            {
+                cascadeChanges(grandparents, flags);
             }
         }
     }

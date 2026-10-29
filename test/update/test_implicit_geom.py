@@ -36,3 +36,26 @@ def test_implicit_geom_change(update):
     assert after(box).count == 4
     assert after("a[leisure=park]")(box).count == 1
     assert after("r[type=site]")(box).count == 1
+
+# Regression test for #71
+def test_node_move_cascade(update):
+    res = update(
+        before="""
+        n1 v1 x-90 y45
+        n2 v1 x90 y45
+        n3 v1 x90 y-45
+        n4 v1 x-90 y-45
+        n5 v1 x-120 y0 Tplace=city
+        w10 v1 Nn1,n2,n3,n4,n1
+        r100 v1 Mw10@outer,n5@admin_centre Ttype=boundary
+        r200 v1 Mr100@subarea Ttype=boundary
+        """,
+        changes="""
+        n5 v2 x-30 y0
+        """,
+    )
+    assert res.created == 0
+    assert res.modified == 3
+    after = res.after
+    b = Box(w=-180,n=90,s=-90,e=-100)
+    assert after(b).count == 0

@@ -169,14 +169,13 @@ private:
 				if (node->isChanged())
 				{
 					ChangedNode* changedNode = ChangedNode::cast(node);
-					nodesChangedTiles |= changedNode->is(ChangeFlags::TILES_CHANGED);
+					nodesChangedTiles |= changedNode->is(TILES_CHANGED);
 				}
 				futureBounds_.expandToInclude(node->xy());
 			}
 			featureNodes_ += ref.tip().isNull() ? 0 : 1;
 		}
-		addFlags(nodesChangedTiles ? ChangeFlags::MEMBERS_CHANGED :
-			ChangeFlags::NONE);
+		addFlags(nodesChangedTiles ? MEMBERS_CHANGED : NONE);
 			// If any (feature) nodes changed tiles, we need to mark
 			// the way as members_changed so the node table is updated
 			// (Anonymous nodes are never flagged tiles_changed)

@@ -67,7 +67,7 @@ public:
 
 	void process()
 	{
-		if (node().id() == 2485099190)
+		if (node().id() == 26691814)
 		{
 			LOGS << node().typedId();
 		}
@@ -142,7 +142,7 @@ public:
 			// relations by definition already explicitly change)
 			// model_.cascadeMemberChange(pastNode, node);
 
-			if (node().id() == 7898016044)
+			if (node().id() == 26691814)
 			{
 				LOGS << "Cascading geometry change of node/" << node().id();
 			}
