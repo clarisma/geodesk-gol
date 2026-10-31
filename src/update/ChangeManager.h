@@ -26,6 +26,7 @@ public:
 	void preProcess();
 	void process();
 	void postProcess();
+	void clearModel();
 
 	ChangeModel& model() { return model_; }
 	const TileCatalog& tileCatalog() const { return tileCatalog_; }

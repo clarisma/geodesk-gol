@@ -55,6 +55,10 @@ public:
 	}
 
 	Tile tile() const { return tile_; }
+	std::span<uint8_t> sourceTileData() const
+	{
+		return { pCurrentTile_.ptr(), currentTileSize_ };
+	}
 
 	TElement::Handle newHandle()
 	{

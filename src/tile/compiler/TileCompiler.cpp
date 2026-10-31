@@ -53,3 +53,9 @@ ByteBlock TileCompiler::compile()
         //  the size excluding the checksum; should Tile::write()
         //  increase size by 4 to account for the checksum?
 }
+
+void TileCompiler::discardSourceTile() const
+{
+    auto sourceTileData = tile_.sourceTileData();
+    MappedFile::discard(sourceTileData.data(), sourceTileData.size());
+}

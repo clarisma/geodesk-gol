@@ -907,3 +907,17 @@ double ChangeManager::computeSuperRelationScore(ChangedFeature2D* rel)
     // TODO: tags
     return score.score();
 }
+
+
+void ChangeManager::clearModel()
+{
+    changedTiles_ = HashMap<Tip,ChangedTile*>();
+    uniqueLocationNodes_ = HashMap<Coordinate,ChangedNode*>();
+    // TODO: reset memberSearchCompleted_
+    duplicateNodeTags_ = nullptr;
+    orphanNodeTags_ = nullptr;
+    duplicateOrphanNodeTags_ = nullptr;
+    model_.clear();
+        // Only do this at the end, since changedTiles_ uses the
+        // model's arena
+}

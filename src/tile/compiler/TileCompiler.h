@@ -32,6 +32,7 @@ public:
     void addChanges(std::span<const uint8_t> tesData);
     void addChanges(const TesArchiveEntry& entry, const uint8_t* data);
     ByteBlock compile();
+    void discardSourceTile() const;
 
 private:
     FeatureStore* store_;

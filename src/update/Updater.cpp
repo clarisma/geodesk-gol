@@ -89,6 +89,7 @@ void UpdaterWorker::applyUpdate(int entryNumber)
     ByteBlock block = compiler.compile();
     uint32_t size = static_cast<uint32_t>(block.size());
     updater_->postOutput({tip, std::move(block.take()), size});
+    compiler.discardSourceTile();
 }
 
 
@@ -370,14 +371,27 @@ void Updater::update(std::string_view url, std::span<const char*> files,
     if (changedTileCount > 0)    [[likely]]
     {
         prepareUpdate();
+        changes_.clearModel();
         if (Console::verbosity() >= Console::Verbosity::VERBOSE)
         {
             Console::msg("GOB prepared.");
         }
         applyUpdate();
     }
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Shutting down workers...");
+    }
     end();
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Committing transaction...");
+    }
     transaction_.commit();
+    if (Console::verbosity() >= Console::Verbosity::VERBOSE)
+    {
+        Console::msg("Closing transaction...");
+    }
     transaction_.end();
 
     Console::end();
