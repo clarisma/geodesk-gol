@@ -13,7 +13,6 @@ QueryPrinter::QueryPrinter(const QuerySpec* spec, QueryResultsConsumer consumer)
     resultCount_(0),
     spec_(spec),
     queue_(1024),     // TODO !!!
-    thread_(&QueryPrinter::process, this),
     totalTiles_(spec->store()->tileCount()),
         // must set this to a high value so procesTask does not
         // quit prematurely if we haven't established the true
@@ -32,6 +31,10 @@ QueryPrinter::QueryPrinter(const QuerySpec* spec, QueryResultsConsumer consumer)
 
 int64_t QueryPrinter::run()
 {
+    // Started here rather than in the constructor: process() calls the
+    // virtual printHeader(), which must reach the fully constructed subclass
+    thread_ = std::thread(&QueryPrinter::process, this);
+
     int submitCount = store_->executor().minimumRemainingCapacity();
     bool hasMore = true;
     int trueTileCount = 0;
