@@ -62,7 +62,6 @@ private:
     void processTask(Batch& task);
 
     const QuerySpec* spec_;
-    // Keep this order, as thread_ depends on queue_
     clarisma::TaskQueue<QueryPrinter,Batch> queue_;
     std::thread thread_;
     std::atomic<int> totalTiles_;
