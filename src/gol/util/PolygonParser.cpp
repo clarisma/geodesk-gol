@@ -12,6 +12,7 @@ std::unique_ptr<const Filter> PolygonParser::parse()
     if (*pNext_ == '{')
     {
         pNext_++;
+        skipWhitespace();
         parseGeoJson();
     }
     else
@@ -272,6 +273,7 @@ std::string_view PolygonParser::expectString()
         error("Expected string");
         return std::string_view();
     }
+    skipWhitespace();  // TODO: Parser::String() should do this instead
     return s.asStringView();
 }
 
@@ -311,7 +313,6 @@ void PolygonParser::skipJsonValue(int recursionLevel)  // NOLINT recursive
         for (;;)
         {
             expectString();
-            skipWhitespace();
             expect(':');
             skipJsonValue(recursionLevel+1);
             if (accept('}')) return;
