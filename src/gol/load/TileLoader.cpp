@@ -83,7 +83,7 @@ bool TileLoader::openStore()
 	store.open(golFileName_,
 		FeatureStore::OpenMode::WRITE |
 		FeatureStore::OpenMode::CREATE |
-		FeatureStore::OpenMode::TRY_EXCLUSIVE);
+		FeatureStore::OpenMode::EXCLUSIVE);
 	// TODO: modes
 
 	const TesArchiveHeader header = gobHeader();
