@@ -108,7 +108,7 @@ private:
     std::unique_ptr<int[]> globalStringIndex_;
     ShortVarStringMap<int> localStringIndex_;
     FeatureStore* store_ = nullptr;
-    StringTable& strings_;
+    const StringTable& strings_;
     const KeySchema& keySchema_;
 
     // Reset for each block

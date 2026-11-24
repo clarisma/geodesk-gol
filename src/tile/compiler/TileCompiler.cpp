@@ -34,7 +34,7 @@ void TileCompiler::addChanges(const TesArchiveEntry& entry, const uint8_t* data)
 ByteBlock TileCompiler::compile()
 {
     const FeatureStore::Settings& settings = store_->header()->settings;
-    IndexSettings indexSettings(store_->keysToCategories(),
+    IndexSettings indexSettings(store_->snapshot()->keysToCategories(),
         settings.rtreeBranchSize, settings.maxKeyIndexes,
         settings.keyIndexMinFeatures);
     THeader indexer(indexSettings);

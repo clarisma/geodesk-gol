@@ -36,6 +36,8 @@
 //  effected by a shared_location node moving are always in the
 //  same tile as that node
 
+// using namespace clarisma;
+
 /// - If relation is in the ChangeModel:
 ///   - Store its ref
 ///   - If it is explicitly changed:

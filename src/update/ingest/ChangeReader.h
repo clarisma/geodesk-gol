@@ -51,7 +51,7 @@ private:
     static constexpr int ATTR_LAT = 8;
 
     ChangeModel& model_;
-    StringTable& strings_;
+    const StringTable& strings_;
     int64_t id_;
     int attributes_;
     uint32_t version_;

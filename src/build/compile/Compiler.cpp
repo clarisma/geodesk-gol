@@ -57,7 +57,7 @@ void CompilerWorker::processTask(int pile)
 	buildNodes();
 
 	const BuildSettings& settings = compiler_->builder_->settings();
-	FeatureStore::IndexedKeyMap keysToCategories = settings.keysToCategories();
+	IndexedKeyMap keysToCategories = settings.keysToCategories();
 	IndexSettings indexSettings(keysToCategories,
 		settings.rtreeBranchsize(), settings.maxKeyIndexes(),
 		settings.keyIndexMinFeatures());

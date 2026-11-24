@@ -10,7 +10,7 @@
 class MutableFeaturePtr : public FeaturePtr
 {
 public:
-	MutableFeaturePtr(DataPtr p) : FeaturePtr(p) {}
+	MutableFeaturePtr(clarisma::DataPtr p) : FeaturePtr(p) {}
 
 	void setFlag(int flag, bool b)
 	{

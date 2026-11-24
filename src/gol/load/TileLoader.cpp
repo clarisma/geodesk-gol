@@ -405,7 +405,7 @@ void TileLoaderWorker::processTask(TileLoaderTask& task)
 
 	const FeatureStore::Settings& settings =
 		loader_->transaction_.header().settings;
-	IndexSettings indexSettings(store.keysToCategories(),
+	IndexSettings indexSettings(store.snapshot()->keysToCategories(),
 		settings.rtreeBranchSize, settings.maxKeyIndexes,
 		settings.keyIndexMinFeatures);
 	THeader indexer(indexSettings);

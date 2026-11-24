@@ -6,7 +6,7 @@
 #include <vector>
 #include <string_view>
 #include <clarisma/validate/Validate.h>
-#include <geodesk/feature/FeatureStore.h>
+#include <geodesk/feature/IndexedKeyMap.h>
 #include <geodesk/feature/ZoomLevels.h>
 #include "tag/AreaClassifier.h"
 #include "IndexedKey.h"
@@ -78,7 +78,7 @@ public:
 	const std::vector<IndexedKey>& indexedKeys() const { return indexedKeys_; }
 	bool keepIndexes() const { return keepIndexes_; }
 	bool keepWork() const { return keepWork_; }
-	FeatureStore::IndexedKeyMap keysToCategories() const;
+	IndexedKeyMap keysToCategories() const;
 	int keyIndexMinFeatures() const { return keyIndexMinFeatures_; }
 	int maxKeyIndexes() const { return maxKeyIndexes_; }
 	int maxStrings() const { return maxStrings_; }

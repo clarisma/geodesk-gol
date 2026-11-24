@@ -20,6 +20,8 @@ template<typename Derived>
 class TileReaderBase
 {
 public:
+    using DataPtr = clarisma::DataPtr;
+
 	void readTileFeatures(const TilePtr pTile)
 	{
 		readNodes(pTile.ptr() + NODE_INDEX_OFS);

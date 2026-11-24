@@ -52,7 +52,7 @@ int InfoCommand::run(char* argv[])
         << static_cast<uint32_t>(header->settings.maxKeyIndexes) << " indexes (min. "
         << header->settings.keyIndexMinFeatures << " features)\n";
 
-    std::vector<std::string_view> indexedKeys = store_.indexedKeyStrings();
+    std::vector<std::string_view> indexedKeys = store_.snapshot()->indexedKeyStrings();
     std::ranges::sort(indexedKeys);
     Table table;
     std::vector<Table::Cell> cells;

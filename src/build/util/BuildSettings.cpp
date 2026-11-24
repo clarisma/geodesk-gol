@@ -78,9 +78,9 @@ void BuildSettings::complete()
     if(indexedKeys_.empty()) setIndexedKeys(DEFAULT_INDEXED_KEYS);
 }
 
-FeatureStore::IndexedKeyMap BuildSettings::keysToCategories() const
+IndexedKeyMap BuildSettings::keysToCategories() const
 {
-    FeatureStore::IndexedKeyMap keysToCategories;
+    IndexedKeyMap keysToCategories;
     keysToCategories.reserve(indexedKeys_.size());
     for(int i=0; i<indexedKeys_.size(); i++)
     {

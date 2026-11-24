@@ -3,12 +3,12 @@
 
 #pragma once
 
-#include <geodesk/feature/FeatureStore.h>
+#include <geodesk/feature/IndexedKeyMap.h>
 
 class IndexSettings 
 {
 public:
-    IndexSettings(const FeatureStore::IndexedKeyMap& keysToCategories, 
+    IndexSettings(const IndexedKeyMap& keysToCategories,
         int rtreeBucketSize, int maxKeyIndexes, int keyIndexMinFeatures) :
         rtreeBucketSize_(rtreeBucketSize),
         maxKeyIndexes_(maxKeyIndexes),
@@ -29,7 +29,7 @@ public:
     }
 
 private:
-    static int findMaxIndexedKey(const FeatureStore::IndexedKeyMap& map)
+    static int findMaxIndexedKey(const IndexedKeyMap& map)
     {
         int maxKey = 0;
         for (const auto& pair : map)
@@ -43,6 +43,6 @@ private:
     const int maxKeyIndexes_;
     const int keyIndexMinFeatures_;
     const int maxIndexedKey_;
-    FeatureStore::IndexedKeyMap keysToCategories_;
+    IndexedKeyMap keysToCategories_;
 };
 
