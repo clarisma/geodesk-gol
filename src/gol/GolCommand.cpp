@@ -64,7 +64,8 @@ void GolCommand::setAreaFromCoords(const char* coords)
 {
 	PolygonParser parser(coords);
 	filter_ = parser.parse();
-	bounds_ = filter_->getBounds();
+	// Don't set bounds_, checkedEffectiveBounds() intersects
+	// the filter's bounds with any bounds set by --bbox
 }
 
 int GolCommand::setAreaOption(std::string_view value)
@@ -192,3 +193,7 @@ void GolCommand::checkTilesetGuids(
 }
 
 
+void GolCommand::throwEmptyBounds()
+{
+	throw std::runtime_error("--area and --bbox have no geographic overlap");
+}

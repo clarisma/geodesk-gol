@@ -109,8 +109,8 @@ int QueryCommand::run(char* argv[])
     Console::get()->start("Querying...");
 
     const MatcherHolder* matcher = store_.getMatcher(query_.c_str());
-    QuerySpec spec(&store_, bounds_, matcher->acceptedTypes(),
-        matcher, filter_.get(), precision_, keys_);
+    QuerySpec spec(&store_, checkedEffectiveBounds(), matcher->acceptedTypes(),
+        matcher, filter(), precision_, keys_);
 
     int64_t count = 0;
     switch (format_)

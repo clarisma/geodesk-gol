@@ -81,17 +81,18 @@ int LoadCommand::run(char* argv[])
 	{
 		gobFileName_ = FilePath::withExtension(golPath_, ".gob");
 	}
-	
+
+	Box bounds = checkedEffectiveBounds();
 	TileLoader loader(&store_, threadCount());
 	if (isRemoteGob_)
 	{
 		loader.download(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
-			bounds_, filter_.get(), connections_);
+			bounds, filter(), connections_);
 	}
 	else
 	{
 		loader.load(golPath_.c_str(), gobFileName_.c_str(), waynodeIds_,
-			bounds_, filter_.get());
+			bounds, filter());
 	}
 	return 0;
 }

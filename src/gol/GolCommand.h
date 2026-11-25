@@ -21,6 +21,16 @@ public:
 protected:
 	static Option COMMON_GOL_OPTIONS[];
 
+	Box checkedEffectiveBounds() const
+	{
+		Box bounds = bounds_;
+		const Filter* filter = filter_.get();
+		if (filter) bounds = bounds.simpleIntersection(bounds, filter->getBounds());
+		if (bounds.isEmpty()) [[unlikely]] throwEmptyBounds();
+		return bounds;
+	}
+
+	const Filter* filter() const { return filter_.get(); }
 	bool setParam(int number, std::string_view value) override;
 	void areaOptions(clarisma::CliHelp& help);
 	virtual void help() {};
@@ -36,6 +46,7 @@ protected:
 	static void checkTilesetGuids(
 		const std::string& path1, const clarisma::UUID& guid1,
 		const std::string& path2, const clarisma::UUID& guid2);
+	static void throwEmptyBounds();
 
 	static constexpr auto DO_NOT_OPEN = static_cast<FeatureStore::OpenMode>(0xffff'ffff);
 

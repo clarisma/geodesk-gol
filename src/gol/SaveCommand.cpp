@@ -57,8 +57,8 @@ int SaveCommand::run(char* argv[])
 #endif
 
 	std::vector<std::pair<Tile, Tip>> tiles;
-	TileIndexWalker tiw(store().tileIndex(), store().zoomLevels(), Box::ofWorld(), filter_.get());
-	// TODO: Take box from filter/bbox param
+	TileIndexWalker tiw(store().tileIndex(), store().zoomLevels(),
+		checkedEffectiveBounds(), filter());
 	do
 	{
 #ifndef NDEBUG

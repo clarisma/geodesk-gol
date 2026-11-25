@@ -204,8 +204,8 @@ int MapCommand::run(char* argv[])
         for (int i=0; i<layerCount_; i++)
         {
             const MatcherHolder* matcher = layers_[i].matcher;
-            QuerySpec spec(&store_, bounds_, matcher->acceptedTypes(),
-                    matcher, filter_.get(), 6, keys_);
+            QuerySpec spec(&store_, checkedEffectiveBounds(),
+                matcher->acceptedTypes(), matcher, filter(), 6, keys_);
 
             std::string_view color = layers_[i].color;
             if (!color.empty())
